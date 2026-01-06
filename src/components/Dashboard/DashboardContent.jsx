@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { 
   AreaChart, 
   Area, 
@@ -41,16 +42,42 @@ export default function DashboardContent() {
   const cashInfo = (data?.cash?.info && typeof data.cash.info === 'object') 
     ? data.cash.info 
     : { saldoKledo: 0, saldoBank: 0 }
-  const cashChartData = (data?.cash?.chartData && Array.isArray(data.cash.chartData) && data.cash.chartData.length > 0)
-    ? data.cash.chartData 
+  const cashAccounts = Array.isArray(data?.cash?.accounts) ? data.cash.accounts : []
+
+  // Timeframe state for CASH chart
+  const timeframes = ['harian', 'mingguan', 'bulanan', 'tahunan']
+  const [cashTimeframe, setCashTimeframe] = useState('bulanan')
+  const [cashMenuOpen, setCashMenuOpen] = useState(false)
+
+  // Prepare cash time-series data. If we don't have a detailed time series, fallback to cashFlow.
+  const baseCashFlow = (data?.cashFlow && Array.isArray(data.cashFlow) && data.cashFlow.length > 0)
+    ? data.cashFlow
     : [
-        { month: 'Jul', value: 0 },
-        { month: 'Agu', value: 0 },
-        { month: 'Sep', value: 0 },
-        { month: 'Okt', value: 0 },
-        { month: 'Nov', value: 0 },
-        { month: 'Des', value: 0 },
+        { month: 'Jul', net: 0 },
+        { month: 'Agt', net: 0 },
+        { month: 'Sep', net: 0 },
+        { month: 'Okt', net: 0 },
+        { month: 'Nov', net: 0 },
+        { month: 'Des', net: 0 },
       ]
+
+  // Map timeframe to label and key
+  const mapToTimeframe = (items, tf) => {
+    // If no detailed granularity, reuse month-based series
+    if (tf === 'bulanan' || !items || items.length === 0) {
+      return items.map(it => ({
+        label: it.month || it.period || it.name || 'Periode',
+        value: it.net !== undefined ? it.net : it.value || 0,
+      }))
+    }
+    // For other timeframes, we don't have granular data, so reuse the same but keep label
+    return items.map(it => ({
+      label: it.month || it.period || it.name || 'Periode',
+      value: it.net !== undefined ? it.net : it.value || 0,
+    }))
+  }
+
+  const cashTimeSeries = mapToTimeframe(baseCashFlow, cashTimeframe)
 
   const billsInfo = (data?.bills?.info && typeof data.bills.info === 'object')
     ? data.bills.info 
@@ -215,29 +242,49 @@ export default function DashboardContent() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">CASH.</h2>
-              <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
-                <MoreVertical className="h-5 w-5 text-gray-400" />
-              </button>
+              <div className="relative">
+                <button
+                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                  onClick={() => setCashMenuOpen(!cashMenuOpen)}
+                >
+                  <MoreVertical className="h-5 w-5 text-gray-400" />
+                </button>
+                {cashMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20">
+                    {timeframes.map(tf => (
+                      <button
+                        key={tf}
+                        onClick={() => {
+                          setCashTimeframe(tf)
+                          setCashMenuOpen(false)
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                          cashTimeframe === tf ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'
+                        }`}
+                      >
+                        {tf.charAt(0).toUpperCase() + tf.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             
             <div className="mb-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Saldo di kledo</span>
+                <span className="text-gray-600 dark:text-gray-400">Total Saldo Akun</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
-                  {formatNumber(cashInfo.saldoKledo || cashInfo.value1 || 0)}
+                  {formatNumber(cashInfo.saldoKledo || cashInfo.total || 0)}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Saldo di bank</span>
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  {formatNumber(cashInfo.saldoBank || cashInfo.value2 || 0)}
-                </span>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                Timeframe: {cashTimeframe.charAt(0).toUpperCase() + cashTimeframe.slice(1)}
               </div>
             </div>
 
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={cashChartData}>
+                <AreaChart data={cashTimeSeries}>
                   <defs>
                     <linearGradient id="colorCash" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={COLORS.pink} stopOpacity={0.3}/>
@@ -246,18 +293,18 @@ export default function DashboardContent() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                   <XAxis 
-                    dataKey="month" 
+                    dataKey="label" 
                     stroke="#6B7280"
                     tick={{ fontSize: 12 }}
                   />
                   <YAxis 
                     stroke="#6B7280"
                     tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
-                    domain={[0, 35000000]}
+                    tickFormatter={(value) => formatNumber(value)}
                   />
                   <Tooltip 
                     formatter={(value) => formatNumber(value)}
+                    labelFormatter={(label) => label}
                     contentStyle={{ 
                       backgroundColor: 'white', 
                       border: '1px solid #E5E7EB',
@@ -274,6 +321,31 @@ export default function DashboardContent() {
                   />
                 </AreaChart>
               </ResponsiveContainer>
+            </div>
+
+            <div className="mt-4">
+              <div className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                <div className="grid grid-cols-2 px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  <div>Akun</div>
+                  <div className="text-right">Saldo</div>
+                </div>
+                <div className="divide-y divide-gray-200 dark:divide-gray-600">
+                  {cashAccounts.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">Tidak ada akun</div>
+                  ) : (
+                    cashAccounts.map(acc => (
+                      <div key={acc.id} className="grid grid-cols-2 px-4 py-3 text-sm">
+                        <div className="text-gray-900 dark:text-white">
+                          {acc.name || acc.code || 'Akun'}
+                        </div>
+                        <div className="text-right font-semibold text-gray-900 dark:text-white">
+                          {formatNumber(acc.saldo || 0)}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -511,14 +583,14 @@ export default function DashboardContent() {
               <span className="font-semibold text-gray-900 dark:text-white">
                 {formatNumber(giroInfo.saldoKledo || giroInfo.value1 || 0)}
               </span>
-            </div>
+                </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600 dark:text-gray-400">Saldo di bank</span>
               <span className="font-semibold text-gray-900 dark:text-white">
                 {formatNumber(giroInfo.saldoBank || giroInfo.value2 || 0)}
               </span>
-            </div>
-          </div>
+                </div>
+              </div>
 
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">

@@ -14,6 +14,7 @@ import {
   Building2,
   Users,
   Briefcase,
+  Shield,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -74,6 +75,7 @@ export default function Sidebar({ isOpen, onToggle }) {
     { icon: Building2, label: t('fixedAssets'), path: '/aset-tetap' },
     { icon: Users, label: t('contacts'), path: '/kontak' },
     { icon: Briefcase, label: t('payroll'), path: '/payroll' },
+    { icon: Shield, label: 'Users', path: '/users' },
   ]
 
   return (

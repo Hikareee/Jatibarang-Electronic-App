@@ -8,13 +8,13 @@ import { getStorage } from "firebase/storage";
 // Get these values from your Firebase Console: https://console.firebase.google.com/
 // You can either set them as environment variables or replace the values directly
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyB7fs-RYjq6OYTTdCRrRwgyDKKsYVCP3sk",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "ibasa-keuangan.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "ibasa-keuangan",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "ibasa-keuangan.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "861233845531",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:861233845531:web:39f8833a45c60c639eafbe",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-ZY4YP3WGTX"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAdmRPODj4ZD7E7zG77Mv2awu2BqvtKxCA",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "ibasa-kledo.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "ibasa-kledo",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "ibasa-kledo.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "659240087688",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:659240087688:web:43be3f7db2951ed73eef3d",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-PHLJGRCDYQ"
 };
 
 // Initialize Firebase

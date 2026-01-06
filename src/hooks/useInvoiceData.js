@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { collection, addDoc, getDocs, query, orderBy, limit } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { updateAccountBalance, updateMultipleAccountBalances } from '../utils/accountBalance'
 
 export async function saveInvoice(invoiceData) {
   try {
@@ -30,6 +31,40 @@ export async function saveInvoice(invoiceData) {
     
     // Update related financial data (cash, sales, etc.)
     await updateFinancialData(finalInvoiceData)
+
+    // Also write to unified transactions collection
+    const transactionRef = await addDoc(collection(db, 'transactions'), {
+      type: 'invoice_sale',
+      contactId: finalInvoiceData.customerId || finalInvoiceData.contactId || '',
+      contactName: finalInvoiceData.customer || '',
+      number: finalInvoiceData.number,
+      reference: finalInvoiceData.reference || '',
+      date: finalInvoiceData.transactionDate || finalInvoiceData.createdAt,
+      dueDate: finalInvoiceData.dueDate || '',
+      total: finalInvoiceData.total || 0,
+      remaining: finalInvoiceData.total || 0,
+      paid: false,
+      items: finalInvoiceData.items || [],
+      source: { collection: 'invoices', id: docRef.id },
+      createdAt: finalInvoiceData.createdAt,
+      updatedAt: finalInvoiceData.updatedAt,
+    })
+
+    // Update account balance if account is specified (for cash sales - increase balance)
+    // For credit sales, balance won't change until payment is received
+    const accountId = finalInvoiceData.accountId || finalInvoiceData.account
+    const totalAmount = parseFloat(finalInvoiceData.total) || 0
+    const isCashSale = finalInvoiceData.paymentMethod === 'cash' || finalInvoiceData.isCashSale || finalInvoiceData.paymentMethod === 'tunai'
+    
+    if (accountId && totalAmount > 0 && isCashSale) {
+      await updateAccountBalance(accountId, totalAmount, {
+        type: 'invoice_sale',
+        transactionId: transactionRef.id,
+        number: finalInvoiceData.number,
+        date: finalInvoiceData.transactionDate || finalInvoiceData.createdAt,
+        description: `Sales Invoice ${finalInvoiceData.number} (Cash)`
+      })
+    }
     
     return docRef.id
   } catch (error) {

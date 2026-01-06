@@ -2,6 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { LanguageProvider } from './contexts/LanguageContext'
 import Login from './pages/Login'
+import Register from './pages/Register'
+import AwaitApproval from './pages/AwaitApproval'
+import Users from './pages/Users'
 import Dashboard from './pages/Dashboard'
 import ForgotPassword from './pages/ForgotPassword'
 import Penjualan from './pages/Penjualan'
@@ -11,9 +14,18 @@ import Tagihan from './pages/Tagihan'
 import Pembelian from './pages/Pembelian'
 import PembelianOverview from './pages/PembelianOverview'
 import PurchaseInvoiceAdd from './pages/PurchaseInvoiceAdd'
+import PurchaseInvoiceEdit from './pages/PurchaseInvoiceEdit'
+import PesananPembelian from './pages/PesananPembelian'
+import PurchaseInvoiceDetail from './pages/PurchaseInvoiceDetail'
+import PengirimanPembelian from './pages/PengirimanPembelian'
 import Kontak from './pages/Kontak'
+import ContactDetail from './pages/ContactDetail'
 import Produk from './pages/Produk'
 import ProductAdd from './pages/ProductAdd'
+import DebtAdd from './pages/DebtAdd'
+import ReceivableAdd from './pages/ReceivableAdd'
+import Akun from './pages/Akun'
+import ApprovedRoute from './components/ApprovedRoute'
 
 function PrivateRoute({ children }) {
   const { currentUser } = useAuth()
@@ -24,12 +36,26 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/await-approval" element={<AwaitApproval />} />
       <Route path="/forgot" element={<ForgotPassword />} />
       <Route
         path="/dashboard"
         element={
           <PrivateRoute>
-            <Dashboard />
+            <ApprovedRoute>
+              <Dashboard />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <Users />
+            </ApprovedRoute>
           </PrivateRoute>
         }
       />
@@ -51,7 +77,9 @@ function AppRoutes() {
         path="/sales/invoice/add"
         element={
           <PrivateRoute>
-            <InvoiceAdd />
+            <ApprovedRoute>
+              <InvoiceAdd />
+            </ApprovedRoute>
           </PrivateRoute>
         }
       />
@@ -59,7 +87,9 @@ function AppRoutes() {
         path="/pembelian/invoice/add"
         element={
           <PrivateRoute>
-            <PurchaseInvoiceAdd />
+            <ApprovedRoute>
+              <PurchaseInvoiceAdd />
+            </ApprovedRoute>
           </PrivateRoute>
         }
       />
@@ -67,21 +97,37 @@ function AppRoutes() {
         path="/pembelian"
         element={
           <PrivateRoute>
-            <Pembelian />
+            <ApprovedRoute>
+              <Pembelian />
+            </ApprovedRoute>
           </PrivateRoute>
         }
       >
         <Route path="overview" element={<PembelianOverview />} />
         <Route path="tagihan" element={<div className="p-6"><h1 className="text-2xl font-bold">Tagihan Pembelian</h1></div>} />
-        <Route path="pengiriman" element={<div className="p-6"><h1 className="text-2xl font-bold">Pengiriman Pembelian</h1></div>} />
-        <Route path="pesanan" element={<div className="p-6"><h1 className="text-2xl font-bold">Pesanan Pembelian</h1></div>} />
+        <Route path="pengiriman" element={<PengirimanPembelian />} />
+        <Route path="pesanan" element={<PesananPembelian />} />
+        <Route path="pesanan/:id" element={<PurchaseInvoiceDetail />} />
+        <Route path="invoice/edit/:id" element={<PurchaseInvoiceEdit />} />
         <Route path="penawaran" element={<div className="p-6"><h1 className="text-2xl font-bold">Penawaran Pembelian</h1></div>} />
       </Route>
       <Route
         path="/kontak"
         element={
           <PrivateRoute>
-            <Kontak />
+            <ApprovedRoute>
+              <Kontak />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/kontak/:id"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <ContactDetail />
+            </ApprovedRoute>
           </PrivateRoute>
         }
       />
@@ -89,7 +135,9 @@ function AppRoutes() {
         path="/produk"
         element={
           <PrivateRoute>
-            <Produk />
+            <ApprovedRoute>
+              <Produk />
+            </ApprovedRoute>
           </PrivateRoute>
         }
       />
@@ -97,7 +145,39 @@ function AppRoutes() {
         path="/produk/tambah"
         element={
           <PrivateRoute>
-            <ProductAdd />
+            <ApprovedRoute>
+              <ProductAdd />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/kontak/debt/add"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <DebtAdd />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/kontak/receivable/add"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <ReceivableAdd />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/akun"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <Akun />
+            </ApprovedRoute>
           </PrivateRoute>
         }
       />

@@ -369,17 +369,43 @@ export default function PembelianOverview() {
             </button>
           </div>
 
-          <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
+          <div className="h-64">
             {pembelianPerVendorData.length > 0 ? (
-              <BarChart data={pembelianPerVendorData} width={400} height={250}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="name" stroke="#6B7280" tick={{ fontSize: 12 }} />
-                <YAxis stroke="#6B7280" tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value) => formatNumber(value)} />
-                <Bar dataKey="value" fill={COLORS.teal} />
-              </BarChart>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={pembelianPerVendorData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="#6B7280" 
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis 
+                    stroke="#6B7280" 
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => formatNumber(value)}
+                  />
+                  <Tooltip 
+                    formatter={(value) => formatNumber(value)}
+                    contentStyle={{ 
+                      backgroundColor: 'white', 
+                      border: '1px solid #E5E7EB',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Bar 
+                    dataKey="value" 
+                    fill={COLORS.teal}
+                    radius={[8, 8, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
             ) : (
-              <p className="text-sm">Tidak ada data</p>
+              <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+                <p className="text-sm">Tidak ada data</p>
+              </div>
             )}
           </div>
         </div>

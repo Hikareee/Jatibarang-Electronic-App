@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useUserApproval } from '../hooks/useUserApproval'
 import TestimonialCarousel from '../components/Login/TestimonialCarousel'
 import LoginForm from '../components/Login/LoginForm'
 
@@ -8,8 +9,20 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const { login, loginWithGoogle } = useAuth()
+  const { login, loginWithGoogle, currentUser } = useAuth()
+  const { isApproved, loading: approvalLoading } = useUserApproval()
   const navigate = useNavigate()
+
+  // Redirect based on approval status
+  useEffect(() => {
+    if (currentUser && !approvalLoading) {
+      if (!isApproved) {
+        navigate('/await-approval', { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
+    }
+  }, [currentUser, isApproved, approvalLoading, navigate])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -21,10 +34,9 @@ export default function Login() {
       setError('')
       setLoading(true)
       await login(email, password)
-      navigate('/dashboard')
+      // Navigation will be handled by useEffect based on approval status
     } catch (err) {
       setError('Failed to log in: ' + err.message)
-    } finally {
       setLoading(false)
     }
   }
@@ -34,7 +46,7 @@ export default function Login() {
       setError('')
       setGoogleLoading(true)
       await loginWithGoogle()
-      navigate('/dashboard')
+      // Navigation will be handled by useEffect based on approval status
     } catch (err) {
       // Handle specific Firebase errors
       let errorMessage = 'Failed to log in with Google'
@@ -50,7 +62,6 @@ export default function Login() {
         errorMessage = `Failed to log in with Google: ${err.message}`
       }
       setError(errorMessage)
-    } finally {
       setGoogleLoading(false)
     }
   }

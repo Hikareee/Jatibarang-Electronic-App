@@ -16,14 +16,21 @@ import {
   MessageCircle
 } from 'lucide-react'
 import { savePurchaseInvoice } from '../hooks/usePurchaseInvoiceData'
+import { useContacts } from '../hooks/useContactsData'
+import { useAccounts } from '../hooks/useAccountsData'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function PurchaseInvoiceAdd() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { t } = useLanguage()
   const navigate = useNavigate()
+  const { contacts, loading: contactsLoading } = useContacts()
+  const { accounts, loading: accountsLoading } = useAccounts()
+  const { currentUser } = useAuth()
   
   const [formData, setFormData] = useState({
     vendor: '',
+    account: '', // Account to debit for purchase
     number: 'PI/00055',
     transactionDate: new Date().toISOString().split('T')[0],
     dueDate: '',
@@ -139,9 +146,10 @@ export default function PurchaseInvoiceAdd() {
         subTotal: calculateSubTotal(),
         total: calculateTotal(),
         remaining: calculateRemaining(),
+        createdBy: currentUser?.uid || '',
         createdAt: new Date().toISOString(),
       }
-      await savePurchaseInvoice(invoiceData)
+      await savePurchaseInvoice(invoiceData, currentUser?.uid)
       navigate('/pembelian/tagihan')
     } catch (error) {
       console.error('Error saving purchase invoice:', error)
@@ -200,8 +208,33 @@ export default function PurchaseInvoiceAdd() {
                         value={formData.vendor}
                         onChange={(e) => setFormData({ ...formData, vendor: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        disabled={contactsLoading}
                       >
                         <option value="">Pilih kontak</option>
+                        {contacts.map((contact) => (
+                          <option key={contact.id} value={contact.id}>
+                            {contact.name || contact.company || 'Unnamed Contact'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Akun <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.account}
+                        onChange={(e) => setFormData({ ...formData, account: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        disabled={accountsLoading}
+                      >
+                        <option value="">Pilih akun</option>
+                        {accounts.map((account) => (
+                          <option key={account.id} value={account.id}>
+                            {account.code} - {account.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 

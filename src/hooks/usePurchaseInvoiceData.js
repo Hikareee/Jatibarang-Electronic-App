@@ -1,7 +1,8 @@
 import { collection, addDoc, getDocs, query, orderBy, limit } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { updateAccountBalance, updateMultipleAccountBalances } from '../utils/accountBalance'
 
-export async function savePurchaseInvoice(invoiceData) {
+export async function savePurchaseInvoice(invoiceData, userId = null) {
   try {
     // Get the next invoice number
     const invoicesRef = collection(db, 'purchaseInvoices')
@@ -20,6 +21,9 @@ export async function savePurchaseInvoice(invoiceData) {
     const finalInvoiceData = {
       ...invoiceData,
       number: invoiceData.number || nextNumber,
+      status: 'draft', // Always set to draft when created
+      deliveryStatus: invoiceData.deliveryStatus || 0, // Default delivery status to 0%
+      createdBy: invoiceData.createdBy || '', // Store who created it
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
@@ -29,6 +33,28 @@ export async function savePurchaseInvoice(invoiceData) {
     
     // Update related financial data (cash, purchases, etc.)
     await updateFinancialData(finalInvoiceData)
+
+    // Also write to unified transactions collection
+    const transactionRef = await addDoc(collection(db, 'transactions'), {
+      type: 'invoice_purchase',
+      contactId: finalInvoiceData.vendorId || finalInvoiceData.contactId || '',
+      contactName: finalInvoiceData.vendor || '',
+      number: finalInvoiceData.number,
+      reference: finalInvoiceData.reference || '',
+      date: finalInvoiceData.transactionDate || finalInvoiceData.createdAt,
+      dueDate: finalInvoiceData.dueDate || '',
+      total: finalInvoiceData.total || 0,
+      remaining: finalInvoiceData.total || 0,
+      paid: false,
+      items: finalInvoiceData.items || [],
+      source: { collection: 'purchaseInvoices', id: docRef.id },
+      createdAt: finalInvoiceData.createdAt,
+      updatedAt: finalInvoiceData.updatedAt,
+    })
+
+    // Only update account balance if invoice is approved (not for draft)
+    // Account balance will be updated when invoice is approved
+    // This prevents draft invoices from affecting balances
     
     return docRef.id
   } catch (error) {

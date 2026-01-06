@@ -16,14 +16,20 @@ import {
   MessageCircle
 } from 'lucide-react'
 import { saveInvoice } from '../hooks/useInvoiceData'
+import { useContacts } from '../hooks/useContactsData'
+import { useAccounts } from '../hooks/useAccountsData'
 
 export default function InvoiceAdd() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { t } = useLanguage()
   const navigate = useNavigate()
+  const { contacts, loading: contactsLoading } = useContacts()
+  const { accounts, loading: accountsLoading } = useAccounts()
   
   const [formData, setFormData] = useState({
     customer: '',
+    account: '', // Account to credit for cash sales
+    paymentMethod: 'credit', // 'cash' or 'credit'
     number: 'INV/00047',
     transactionDate: new Date().toISOString().split('T')[0],
     dueDate: '',
@@ -204,8 +210,47 @@ export default function InvoiceAdd() {
                         value={formData.customer}
                         onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        disabled={contactsLoading}
                       >
                         <option value="">{t('selectContact')}</option>
+                        {contacts.map((contact) => (
+                          <option key={contact.id} value={contact.id}>
+                            {contact.name || contact.company || 'Unnamed Contact'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Akun
+                      </label>
+                      <select
+                        value={formData.account}
+                        onChange={(e) => setFormData({ ...formData, account: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        disabled={accountsLoading}
+                      >
+                        <option value="">Pilih akun (untuk penjualan tunai)</option>
+                        {accounts.map((account) => (
+                          <option key={account.id} value={account.id}>
+                            {account.code} - {account.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Metode Pembayaran
+                      </label>
+                      <select
+                        value={formData.paymentMethod}
+                        onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      >
+                        <option value="credit">Kredit</option>
+                        <option value="cash">Tunai</option>
                       </select>
                     </div>
 

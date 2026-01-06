@@ -76,7 +76,7 @@ export default function Header({ onMenuClick }) {
         <div className="flex items-center gap-2">
           {/* Company Selector */}
           <button className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">FUNDFISHERS</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">IBASA</span>
             <ChevronDown className="h-4 w-4 text-gray-600 dark:text-gray-400" />
           </button>
 
@@ -146,7 +146,7 @@ export default function Header({ onMenuClick }) {
               }`}></div>
               {!darkMode && (
                 <Sun className="absolute top-1 right-1 h-4 w-4 text-gray-600" />
-              )}
+            )}
             </div>
           </button>
 

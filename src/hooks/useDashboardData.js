@@ -60,6 +60,7 @@ export function useDashboardData() {
         const [
           cashDoc,
           cashChartSnapshot,
+          accountsSnapshot,
           billsDoc,
           billsChartSnapshot,
           bankAccountDoc,
@@ -78,6 +79,7 @@ export function useDashboardData() {
         ] = await Promise.all([
           safeGetDoc(['dashboard', 'cash']),
           safeGetDocs(['dashboard', 'cash', 'chartData'], 'order'),
+          safeGetDocs(['accounts'], 'code'),
           safeGetDoc(['dashboard', 'bills']),
           safeGetDocs(['dashboard', 'bills', 'chartData'], 'order'),
           safeGetDoc(['dashboard', 'bankAccount']),
@@ -95,12 +97,22 @@ export function useDashboardData() {
           safeGetDocs(['dashboard', 'customerBills', 'chartData'], 'order'),
         ])
 
-        // Process CASH data
-        const cashInfo = cashDoc.exists() ? cashDoc.data() : null
-        const cashChartData = cashChartSnapshot.docs.map(doc => ({
+        // Process CASH data using accounts collection
+        const accountsData = accountsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
         }))
+        const totalSaldo = accountsData.reduce((sum, a) => sum + (parseFloat(a.saldo) || 0), 0)
+        const cashInfo = cashDoc.exists() ? cashDoc.data() : { saldoKledo: totalSaldo, saldoBank: 0 }
+        const cashChartData = accountsData.length > 0
+          ? accountsData.map(acc => ({
+              name: acc.name || acc.code || 'Akun',
+              value: parseFloat(acc.saldo) || 0,
+            }))
+          : cashChartSnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+            }))
 
         // Process Bills data
         const billsInfo = billsDoc.exists() ? billsDoc.data() : null
@@ -166,6 +178,7 @@ export function useDashboardData() {
           cash: {
             info: cashInfo,
             chartData: cashChartData,
+            accounts: accountsData,
           },
           bills: {
             info: billsInfo,
