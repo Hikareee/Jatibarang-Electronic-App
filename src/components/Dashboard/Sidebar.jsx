@@ -87,15 +87,15 @@ export default function Sidebar({ isOpen, onToggle }) {
         {isOpen && (
           <div className="flex items-center gap-2">
             <div className="flex items-center">
-              <span className="text-2xl font-bold text-blue-600">kl</span>
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">edo</span>
+              <span className="text-2xl font-bold text-blue-600">IB</span>
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">ASA</span>
             </div>
           </div>
         )}
         {!isOpen && (
           <div className="flex items-center">
-            <span className="text-xl font-bold text-blue-600">k</span>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">l</span>
+            <span className="text-xl font-bold text-blue-600">I</span>
+            <span className="text-xl font-bold text-gray-900 dark:text-white">B</span>
           </div>
         )}
         <button

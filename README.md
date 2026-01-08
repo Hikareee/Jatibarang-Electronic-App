@@ -1,6 +1,6 @@
-# Kledo Clone - React + Firebase
+# IBASA - React + Firebase
 
-A full-stack clone of the Kledo accounting software built with React and Firebase.
+A full-stack accounting software built with React and Firebase.
 
 ## Features
 
@@ -33,7 +33,7 @@ A full-stack clone of the Kledo accounting software built with React and Firebas
 
 1. Clone the repository:
 ```bash
-cd "Kledo Clone"
+cd "IBASA"
 npm install
 ```
 
