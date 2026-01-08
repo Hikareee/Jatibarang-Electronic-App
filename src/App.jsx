@@ -30,6 +30,7 @@ import ReceivableAdd from './pages/ReceivableAdd'
 import Akun from './pages/Akun'
 import Biaya from './pages/Biaya'
 import AsetTetap from './pages/AsetTetap'
+import Pemesanan from './pages/Pemesanan'
 import ApprovedRoute from './components/ApprovedRoute'
 
 function PrivateRoute({ children }) {
@@ -76,7 +77,7 @@ function AppRoutes() {
         <Route path="tagihan" element={<Tagihan />} />
         <Route path="tagihan/:id" element={<InvoiceDetail />} />
         <Route path="pengiriman" element={<Pengiriman />} />
-        <Route path="pemesanan" element={<div className="p-6"><h1 className="text-2xl font-bold">Pemesanan</h1></div>} />
+        <Route path="pemesanan" element={<Pemesanan />} />
         <Route path="penawaran" element={<div className="p-6"><h1 className="text-2xl font-bold">Penawaran</h1></div>} />
       </Route>
       <Route

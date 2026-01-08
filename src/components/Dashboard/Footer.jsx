@@ -10,7 +10,7 @@ export default function Footer() {
         {/* App Store Links */}
         <div className="flex items-center gap-4">
           <a
-            href="https://play.google.com/store/apps/details?id=com.kledo.app"
+            href="https://play.google.com/store/apps/details?id=com.ibasa.app"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -19,7 +19,7 @@ export default function Footer() {
             <span className="text-sm text-gray-600 dark:text-gray-400">Google Play</span>
           </a>
           <a
-            href="https://apps.apple.com/id/app/kledo/id1586502518"
+            href="https://apps.apple.com/id/app/ibasa/id1586502518"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -33,12 +33,12 @@ export default function Footer() {
         <div className="text-sm text-gray-600 dark:text-gray-400">
           © 2025{' '}
           <a
-            href="https://kledo.com"
+            href="https://ibasa.com"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 dark:text-blue-400 hover:underline"
           >
-            Kledo Software v3.0.51
+            IBASA Software v3.0.51
           </a>
           {' '}All rights reserved
         </div>

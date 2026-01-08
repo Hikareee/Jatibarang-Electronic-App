@@ -78,14 +78,14 @@ export default function Login() {
           <div className="mb-8">
             <img 
               src="/logo-white.svg" 
-              alt="Kledo" 
+              alt="IBASA" 
               className="h-12 mb-8"
               onError={(e) => {
                 e.target.style.display = 'none'
                 e.target.nextSibling.style.display = 'block'
               }}
             />
-            <h1 className="text-4xl font-bold mb-2">Kledo</h1>
+            <h1 className="text-4xl font-bold mb-2">IBASA</h1>
             <p className="text-blue-100">Accounting Software</p>
           </div>
           <TestimonialCarousel />
@@ -97,7 +97,7 @@ export default function Login() {
         <div className="w-full max-w-md">
           <div className="mb-8 text-center lg:text-left">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Welcome to KLEDO
+              Welcome to IBASA
             </h2>
             <p className="text-gray-600 dark:text-gray-400">
               Sign in to your account
@@ -120,12 +120,12 @@ export default function Login() {
           <div className="mt-8 text-center">
             <div className="flex items-center justify-center gap-2 mb-4">
               <span className="text-sm text-gray-500 dark:text-gray-400">Powered by</span>
-              <Link to="https://kledo.com" className="text-blue-600 dark:text-blue-400 hover:underline">
-                Kledo
+              <Link to="https://ibasa.com" className="text-blue-600 dark:text-blue-400 hover:underline">
+                IBASA
               </Link>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              © 2025 Kledo. All rights reserved.
+              © 2025 IBASA. All rights reserved.
             </p>
           </div>
         </div>

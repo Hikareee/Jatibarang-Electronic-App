@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react'
 
 const testimonials = [
   {
-    quote: "Kledo sangat mudah dipahami! Kalau kesulitan selalu didampingi. Jadi merasa punya tim IT sendiri",
+    quote: "IBASA sangat mudah dipahami! Kalau kesulitan selalu didampingi. Jadi merasa punya tim IT sendiri",
     author: "Windy",
     company: "PT MOTORINDO SUKSES SEJAHTERA",
     avatar: null
   },
   {
-    quote: "Fleksibel diintegrasikan dengan sistem, alur pencatatannya mudah dipahami serta free biaya implementasi dan konsultasi. Kledo Keren!",
+    quote: "Fleksibel diintegrasikan dengan sistem, alur pencatatannya mudah dipahami serta free biaya implementasi dan konsultasi. IBASA Keren!",
     author: "Wahyu Ekorini",
     company: "Direktur Operasional PT. JC Indonesia",
     avatar: null

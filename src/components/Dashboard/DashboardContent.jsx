@@ -434,7 +434,7 @@ export default function DashboardContent() {
             
             <div className="mb-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Saldo di kledo</span>
+                <span className="text-gray-600 dark:text-gray-400">Saldo di IBASA</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
                   {formatNumber(bankAccountInfo.saldoKledo || bankAccountInfo.value1 || 0)}
                 </span>
