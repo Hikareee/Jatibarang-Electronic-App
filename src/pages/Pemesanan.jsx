@@ -1,9 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
-import Sidebar from '../components/Dashboard/Sidebar'
-import Header from '../components/Dashboard/Header'
-import Footer from '../components/Dashboard/Footer'
 import { 
   Filter,
   Search,
@@ -24,7 +21,6 @@ import { useSalesOrders, createInvoiceFromOrder } from '../hooks/useSalesOrdersD
 import { useUserApproval } from '../hooks/useUserApproval'
 
 export default function Pemesanan() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const { t } = useLanguage()
   const navigate = useNavigate()
   const { orders, loading, error, updateOrderStatus } = useSalesOrders()
@@ -126,40 +122,28 @@ export default function Pemesanan() {
 
   if (loading) {
     return (
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-          <main className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">Memuat data pemesanan...</p>
-            </div>
-          </main>
-          <Footer />
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Memuat data pemesanan...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto">
-            {/* Breadcrumbs */}
-            <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Beranda &gt; Penjualan &gt; Pemesanan
-            </div>
+    <div className="max-w-7xl mx-auto">
+      {/* Breadcrumbs */}
+      <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        Beranda &gt; Penjualan &gt; Pemesanan
+      </div>
 
-            {/* Page Header */}
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Pemesanan
-              </h1>
-              <div className="flex items-center gap-2">
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          Pemesanan
+        </h1>
+        <div className="flex items-center gap-2">
                 <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
                   <BarChart3 className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                   <span className="text-gray-700 dark:text-gray-300">Laporan</span>
@@ -201,9 +185,9 @@ export default function Pemesanan() {
               </div>
             </div>
 
-            {/* Filters and Search */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4 mb-4">
-              <div className="flex items-center gap-4 flex-wrap">
+      {/* Filters and Search */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4 mb-4">
+        <div className="flex items-center gap-4 flex-wrap">
                 <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
                   <Filter className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                   <span className="text-gray-700 dark:text-gray-300">Filter</span>
@@ -230,8 +214,8 @@ export default function Pemesanan() {
               </div>
             </div>
 
-            {/* Status Tabs */}
-            <div className="flex items-center gap-2 mb-4 border-b border-gray-200 dark:border-gray-700">
+      {/* Status Tabs */}
+      <div className="flex items-center gap-2 mb-4 border-b border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => setSelectedStatus('all')}
                 className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
@@ -278,8 +262,8 @@ export default function Pemesanan() {
               </button>
             </div>
 
-            {/* Orders Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {/* Orders Table */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
               {filteredOrders.length === 0 ? (
                 <div className="p-12 text-center">
                   <div className="flex flex-col items-center justify-center">
@@ -381,16 +365,12 @@ export default function Pemesanan() {
               )}
             </div>
 
-            {/* Chat Bubble */}
-            <div className="fixed bottom-6 right-6 z-50">
-              <button className="bg-green-500 hover:bg-green-600 text-white rounded-full p-4 shadow-lg flex items-center gap-3 transition-colors">
-                <MessageCircle className="h-6 w-6" />
-                <span className="text-sm font-medium">Halo, ada yang bisa saya bantu?</span>
-              </button>
-            </div>
-          </div>
-        </main>
-        <Footer />
+      {/* Chat Bubble */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <button className="bg-green-500 hover:bg-green-600 text-white rounded-full p-4 shadow-lg flex items-center gap-3 transition-colors">
+          <MessageCircle className="h-6 w-6" />
+          <span className="text-sm font-medium">Halo, ada yang bisa saya bantu?</span>
+        </button>
       </div>
     </div>
   )

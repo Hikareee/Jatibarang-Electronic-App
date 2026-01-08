@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { LanguageProvider } from './contexts/LanguageContext'
+import { DarkModeProvider } from './contexts/DarkModeContext'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import AwaitApproval from './pages/AwaitApproval'
@@ -31,6 +32,7 @@ import Akun from './pages/Akun'
 import Biaya from './pages/Biaya'
 import AsetTetap from './pages/AsetTetap'
 import Pemesanan from './pages/Pemesanan'
+import Penawaran from './pages/Penawaran'
 import ApprovedRoute from './components/ApprovedRoute'
 
 function PrivateRoute({ children }) {
@@ -78,7 +80,7 @@ function AppRoutes() {
         <Route path="tagihan/:id" element={<InvoiceDetail />} />
         <Route path="pengiriman" element={<Pengiriman />} />
         <Route path="pemesanan" element={<Pemesanan />} />
-        <Route path="penawaran" element={<div className="p-6"><h1 className="text-2xl font-bold">Penawaran</h1></div>} />
+        <Route path="penawaran" element={<Penawaran />} />
       </Route>
       <Route
         path="/sales/invoice/add"
@@ -216,11 +218,13 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <LanguageProvider>
-        <Router>
-          <AppRoutes />
-        </Router>
-      </LanguageProvider>
+      <DarkModeProvider>
+        <LanguageProvider>
+          <Router>
+            <AppRoutes />
+          </Router>
+        </LanguageProvider>
+      </DarkModeProvider>
     </AuthProvider>
   )
 }

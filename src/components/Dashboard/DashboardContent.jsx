@@ -19,6 +19,7 @@ import {
 } from 'recharts'
 import { MoreVertical, ChevronDown, MessageCircle, Loader2 } from 'lucide-react'
 import { useDashboardData } from '../../hooks/useDashboardData'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 const COLORS = {
   pink: '#EC4899',
@@ -37,6 +38,7 @@ function formatNumber(num) {
 
 export default function DashboardContent() {
   const { data, loading, error } = useDashboardData()
+  const { t } = useLanguage()
 
   // Use Firestore data or show zeros - handle null/undefined safely
   const cashInfo = (data?.cash?.info && typeof data.cash.info === 'object') 
@@ -45,8 +47,8 @@ export default function DashboardContent() {
   const cashAccounts = Array.isArray(data?.cash?.accounts) ? data.cash.accounts : []
 
   // Timeframe state for CASH chart
-  const timeframes = ['harian', 'mingguan', 'bulanan', 'tahunan']
-  const [cashTimeframe, setCashTimeframe] = useState('bulanan')
+  const timeframes = ['daily', 'weekly', 'monthly', 'yearly']
+  const [cashTimeframe, setCashTimeframe] = useState('monthly')
   const [cashMenuOpen, setCashMenuOpen] = useState(false)
 
   // Prepare cash time-series data. If we don't have a detailed time series, fallback to cashFlow.
@@ -64,7 +66,7 @@ export default function DashboardContent() {
   // Map timeframe to label and key
   const mapToTimeframe = (items, tf) => {
     // If no detailed granularity, reuse month-based series
-    if (tf === 'bulanan' || !items || items.length === 0) {
+    if (tf === 'monthly' || !items || items.length === 0) {
       return items.map(it => ({
         label: it.month || it.period || it.name || 'Periode',
         value: it.net !== undefined ? it.net : it.value || 0,
@@ -222,7 +224,7 @@ export default function DashboardContent() {
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Memuat data dashboard...</p>
+          <p className="text-gray-600 dark:text-gray-400">{t('loadingDashboard')}</p>
         </div>
       </div>
     )
@@ -241,7 +243,7 @@ export default function DashboardContent() {
           {/* CASH Section */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">CASH.</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('cash')}.</h2>
               <div className="relative">
                 <button
                   className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -262,7 +264,7 @@ export default function DashboardContent() {
                           cashTimeframe === tf ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'
                         }`}
                       >
-                        {tf.charAt(0).toUpperCase() + tf.slice(1)}
+                        {t(tf)}
                       </button>
                     ))}
                   </div>
@@ -272,13 +274,13 @@ export default function DashboardContent() {
             
             <div className="mb-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Total Saldo Akun</span>
+                <span className="text-gray-600 dark:text-gray-400">{t('totalAccountBalance')}</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
                   {formatNumber(cashInfo.saldoKledo || cashInfo.total || 0)}
                 </span>
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">
-                Timeframe: {cashTimeframe.charAt(0).toUpperCase() + cashTimeframe.slice(1)}
+                {t('timeframe')}: {t(cashTimeframe)}
               </div>
             </div>
 
@@ -326,17 +328,17 @@ export default function DashboardContent() {
             <div className="mt-4">
               <div className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
                 <div className="grid grid-cols-2 px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  <div>Akun</div>
-                  <div className="text-right">Saldo</div>
+                  <div>{t('account')}</div>
+                  <div className="text-right">{t('balance')}</div>
                 </div>
                 <div className="divide-y divide-gray-200 dark:divide-gray-600">
                   {cashAccounts.length === 0 ? (
-                    <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">Tidak ada akun</div>
+                    <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{t('noAccounts')}</div>
                   ) : (
                     cashAccounts.map(acc => (
                       <div key={acc.id} className="grid grid-cols-2 px-4 py-3 text-sm">
                         <div className="text-gray-900 dark:text-white">
-                          {acc.name || acc.code || 'Akun'}
+                          {acc.name || acc.code || t('account')}
                         </div>
                         <div className="text-right font-semibold text-gray-900 dark:text-white">
                           {formatNumber(acc.saldo || 0)}
@@ -353,7 +355,7 @@ export default function DashboardContent() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                TAGIHAN YANG PERLU KAMU BAYAR.
+                {t('billsToPay')}.
               </h2>
               <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
                 <MoreVertical className="h-5 w-5 text-gray-400" />
@@ -426,7 +428,7 @@ export default function DashboardContent() {
           {/* BANK ACCOUNT Section */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">BANK ACCOUNT.</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('bankAccount')}.</h2>
               <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
                 <MoreVertical className="h-5 w-5 text-gray-400" />
               </button>
@@ -434,13 +436,13 @@ export default function DashboardContent() {
             
             <div className="mb-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Saldo di IBASA</span>
+                <span className="text-gray-600 dark:text-gray-400">{t('balanceInIBASA')}</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
                   {formatNumber(bankAccountInfo.saldoKledo || bankAccountInfo.value1 || 0)}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Saldo di bank</span>
+                <span className="text-gray-600 dark:text-gray-400">{t('balanceInBank')}</span>
                 <span className={`font-semibold ${
                   (bankAccountInfo.saldoBank || bankAccountInfo.value2 || 0) < 0 
                     ? 'text-red-600 dark:text-red-400' 
@@ -497,7 +499,7 @@ export default function DashboardContent() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                BIAYA BULAN LALU.
+                {t('lastMonthExpenses')}.
               </h2>
               <div className="flex items-center gap-2">
                 <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
@@ -524,7 +526,7 @@ export default function DashboardContent() {
                   ))
                 ) : (
                   <div className="text-sm text-gray-500 dark:text-gray-400">
-                    Tidak ada data
+                    {t('noData')}
                   </div>
                 )}
               </div>
@@ -571,7 +573,7 @@ export default function DashboardContent() {
         {/* GIRO Section - Full Width */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">GIRO.</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('giroAccount')}.</h2>
             <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
               <MoreVertical className="h-5 w-5 text-gray-400" />
             </button>
@@ -579,13 +581,13 @@ export default function DashboardContent() {
           
           <div className="mb-4 space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600 dark:text-gray-400">Saldo di IBASA</span>
+              <span className="text-gray-600 dark:text-gray-400">{t('balanceInIBASA')}</span>
               <span className="font-semibold text-gray-900 dark:text-white">
                 {formatNumber(giroInfo.saldoKledo || giroInfo.value1 || 0)}
               </span>
                 </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600 dark:text-gray-400">Saldo di bank</span>
+              <span className="text-gray-600 dark:text-gray-400">{t('balanceInBank')}</span>
               <span className="font-semibold text-gray-900 dark:text-white">
                 {formatNumber(giroInfo.saldoBank || giroInfo.value2 || 0)}
               </span>
@@ -640,7 +642,7 @@ export default function DashboardContent() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                TOTAL KELUAR MASUK KAS.
+                {t('totalCashInOut')}.
               </h2>
               <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
                 <MoreVertical className="h-5 w-5 text-gray-400" />
@@ -681,14 +683,14 @@ export default function DashboardContent() {
                     dataKey="in" 
                     stroke={COLORS.teal} 
                     strokeWidth={2}
-                    name="In"
+                    name={t('in')}
                   />
                   <Line 
                     type="monotone" 
                     dataKey="out" 
                     stroke={COLORS.red} 
                     strokeWidth={2}
-                    name="Out"
+                    name={t('out')}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -698,7 +700,7 @@ export default function DashboardContent() {
           {/* LABA RUGI Section */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">LABA RUGI.</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('profitLoss')}.</h2>
               <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
                 <MoreVertical className="h-5 w-5 text-gray-400" />
               </button>
@@ -706,7 +708,7 @@ export default function DashboardContent() {
             
             <div className="mb-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Laba bersih tahun ini{' '}
+                {t('netProfit')} {t('thisYear')}{' '}
                 <span className="font-semibold text-gray-900 dark:text-white">
                   {formatNumber(profitLossInfo.labaBersihTahunIni || 0)}
                 </span>
@@ -741,13 +743,13 @@ export default function DashboardContent() {
                     dataKey="labaKotor" 
                     fill={COLORS.teal}
                     radius={[8, 8, 0, 0]}
-                    name="Laba kotor"
+                    name={t('grossProfit')}
                   />
                   <Bar 
                     dataKey="labaBersih" 
                     fill={COLORS.yellow}
                     radius={[8, 8, 0, 0]}
-                    name="Laba bersih"
+                    name={t('netProfitLabel')}
                   />
                 </BarChart>
               </ResponsiveContainer>

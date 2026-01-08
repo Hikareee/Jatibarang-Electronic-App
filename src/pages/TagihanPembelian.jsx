@@ -227,17 +227,17 @@ export default function TagihanPembelian() {
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Tagihan Pembelian
+          {t('purchaseInvoices')}
         </h1>
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <BarChart3 className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-            <span className="text-gray-700 dark:text-gray-300">Laporan</span>
+            <span className="text-gray-700 dark:text-gray-300">{t('report')}</span>
             <ChevronDown className="h-4 w-4 text-gray-400" />
           </button>
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <HelpCircle className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-            <span className="text-gray-700 dark:text-gray-300">Panduan</span>
+            <span className="text-gray-700 dark:text-gray-300">{t('guide')}</span>
             <ChevronDown className="h-4 w-4 text-gray-400" />
           </button>
           <button 
@@ -245,17 +245,17 @@ export default function TagihanPembelian() {
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="h-5 w-5" />
-            <span>Tambah</span>
+            <span>{t('add')}</span>
             <ChevronDown className="h-4 w-4" />
           </button>
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <Upload className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-            <span className="text-gray-700 dark:text-gray-300">Import</span>
+            <span className="text-gray-700 dark:text-gray-300">{t('import')}</span>
             <ChevronDown className="h-4 w-4 text-gray-400" />
           </button>
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <Printer className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-            <span className="text-gray-700 dark:text-gray-300">Print</span>
+            <span className="text-gray-700 dark:text-gray-300">{t('print')}</span>
           </button>
           <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <MoreVertical className="h-5 w-5 text-gray-600 dark:text-gray-400" />
@@ -276,14 +276,14 @@ export default function TagihanPembelian() {
         <div className="flex items-center gap-4 flex-wrap">
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <Filter className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-            <span className="text-gray-700 dark:text-gray-300">Filter</span>
+            <span className="text-gray-700 dark:text-gray-300">{t('filter')}</span>
           </button>
           <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <MoreVertical className="h-5 w-5 text-gray-600 dark:text-gray-400" />
           </button>
           <div className="relative">
-            <select className="pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-              <option>Tagihan Pembelian</option>
+            <select className="pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white bg-white text-gray-900">
+              <option>{t('purchaseInvoices')}</option>
             </select>
             <FileText className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
           </div>
@@ -291,7 +291,7 @@ export default function TagihanPembelian() {
             <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Cari"
+              placeholder={t('search')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
@@ -318,7 +318,7 @@ export default function TagihanPembelian() {
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
-          Semua
+          {t('all')}
         </button>
         <button
           onClick={() => setSelectedStatus('unpaid')}
@@ -328,7 +328,7 @@ export default function TagihanPembelian() {
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
-          Belum Dibayar
+          {t('unpaid')}
         </button>
         <button
           onClick={() => setSelectedStatus('partial')}
@@ -338,7 +338,7 @@ export default function TagihanPembelian() {
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
-          Dibayar Sebagian
+          {t('partiallyPaid')}
         </button>
         <button
           onClick={() => setSelectedStatus('paid')}
@@ -348,7 +348,7 @@ export default function TagihanPembelian() {
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
-          Lunas
+          {t('paid')}
         </button>
         <button className="px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
           Lainnya
@@ -362,8 +362,8 @@ export default function TagihanPembelian() {
           <div className="p-12 text-center">
             <div className="flex flex-col items-center justify-center">
               <div className="text-6xl mb-4">📁</div>
-              <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">Data Kosong</p>
-              <p className="text-gray-500 dark:text-gray-400 mb-4">Yuk mulai buat pertamamu!</p>
+              <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">{t('emptyData')}</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">{t('startCreating')}</p>
             </div>
           </div>
         ) : (
@@ -397,6 +397,10 @@ export default function TagihanPembelian() {
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Tgl. Jatuh Tempo
+                    <MoreVertical className="inline h-3 w-3 ml-1" />
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    {t('proposedBy')}
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -436,6 +440,9 @@ export default function TagihanPembelian() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {formatDate(invoice.dueDate)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {invoice.createdByName || 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-sm" style={{ position: 'relative' }}>
                         <div className="relative inline-block">

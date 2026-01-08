@@ -103,7 +103,11 @@ export default function PembelianOverview() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
             {kpiData.pembelian?.tagihanBulanIni || 0} Tagihan Pembelian Bulan Ini
           </p>
-          <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+          <div className={`flex items-center gap-1 text-xs ${
+            (kpiData.pembelian?.percentage || 0) >= 0 
+              ? 'text-green-600 dark:text-green-400' 
+              : 'text-red-600 dark:text-red-400'
+          }`}>
             <TrendingUp className="h-3 w-3" />
             <span>{kpiData.pembelian?.percentage || 0}% vs tanggal sama bulan lalu</span>
           </div>
@@ -123,7 +127,11 @@ export default function PembelianOverview() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
             {kpiData.pembayaranDikirim?.tagihanBulanIni || 0} Tagihan Pembelian Bulan Ini
           </p>
-          <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+          <div className={`flex items-center gap-1 text-xs ${
+            (kpiData.pembayaranDikirim?.percentage || 0) >= 0 
+              ? 'text-green-600 dark:text-green-400' 
+              : 'text-red-600 dark:text-red-400'
+          }`}>
             <TrendingUp className="h-3 w-3" />
             <span>{kpiData.pembayaranDikirim?.percentage || 0}% vs tanggal sama bulan lalu</span>
           </div>
@@ -188,7 +196,11 @@ export default function PembelianOverview() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
             {kpiData.menungguPembayaran?.tagihan || 0} Tagihan Pembelian
           </p>
-          <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+          <div className={`flex items-center gap-1 text-xs ${
+            (kpiData.menungguPembayaran?.percentage || 0) >= 0 
+              ? 'text-green-600 dark:text-green-400' 
+              : 'text-red-600 dark:text-red-400'
+          }`}>
             <TrendingUp className="h-3 w-3" />
             <span>{kpiData.menungguPembayaran?.percentage || 0}% vs tanggal sama bulan lalu</span>
           </div>
@@ -272,8 +284,11 @@ export default function PembelianOverview() {
               <YAxis 
                 stroke="#6B7280"
                 tick={{ fontSize: 12 }}
-                tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
-                domain={[0, 20000000]}
+                tickFormatter={(value) => {
+                  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
+                  if (value >= 1000) return `${(value / 1000).toFixed(0)}K`
+                  return value.toString()
+                }}
               />
               <Tooltip 
                 formatter={(value) => formatNumber(value)}
@@ -333,8 +348,11 @@ export default function PembelianOverview() {
                 <YAxis 
                   stroke="#6B7280"
                   tick={{ fontSize: 12 }}
-                  tickFormatter={(value) => formatNumber(value)}
-                  domain={[0, 10000000]}
+                  tickFormatter={(value) => {
+                    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
+                    if (value >= 1000) return `${(value / 1000).toFixed(0)}K`
+                    return formatNumber(value)
+                  }}
                 />
                 <Tooltip 
                   formatter={(value) => formatNumber(value)}

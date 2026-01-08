@@ -60,10 +60,10 @@ export default function Sidebar({ isOpen, onToggle }) {
       path: '/pembelian',
       subItems: [
         { label: t('overview'), path: '/pembelian/overview' },
-        { label: 'Tagihan Pembelian', path: '/pembelian/tagihan' },
-        { label: 'Pengiriman Pembelian', path: '/pembelian/pengiriman' },
-        { label: 'Pesanan Pembelian', path: '/pembelian/pesanan' },
-        { label: 'Penawaran Pembelian', path: '/pembelian/penawaran' },
+        { label: t('purchaseInvoices'), path: '/pembelian/tagihan' },
+        { label: t('purchaseShipments'), path: '/pembelian/pengiriman' },
+        { label: t('purchaseOrders'), path: '/pembelian/pesanan' },
+        { label: t('purchaseOffers'), path: '/pembelian/penawaran' },
       ]
     },
     { icon: Receipt, label: t('expenses'), path: '/biaya' },
@@ -75,7 +75,7 @@ export default function Sidebar({ isOpen, onToggle }) {
     { icon: Building2, label: t('fixedAssets'), path: '/aset-tetap' },
     { icon: Users, label: t('contacts'), path: '/kontak' },
     { icon: Briefcase, label: t('payroll'), path: '/payroll' },
-    { icon: Shield, label: 'Users', path: '/users' },
+    { icon: Shield, label: t('users'), path: '/users' },
   ]
 
   return (
@@ -115,8 +115,8 @@ export default function Sidebar({ isOpen, onToggle }) {
         <AlertCircle className="h-5 w-5 text-yellow-800 dark:text-yellow-900 flex-shrink-0 mt-0.5" />
         <div className="flex-1">
           <p className="text-xs text-yellow-900 dark:text-yellow-900 leading-tight">
-            Data yang tampil saat ini adalah data dummy. Setelah Anda siap,{' '}
-            <button className="underline font-semibold">klik disini</button> untuk mengosongkan data.
+            {t('dummyDataNotice')}{' '}
+            <button className="underline font-semibold">{t('clickHere')}</button> {t('toClearData')}
           </p>
         </div>
       </div>

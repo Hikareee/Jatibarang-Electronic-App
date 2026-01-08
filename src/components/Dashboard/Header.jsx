@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useDarkMode } from '../../contexts/DarkModeContext'
 import { useNavigate } from 'react-router-dom'
 import { 
   ShoppingCart, 
@@ -17,11 +18,11 @@ import {
 } from 'lucide-react'
 
 export default function Header({ onMenuClick }) {
-  const [darkMode, setDarkMode] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showLanguageMenu, setShowLanguageMenu] = useState(false)
   const { currentUser, logout } = useAuth()
-  const { language, toggleLanguage, t } = useLanguage()
+  const { language, setLanguageDirect, t } = useLanguage()
+  const { darkMode, toggleDarkMode } = useDarkMode()
   const navigate = useNavigate()
 
   async function handleLogout() {
@@ -31,11 +32,6 @@ export default function Header({ onMenuClick }) {
     } catch (error) {
       console.error('Failed to log out:', error)
     }
-  }
-
-  function toggleDarkMode() {
-    setDarkMode(!darkMode)
-    document.documentElement.classList.toggle('dark')
   }
 
   return (
@@ -86,16 +82,14 @@ export default function Header({ onMenuClick }) {
               onClick={() => setShowLanguageMenu(!showLanguageMenu)}
               className="flex items-center gap-1 px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
             >
-              <span className="text-sm font-medium text-white">{language === 'en' ? 'EN' : 'ID'}</span>
-              <ChevronDown className="h-4 w-4 text-white" />
+              <span className="text-sm font-medium text-gray-700 dark:text-white">{language === 'en' ? 'EN' : 'ID'}</span>
+              <ChevronDown className="h-4 w-4 text-gray-700 dark:text-white" />
             </button>
             {showLanguageMenu && (
               <div className="absolute right-0 mt-2 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
                 <button
                   onClick={() => {
-                    if (language !== 'en') {
-                      toggleLanguage()
-                    }
+                    setLanguageDirect('en')
                     setShowLanguageMenu(false)
                   }}
                   className={`w-full text-left px-4 py-2 text-sm ${
@@ -108,9 +102,7 @@ export default function Header({ onMenuClick }) {
                 </button>
                 <button
                   onClick={() => {
-                    if (language !== 'id') {
-                      toggleLanguage()
-                    }
+                    setLanguageDirect('id')
                     setShowLanguageMenu(false)
                   }}
                   className={`w-full text-left px-4 py-2 text-sm ${
@@ -128,8 +120,8 @@ export default function Header({ onMenuClick }) {
           {/* Notifications */}
           <div className="relative">
             <button className="flex items-center gap-1 px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors relative">
-              <Bell className="h-5 w-5 text-white" />
-              <ChevronDown className="h-4 w-4 text-white" />
+              <Bell className="h-5 w-5 text-gray-700 dark:text-white" />
+              <ChevronDown className="h-4 w-4 text-gray-700 dark:text-white" />
               <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
             </button>
           </div>
@@ -140,13 +132,15 @@ export default function Header({ onMenuClick }) {
             className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label="Toggle theme"
           >
-            <div className="relative w-10 h-6 bg-gray-300 dark:bg-gray-600 rounded-full">
-              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+            <div className="relative w-10 h-6 bg-gray-300 dark:bg-gray-600 rounded-full transition-colors">
+              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform shadow-sm ${
                 darkMode ? 'translate-x-4' : 'translate-x-0'
               }`}></div>
-              {!darkMode && (
-                <Sun className="absolute top-1 right-1 h-4 w-4 text-gray-600" />
-            )}
+              {darkMode ? (
+                <Moon className="absolute top-1 left-1 h-4 w-4 text-gray-300" />
+              ) : (
+                <Sun className="absolute top-1 right-1 h-4 w-4 text-yellow-500" />
+              )}
             </div>
           </button>
 
@@ -172,7 +166,7 @@ export default function Header({ onMenuClick }) {
                   className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   <LogOut className="h-4 w-4" />
-                  Logout
+                  {t('logout')}
                 </button>
               </div>
             )}

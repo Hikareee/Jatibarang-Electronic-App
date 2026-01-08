@@ -34,10 +34,26 @@ export function usePurchaseInvoices() {
             }
           }
           
+          // Fetch user who created the invoice
+          let createdByName = 'N/A'
+          if (data.createdBy) {
+            try {
+              const userRef = doc(db, 'users', data.createdBy)
+              const userSnap = await getDoc(userRef)
+              if (userSnap.exists()) {
+                const userData = userSnap.data()
+                createdByName = userData.name || userData.email || data.createdBy
+              }
+            } catch (err) {
+              console.warn('Could not fetch user name:', err)
+            }
+          }
+          
           return {
             id: invoiceDoc.id,
             ...data,
             vendor: vendorName,
+            createdByName: createdByName,
             status: data.status || 'draft' // Ensure status is set
           }
         })
