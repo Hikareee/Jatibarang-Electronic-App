@@ -2,6 +2,28 @@ import { collection, addDoc, getDocs, query, orderBy, limit } from 'firebase/fir
 import { db } from '../firebase/config'
 import { updateAccountBalance, updateMultipleAccountBalances } from '../utils/accountBalance'
 
+export async function getNextPurchaseInvoiceNumber() {
+  try {
+    const invoicesRef = collection(db, 'purchaseInvoices')
+    const q = query(invoicesRef, orderBy('number', 'desc'), limit(1))
+    const snapshot = await getDocs(q)
+    
+    let nextNumber = 'PI/00001'
+    if (!snapshot.empty) {
+      const lastInvoice = snapshot.docs[0].data()
+      const lastNumber = lastInvoice.number || 'PI/00000'
+      const numPart = parseInt(lastNumber.split('/')[1]) || 0
+      nextNumber = `PI/${String(numPart + 1).padStart(5, '0')}`
+    }
+    
+    return nextNumber
+  } catch (error) {
+    console.error('Error getting next purchase invoice number:', error)
+    // Return default if error
+    return 'PI/00001'
+  }
+}
+
 export async function savePurchaseInvoice(invoiceData, userId = null) {
   try {
     // Get the next invoice number

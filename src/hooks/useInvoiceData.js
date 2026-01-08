@@ -3,9 +3,8 @@ import { collection, addDoc, getDocs, query, orderBy, limit } from 'firebase/fir
 import { db } from '../firebase/config'
 import { updateAccountBalance, updateMultipleAccountBalances } from '../utils/accountBalance'
 
-export async function saveInvoice(invoiceData) {
+export async function getNextInvoiceNumber() {
   try {
-    // Get the next invoice number
     const invoicesRef = collection(db, 'invoices')
     const q = query(invoicesRef, orderBy('number', 'desc'), limit(1))
     const snapshot = await getDocs(q)
@@ -17,11 +16,19 @@ export async function saveInvoice(invoiceData) {
       const numPart = parseInt(lastNumber.split('/')[1]) || 0
       nextNumber = `INV/${String(numPart + 1).padStart(5, '0')}`
     }
+    return nextNumber
+  } catch (error) {
+    console.error('Error getting next invoice number:', error)
+    return 'INV/00001'
+  }
+}
 
+export async function saveInvoice(invoiceData) {
+  try {
     // Use provided number or generate next
     const finalInvoiceData = {
       ...invoiceData,
-      number: invoiceData.number || nextNumber,
+      number: invoiceData.number || (await getNextInvoiceNumber()),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }

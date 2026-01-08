@@ -17,16 +17,15 @@ import {
   Upload,
   ChevronDown
 } from 'lucide-react'
-import { usePurchaseDeliveries } from '../hooks/usePurchaseDeliveries'
+import { useSalesDeliveries } from '../hooks/useSalesDeliveries'
 
-export default function PengirimanPembelian() {
+export default function Pengiriman() {
   const { t } = useLanguage()
   const navigate = useNavigate()
-  const { deliveries, loading, error, updateDeliveryStatus } = usePurchaseDeliveries()
+  const { deliveries, loading, error, updateDeliveryStatus } = useSalesDeliveries()
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedDeliveries, setSelectedDeliveries] = useState([])
-  const [editingStatus, setEditingStatus] = useState(null)
   const [statusMenuOpen, setStatusMenuOpen] = useState(null)
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
   const statusMenuRef = useRef(null)
@@ -36,7 +35,13 @@ export default function PengirimanPembelian() {
   useEffect(() => {
     function handleClickOutside(event) {
       if (statusMenuRef.current && !statusMenuRef.current.contains(event.target)) {
-        setStatusMenuOpen(null)
+        // Check if click is not on any button
+        const clickedButton = Object.values(buttonRefs.current).find(ref => 
+          ref && ref.contains(event.target)
+        )
+        if (!clickedButton) {
+          setStatusMenuOpen(null)
+        }
       }
     }
 
@@ -65,20 +70,13 @@ export default function PengirimanPembelian() {
     return `${day}/${month}/${year}`
   }
 
-  // Get status label based on delivery percentage and approval status
+  // Get status label based on delivery percentage
   const getStatusLabel = (invoice) => {
-    const status = invoice.status || 'draft'
     const deliveryStatus = invoice.deliveryStatus || 0
     
-    // Only show delivery status for approved invoices
-    if (status === 'approved') {
-      if (deliveryStatus === 100) return 'Selesai'
-      if (deliveryStatus > 0) return 'Dikirim Sebagian'
-      return 'Disetujui'
-    }
-    
-    if (status === 'declined') return 'Ditolak'
-    return 'Draft'
+    if (deliveryStatus === 100) return 'Selesai'
+    if (deliveryStatus > 0) return 'Dalam Proses'
+    return 'Open'
   }
 
   // Get status color
@@ -95,19 +93,16 @@ export default function PengirimanPembelian() {
     }
   }
 
-  // Filter deliveries based on status and search (only show approved invoices)
+  // Filter deliveries based on status and search
   const filteredDeliveries = deliveries.filter(delivery => {
-    // Only show approved invoices in delivery tracking
-    if (delivery.status !== 'approved') return false
-    
     const status = getStatusLabel(delivery)
     const matchesStatus = selectedStatus === 'all' || 
-      (selectedStatus === 'open' && (status === 'Disetujui' || status === 'Dikirim Sebagian')) ||
+      (selectedStatus === 'open' && status === 'Open') ||
       (selectedStatus === 'selesai' && status === 'Selesai')
     
     const matchesSearch = !searchQuery || 
       delivery.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      delivery.vendor?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      delivery.customer?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       delivery.reference?.toLowerCase().includes(searchQuery.toLowerCase())
     
     return matchesStatus && matchesSearch
@@ -147,7 +142,7 @@ export default function PengirimanPembelian() {
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Memuat data pengiriman pembelian...</p>
+          <p className="text-gray-600 dark:text-gray-400">Memuat data pengiriman...</p>
         </div>
       </div>
     )
@@ -158,7 +153,7 @@ export default function PengirimanPembelian() {
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Pengiriman Pembelian
+          Pengiriman
         </h1>
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -180,7 +175,7 @@ export default function PengirimanPembelian() {
           <div className="relative">
             <input
               type="text"
-              placeholder="06/01/2025 → 06/01/2026"
+              placeholder="07/01/2025 → 07/01/2026"
               className="pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
             />
             <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
@@ -252,7 +247,7 @@ export default function PengirimanPembelian() {
             <div className="flex flex-col items-center justify-center">
               <div className="text-6xl mb-4">📁</div>
               <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">Data Kosong</p>
-              <p className="text-gray-500 dark:text-gray-400 mb-4">Belum ada data pengiriman pembelian</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">Belum ada data pengiriman</p>
             </div>
           </div>
         ) : (
@@ -273,7 +268,7 @@ export default function PengirimanPembelian() {
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Vendor
+                    Pelanggan
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -295,7 +290,8 @@ export default function PengirimanPembelian() {
                   return (
                     <tr 
                       key={delivery.id} 
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                      onClick={() => navigate(`/penjualan/tagihan/${delivery.id}`)}
                     >
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <input
@@ -309,7 +305,7 @@ export default function PengirimanPembelian() {
                         {delivery.number || 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                        {delivery.vendor || 'N/A'}
+                        {delivery.customer || 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                         {delivery.reference || '-'}
@@ -319,6 +315,7 @@ export default function PengirimanPembelian() {
                           <button
                             ref={(el) => buttonRefs.current[delivery.id] = el}
                             onClick={(e) => {
+                              e.stopPropagation()
                               if (isMenuOpen) {
                                 setStatusMenuOpen(null)
                               } else {
@@ -350,7 +347,10 @@ export default function PengirimanPembelian() {
                                 {statusOptions.map((option) => (
                                   <button
                                     key={option}
-                                    onClick={() => handleStatusUpdate(delivery.id, option)}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleStatusUpdate(delivery.id, option)
+                                    }}
                                     className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
                                       deliveryPercentage === option 
                                         ? 'text-blue-600 dark:text-blue-400 font-semibold bg-blue-50 dark:bg-blue-900/20' 

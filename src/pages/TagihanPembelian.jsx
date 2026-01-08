@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import { 
@@ -13,33 +13,26 @@ import {
   MoreVertical,
   MessageCircle,
   Loader2,
-  LayoutGrid,
-  List,
-  CheckCircle,
-  XCircle,
-  Trash2
+  BarChart3,
+  Upload,
+  ChevronDown
 } from 'lucide-react'
 import { usePurchaseInvoices } from '../hooks/usePurchaseInvoices'
-import { useUserApproval } from '../hooks/useUserApproval'
 import { doc, updateDoc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { updateAccountBalance } from '../utils/accountBalance'
 
-export default function PesananPembelian() {
+export default function TagihanPembelian() {
   const { t } = useLanguage()
   const navigate = useNavigate()
   const { invoices, loading, error, refetch } = usePurchaseInvoices()
-  const { role } = useUserApproval()
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedInvoices, setSelectedInvoices] = useState([])
-  const [processing, setProcessing] = useState(false)
-  const [showDeclineModal, setShowDeclineModal] = useState(false)
-  const [declineReason, setDeclineReason] = useState('')
-  
-  // Check if user can approve (only owner or manager)
-  const canApproveInvoices = () => {
-    return role === 'owner' || role === 'manager'
-  }
+  const [paymentMenuOpen, setPaymentMenuOpen] = useState(null)
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
+  const paymentMenuRef = useRef(null)
+  const buttonRefs = useRef({})
 
   // Format number to Indonesian format
   const formatNumber = (num) => {
@@ -57,51 +50,142 @@ export default function PesananPembelian() {
     return `${day}/${month}/${year}`
   }
 
-  // Get status label for purchase invoices
-  const getStatusLabel = (invoice) => {
-    // Check explicit status first
-    if (invoice.status) {
-      if (invoice.status === 'approved' || invoice.status === 'disetujui') {
-        const deliveryStatus = invoice.deliveryStatus || 0
-        if (deliveryStatus === 100) return 'Selesai'
-        if (deliveryStatus > 0) return 'Dikirim Sebagian'
-        return 'Disetujui'
+  // Close payment menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (paymentMenuRef.current && !paymentMenuRef.current.contains(event.target)) {
+        // Check if click is not on any button
+        const clickedButton = Object.values(buttonRefs.current).find(ref => 
+          ref && ref.contains(event.target)
+        )
+        if (!clickedButton) {
+          setPaymentMenuOpen(null)
+        }
       }
-      if (invoice.status === 'declined' || invoice.status === 'ditolak') return 'Ditolak'
-      if (invoice.status === 'draft') return 'Draft'
     }
+
+    if (paymentMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [paymentMenuOpen])
+
+  // Get payment percentage based on remaining amount
+  const getPaymentPercentage = (invoice) => {
+    const remaining = invoice.remaining !== undefined ? invoice.remaining : (invoice.total || 0)
+    const total = invoice.total || 0
     
-    // Default to draft
-    return 'Draft'
+    if (total === 0) return 0
+    if (remaining === 0 || remaining < 0.01) return 100
+    
+    const paid = total - remaining
+    return Math.round((paid / total) * 100)
+  }
+
+  // Get payment status label based on remaining amount
+  const getPaymentStatusLabel = (invoice) => {
+    const percentage = getPaymentPercentage(invoice)
+    
+    if (percentage === 100) return 'Sudah Lunas'
+    if (percentage === 0) return 'Belum Dibayar'
+    return `Sudah Dibayar ${percentage}%`
   }
 
   // Get status color
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'Selesai':
-        return 'text-green-600 dark:text-green-400'
-      case 'Dikirim Sebagian':
-        return 'text-yellow-600 dark:text-yellow-400'
-      case 'Disetujui':
-        return 'text-blue-600 dark:text-blue-400'
-      case 'Ditolak':
-        return 'text-red-600 dark:text-red-400'
-      case 'Draft':
-        return 'text-gray-600 dark:text-gray-400'
-      default:
-        return 'text-gray-600 dark:text-gray-400'
+    if (status === 'Sudah Lunas') {
+      return 'text-green-600 dark:text-green-400'
+    }
+    if (status.includes('Sudah Dibayar')) {
+      return 'text-yellow-600 dark:text-yellow-400'
+    }
+    if (status === 'Belum Dibayar') {
+      return 'text-red-600 dark:text-red-400'
+    }
+    return 'text-gray-600 dark:text-gray-400'
+  }
+
+  // Handle payment status update
+  const handlePaymentUpdate = async (invoiceId, newPercentage) => {
+    try {
+      const invoice = invoices.find(inv => inv.id === invoiceId)
+      if (!invoice) return
+
+      // Get current invoice data from Firestore to ensure we have latest data
+      const invoiceRef = doc(db, 'purchaseInvoices', invoiceId)
+      const invoiceSnap = await getDoc(invoiceRef)
+      
+      if (!invoiceSnap.exists()) {
+        alert('Invoice tidak ditemukan')
+        return
+      }
+
+      const invoiceData = invoiceSnap.data()
+      const total = parseFloat(invoiceData.total) || 0
+      const currentRemaining = parseFloat(invoiceData.remaining) !== undefined ? parseFloat(invoiceData.remaining) : total
+      const currentPaidPercentage = total > 0 ? Math.round(((total - currentRemaining) / total) * 100) : 0
+      
+      // Calculate the difference in payment amount
+      const newRemaining = total * (1 - newPercentage / 100)
+      const paymentDifference = currentRemaining - newRemaining // Amount being paid now
+      
+      // Only update if there's a change
+      if (Math.abs(paymentDifference) < 0.01) {
+        setPaymentMenuOpen(null)
+        return
+      }
+
+      // Update invoice remaining amount
+      await updateDoc(invoiceRef, {
+        remaining: newRemaining,
+        paidPercentage: newPercentage, // Store payment percentage for tracking
+        updatedAt: new Date().toISOString()
+      })
+
+      // Update account balance based on payment amount (deduct the payment difference)
+      const accountId = invoiceData.accountId || invoiceData.account
+      if (accountId && paymentDifference > 0) {
+        await updateAccountBalance(accountId, -paymentDifference, {
+          type: 'invoice_purchase_payment',
+          transactionId: invoiceId,
+          number: invoiceData.number,
+          date: new Date().toISOString(),
+          description: `Pembayaran Tagihan Pembelian ${invoiceData.number} (${newPercentage}%)`
+        })
+      }
+
+      // Also update the transaction if it exists
+      // This would require querying transactions collection, but for now just update invoice
+      
+      setPaymentMenuOpen(null)
+      refetch()
+      
+      const statusText = newPercentage === 100 ? 'Sudah Lunas' : `Sudah Dibayar ${newPercentage}%`
+      alert(`Status pembayaran diperbarui menjadi ${statusText}. Saldo akun dikurangi ${new Intl.NumberFormat('id-ID').format(paymentDifference)}.`)
+    } catch (err) {
+      console.error('Error updating payment status:', err)
+      alert('Gagal memperbarui status pembayaran')
     }
   }
 
-  // Filter invoices based on status and search
+  const paymentOptions = [
+    { label: 'Belum Dibayar', percentage: 0 },
+    { label: 'Sudah Dibayar 25%', percentage: 25 },
+    { label: 'Sudah Dibayar 50%', percentage: 50 },
+    { label: 'Sudah Dibayar 75%', percentage: 75 },
+    { label: 'Sudah Lunas', percentage: 100 }
+  ]
+
+  // Filter invoices based on payment status and search
   const filteredInvoices = invoices.filter(invoice => {
-    const status = getStatusLabel(invoice)
+    const status = getPaymentStatusLabel(invoice)
     const matchesStatus = selectedStatus === 'all' || 
-      (selectedStatus === 'draft' && status === 'Draft') ||
-      (selectedStatus === 'approved' && (status === 'Disetujui' || status === 'Dikirim Sebagian')) ||
-      (selectedStatus === 'partial' && status === 'Dikirim Sebagian') ||
-      (selectedStatus === 'completed' && status === 'Selesai') ||
-      (selectedStatus === 'declined' && status === 'Ditolak')
+      (selectedStatus === 'unpaid' && status === 'Belum Dibayar') ||
+      (selectedStatus === 'partial' && status.includes('Sudah Dibayar') && status !== 'Sudah Lunas') ||
+      (selectedStatus === 'paid' && status === 'Sudah Lunas')
     
     const matchesSearch = !searchQuery || 
       invoice.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -127,108 +211,12 @@ export default function PesananPembelian() {
     }
   }
 
-  const handleBulkApprove = async () => {
-    if (selectedInvoices.length === 0) {
-      alert('Pilih setidaknya satu pesanan pembelian')
-      return
-    }
-
-    // Only allow approving draft invoices
-    const draftInvoices = filteredInvoices.filter(inv => 
-      selectedInvoices.includes(inv.id) && inv.status === 'draft'
-    )
-
-    if (draftInvoices.length === 0) {
-      alert('Tidak ada pesanan draft yang dipilih')
-      return
-    }
-
-    try {
-      setProcessing(true)
-      
-      for (const invoice of draftInvoices) {
-        const invoiceRef = doc(db, 'purchaseInvoices', invoice.id)
-        const invoiceSnap = await getDoc(invoiceRef)
-        
-        if (!invoiceSnap.exists()) continue
-        
-        const invoiceData = invoiceSnap.data()
-        
-        // Update invoice status
-        await updateDoc(invoiceRef, {
-          status: 'approved',
-          approvedAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        })
-
-        // Account balance will be updated when payment is made, not when invoice is approved
-        // This allows for partial payments and better cash flow tracking
-      }
-
-      alert(`${draftInvoices.length} pesanan pembelian telah disetujui`)
-      setSelectedInvoices([])
-      refetch()
-    } catch (err) {
-      console.error('Error approving invoices:', err)
-      alert('Gagal menyetujui pesanan pembelian')
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-  const handleBulkReject = async () => {
-    if (selectedInvoices.length === 0) {
-      alert('Pilih setidaknya satu pesanan pembelian')
-      return
-    }
-
-    if (!declineReason.trim()) {
-      alert('Harap masukkan alasan penolakan')
-      return
-    }
-
-    // Only allow rejecting draft invoices
-    const draftInvoices = filteredInvoices.filter(inv => 
-      selectedInvoices.includes(inv.id) && inv.status === 'draft'
-    )
-
-    if (draftInvoices.length === 0) {
-      alert('Tidak ada pesanan draft yang dipilih')
-      return
-    }
-
-    try {
-      setProcessing(true)
-      
-      for (const invoice of draftInvoices) {
-        const invoiceRef = doc(db, 'purchaseInvoices', invoice.id)
-        await updateDoc(invoiceRef, {
-          status: 'declined',
-          declinedAt: new Date().toISOString(),
-          declineReason: declineReason,
-          updatedAt: new Date().toISOString()
-        })
-      }
-
-      alert(`${draftInvoices.length} pesanan pembelian telah ditolak`)
-      setSelectedInvoices([])
-      setShowDeclineModal(false)
-      setDeclineReason('')
-      refetch()
-    } catch (err) {
-      console.error('Error rejecting invoices:', err)
-      alert('Gagal menolak pesanan pembelian')
-    } finally {
-      setProcessing(false)
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Memuat data pesanan pembelian...</p>
+          <p className="text-gray-600 dark:text-gray-400">Memuat data tagihan pembelian...</p>
         </div>
       </div>
     )
@@ -239,26 +227,35 @@ export default function PesananPembelian() {
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Pesanan Pembelian
+          Tagihan Pembelian
         </h1>
         <div className="flex items-center gap-2">
+          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+            <BarChart3 className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            <span className="text-gray-700 dark:text-gray-300">Laporan</span>
+            <ChevronDown className="h-4 w-4 text-gray-400" />
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+            <HelpCircle className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            <span className="text-gray-700 dark:text-gray-300">Panduan</span>
+            <ChevronDown className="h-4 w-4 text-gray-400" />
+          </button>
           <button 
             onClick={() => navigate('/pembelian/invoice/add')}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="h-5 w-5" />
             <span>Tambah</span>
-            <MoreVertical className="h-4 w-4" />
+            <ChevronDown className="h-4 w-4" />
           </button>
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
-            <Download className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            <Upload className="h-5 w-5 text-gray-600 dark:text-gray-400" />
             <span className="text-gray-700 dark:text-gray-300">Import</span>
-            <MoreVertical className="h-4 w-4 text-gray-400" />
+            <ChevronDown className="h-4 w-4 text-gray-400" />
           </button>
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <Printer className="h-5 w-5 text-gray-600 dark:text-gray-400" />
             <span className="text-gray-700 dark:text-gray-300">Print</span>
-            <MoreVertical className="h-4 w-4 text-gray-400" />
           </button>
           <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <MoreVertical className="h-5 w-5 text-gray-600 dark:text-gray-400" />
@@ -282,8 +279,14 @@ export default function PesananPembelian() {
             <span className="text-gray-700 dark:text-gray-300">Filter</span>
           </button>
           <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
-            <LayoutGrid className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            <MoreVertical className="h-5 w-5 text-gray-600 dark:text-gray-400" />
           </button>
+          <div className="relative">
+            <select className="pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+              <option>Tagihan Pembelian</option>
+            </select>
+            <FileText className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
+          </div>
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
             <input
@@ -294,52 +297,16 @@ export default function PesananPembelian() {
               className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             />
           </div>
-        </div>
-      </div>
-
-      {/* Selection Bar - Show when invoices are selected and user is owner/manager */}
-      {selectedInvoices.length > 0 && canApproveInvoices() && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-blue-900 dark:text-blue-300">
-                {selectedInvoices.length} pesanan dipilih
-              </span>
-              <span className="text-xs text-blue-700 dark:text-blue-400">
-                (Hanya pesanan Draft yang dapat disetujui/ditolak)
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleBulkApprove}
-                disabled={processing}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-              >
-                {processing ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <CheckCircle className="h-5 w-5" />
-                )}
-                <span>Setujui</span>
-              </button>
-              <button
-                onClick={() => setShowDeclineModal(true)}
-                disabled={processing}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-              >
-                <XCircle className="h-5 w-5" />
-                <span>Tolak</span>
-              </button>
-              <button
-                onClick={() => setSelectedInvoices([])}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <span>Batal</span>
-              </button>
-            </div>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="07/01/2025 → 07/01/2026"
+              className="pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+            />
+            <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
           </div>
         </div>
-      )}
+      </div>
 
       {/* Status Tabs */}
       <div className="flex items-center gap-2 mb-4 border-b border-gray-200 dark:border-gray-700">
@@ -354,24 +321,14 @@ export default function PesananPembelian() {
           Semua
         </button>
         <button
-          onClick={() => setSelectedStatus('draft')}
+          onClick={() => setSelectedStatus('unpaid')}
           className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            selectedStatus === 'draft'
+            selectedStatus === 'unpaid'
               ? 'border-blue-600 text-blue-600 dark:text-blue-400'
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
-          Draft
-        </button>
-        <button
-          onClick={() => setSelectedStatus('approved')}
-          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            selectedStatus === 'approved'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-          }`}
-        >
-          Disetujui
+          Belum Dibayar
         </button>
         <button
           onClick={() => setSelectedStatus('partial')}
@@ -381,27 +338,17 @@ export default function PesananPembelian() {
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
-          Dikirim Sebagian
+          Dibayar Sebagian
         </button>
         <button
-          onClick={() => setSelectedStatus('completed')}
+          onClick={() => setSelectedStatus('paid')}
           className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            selectedStatus === 'completed'
+            selectedStatus === 'paid'
               ? 'border-blue-600 text-blue-600 dark:text-blue-400'
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
-          Selesai
-        </button>
-        <button
-          onClick={() => setSelectedStatus('declined')}
-          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            selectedStatus === 'declined'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-          }`}
-        >
-          Ditolak
+          Lunas
         </button>
         <button className="px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
           Lainnya
@@ -445,6 +392,10 @@ export default function PesananPembelian() {
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Tanggal
+                    <MoreVertical className="inline h-3 w-3 ml-1" />
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Tgl. Jatuh Tempo
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
@@ -452,15 +403,11 @@ export default function PesananPembelian() {
                     Status
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Total
-                    <MoreVertical className="inline h-3 w-3 ml-1" />
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredInvoices.map((invoice) => {
-                  const status = getStatusLabel(invoice)
+                  const status = getPaymentStatusLabel(invoice)
                   return (
                     <tr 
                       key={invoice.id} 
@@ -475,7 +422,7 @@ export default function PesananPembelian() {
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                      <td className="px-4 py-3 text-sm text-blue-600 dark:text-blue-400 font-medium">
                         {invoice.number || 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
@@ -485,15 +432,69 @@ export default function PesananPembelian() {
                         {invoice.reference || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {formatDate(invoice.transactionDate || invoice.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {formatDate(invoice.dueDate)}
                       </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className={getStatusColor(status)}>
-                          {status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                        {formatNumber(invoice.total || 0)}
+                      <td className="px-4 py-3 text-sm" style={{ position: 'relative' }}>
+                        <div className="relative inline-block">
+                          <button
+                            ref={(el) => buttonRefs.current[invoice.id] = el}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (paymentMenuOpen === invoice.id) {
+                                setPaymentMenuOpen(null)
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setMenuPosition({
+                                  top: rect.bottom + window.scrollY + 8,
+                                  left: rect.right + window.scrollX - 200
+                                })
+                                setPaymentMenuOpen(invoice.id)
+                              }
+                            }}
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}
+                          >
+                            {status}
+                            <ChevronDown className="inline h-3 w-3 ml-1" />
+                          </button>
+                          {paymentMenuOpen === invoice.id && (
+                            <div 
+                              className="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl" 
+                              style={{ 
+                                zIndex: 9999,
+                                minWidth: '200px',
+                                top: `${menuPosition.top}px`,
+                                left: `${menuPosition.left}px`
+                              }}
+                              ref={paymentMenuRef}
+                            >
+                              <div className="py-1">
+                                {paymentOptions.map((option) => {
+                                  const currentPercentage = getPaymentPercentage(invoice)
+                                  const isSelected = currentPercentage === option.percentage
+                                  return (
+                                    <button
+                                      key={option.percentage}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handlePaymentUpdate(invoice.id, option.percentage)
+                                      }}
+                                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                                        isSelected 
+                                          ? 'text-blue-600 dark:text-blue-400 font-semibold bg-blue-50 dark:bg-blue-900/20' 
+                                          : 'text-gray-700 dark:text-gray-300'
+                                      }`}
+                                    >
+                                      {option.label}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -503,45 +504,6 @@ export default function PesananPembelian() {
           </div>
         )}
       </div>
-
-      {/* Decline Modal */}
-      {showDeclineModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-              Tolak Pesanan Pembelian
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Harap masukkan alasan penolakan untuk {selectedInvoices.length} pesanan yang dipilih:
-            </p>
-            <textarea
-              value={declineReason}
-              onChange={(e) => setDeclineReason(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white mb-4"
-              rows={4}
-              placeholder="Masukkan alasan penolakan..."
-            />
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleBulkReject}
-                disabled={processing || !declineReason.trim()}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-              >
-                {processing ? 'Memproses...' : 'Tolak'}
-              </button>
-              <button
-                onClick={() => {
-                  setShowDeclineModal(false)
-                  setDeclineReason('')
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                Batal
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Chat Bubble */}
       <div className="fixed bottom-6 right-6 z-50">

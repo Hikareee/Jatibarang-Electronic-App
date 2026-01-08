@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import Sidebar from '../components/Dashboard/Sidebar'
@@ -15,7 +15,7 @@ import {
   Save,
   MessageCircle
 } from 'lucide-react'
-import { savePurchaseInvoice } from '../hooks/usePurchaseInvoiceData'
+import { savePurchaseInvoice, getNextPurchaseInvoiceNumber } from '../hooks/usePurchaseInvoiceData'
 import { useContacts } from '../hooks/useContactsData'
 import { useAccounts } from '../hooks/useAccountsData'
 import { useAuth } from '../contexts/AuthContext'
@@ -31,7 +31,7 @@ export default function PurchaseInvoiceAdd() {
   const [formData, setFormData] = useState({
     vendor: '',
     account: '', // Account to debit for purchase
-    number: 'PI/00055',
+    number: '',
     transactionDate: new Date().toISOString().split('T')[0],
     dueDate: '',
     term: 'Net 30',
@@ -46,9 +46,9 @@ export default function PurchaseInvoiceAdd() {
         description: '',
         quantity: 1,
         unit: '',
-        discount: 0,
-        price: 0,
-        tax: 0,
+        discount: '',
+        price: '',
+        tax: '',
         amount: 0
       }
     ],
@@ -70,6 +70,26 @@ export default function PurchaseInvoiceAdd() {
   const [showDeduction, setShowDeduction] = useState(false)
   const [showDownPayment, setShowDownPayment] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [loadingNumber, setLoadingNumber] = useState(true)
+
+  // Auto-generate invoice number on component mount
+  useEffect(() => {
+    const fetchNextNumber = async () => {
+      try {
+        setLoadingNumber(true)
+        const nextNumber = await getNextPurchaseInvoiceNumber()
+        setFormData(prev => ({ ...prev, number: nextNumber }))
+      } catch (error) {
+        console.error('Error fetching next invoice number:', error)
+        // Set default if error
+        setFormData(prev => ({ ...prev, number: 'PI/00001' }))
+      } finally {
+        setLoadingNumber(false)
+      }
+    }
+    
+    fetchNextNumber()
+  }, [])
 
   const calculateSubTotal = () => {
     return formData.items.reduce((sum, item) => {
@@ -103,10 +123,10 @@ export default function PurchaseInvoiceAdd() {
     
     // Calculate amount
     if (field === 'quantity' || field === 'price' || field === 'discount' || field === 'tax') {
-      const quantity = field === 'quantity' ? value : newItems[index].quantity || 0
-      const price = field === 'price' ? value : newItems[index].price || 0
-      const discount = field === 'discount' ? value : newItems[index].discount || 0
-      const tax = field === 'tax' ? value : newItems[index].tax || 0
+      const quantity = parseFloat(newItems[index].quantity || 0)
+      const price = parseFloat(newItems[index].price || 0)
+      const discount = parseFloat(newItems[index].discount || 0)
+      const tax = parseFloat(newItems[index].tax || 0)
       const amount = (quantity * price) * (1 - discount / 100) * (1 + tax / 100)
       newItems[index].amount = amount
     }
@@ -124,9 +144,9 @@ export default function PurchaseInvoiceAdd() {
           description: '',
           quantity: 1,
           unit: '',
-          discount: 0,
-          price: 0,
-          tax: 0,
+          discount: '',
+          price: '',
+          tax: '',
           amount: 0
         }
       ]
@@ -150,7 +170,7 @@ export default function PurchaseInvoiceAdd() {
         createdAt: new Date().toISOString(),
       }
       await savePurchaseInvoice(invoiceData, currentUser?.uid)
-      navigate('/pembelian/tagihan')
+      navigate('/pembelian/pesanan')
     } catch (error) {
       console.error('Error saving purchase invoice:', error)
       alert('Failed to save purchase invoice')
@@ -273,9 +293,10 @@ export default function PurchaseInvoiceAdd() {
                       </label>
                       <input
                         type="text"
-                        value={formData.number}
+                        value={loadingNumber ? 'Loading...' : formData.number}
                         onChange={(e) => setFormData({ ...formData, number: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        placeholder="PI/00001"
                       />
                     </div>
 
@@ -438,8 +459,9 @@ export default function PurchaseInvoiceAdd() {
                             <td className="py-2 px-2">
                               <input
                                 type="number"
-                                value={item.quantity}
-                                onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)}
+                                value={item.quantity === '' ? '' : item.quantity}
+                                placeholder="0"
+                                onChange={(e) => handleItemChange(index, 'quantity', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                                 className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
                               />
                             </td>
@@ -453,21 +475,23 @@ export default function PurchaseInvoiceAdd() {
                               </select>
                             </td>
                             <td className="py-2 px-2">
-                              <input
-                                type="text"
-                                value={`${item.discount}%`}
-                                onChange={(e) => {
-                                  const value = parseFloat(e.target.value.replace('%', '')) || 0
-                                  handleItemChange(index, 'discount', value)
-                                }}
-                                className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
-                              />
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  value={item.discount === '' ? '' : item.discount}
+                                  placeholder="0"
+                                  onChange={(e) => handleItemChange(index, 'discount', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+                                />
+                                <span className="text-sm text-gray-600 dark:text-gray-300">%</span>
+                              </div>
                             </td>
                             <td className="py-2 px-2">
                               <input
                                 type="number"
-                                value={item.price}
-                                onChange={(e) => handleItemChange(index, 'price', parseFloat(e.target.value) || 0)}
+                                value={item.price === '' ? '' : item.price}
+                                placeholder="0"
+                                onChange={(e) => handleItemChange(index, 'price', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                                 className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
                               />
                             </td>
@@ -475,11 +499,12 @@ export default function PurchaseInvoiceAdd() {
                               <div className="flex items-center gap-1">
                                 <input
                                   type="number"
-                                  value={item.tax}
-                                  onChange={(e) => handleItemChange(index, 'tax', parseFloat(e.target.value) || 0)}
+                                  value={item.tax === '' ? '' : item.tax}
+                                  placeholder="0"
+                                  onChange={(e) => handleItemChange(index, 'tax', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                                   className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
                                 />
-                                <ChevronDown className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm text-gray-600 dark:text-gray-300">%</span>
                               </div>
                             </td>
                             <td className="py-2 px-2">

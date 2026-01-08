@@ -18,6 +18,9 @@ import PurchaseInvoiceEdit from './pages/PurchaseInvoiceEdit'
 import PesananPembelian from './pages/PesananPembelian'
 import PurchaseInvoiceDetail from './pages/PurchaseInvoiceDetail'
 import PengirimanPembelian from './pages/PengirimanPembelian'
+import TagihanPembelian from './pages/TagihanPembelian'
+import Pengiriman from './pages/Pengiriman'
+import InvoiceDetail from './pages/InvoiceDetail'
 import Kontak from './pages/Kontak'
 import ContactDetail from './pages/ContactDetail'
 import Produk from './pages/Produk'
@@ -25,6 +28,8 @@ import ProductAdd from './pages/ProductAdd'
 import DebtAdd from './pages/DebtAdd'
 import ReceivableAdd from './pages/ReceivableAdd'
 import Akun from './pages/Akun'
+import Biaya from './pages/Biaya'
+import AsetTetap from './pages/AsetTetap'
 import ApprovedRoute from './components/ApprovedRoute'
 
 function PrivateRoute({ children }) {
@@ -69,7 +74,8 @@ function AppRoutes() {
       >
         <Route path="overview" element={<PenjualanOverview />} />
         <Route path="tagihan" element={<Tagihan />} />
-        <Route path="pengiriman" element={<div className="p-6"><h1 className="text-2xl font-bold">Pengiriman</h1></div>} />
+        <Route path="tagihan/:id" element={<InvoiceDetail />} />
+        <Route path="pengiriman" element={<Pengiriman />} />
         <Route path="pemesanan" element={<div className="p-6"><h1 className="text-2xl font-bold">Pemesanan</h1></div>} />
         <Route path="penawaran" element={<div className="p-6"><h1 className="text-2xl font-bold">Penawaran</h1></div>} />
       </Route>
@@ -104,7 +110,7 @@ function AppRoutes() {
         }
       >
         <Route path="overview" element={<PembelianOverview />} />
-        <Route path="tagihan" element={<div className="p-6"><h1 className="text-2xl font-bold">Tagihan Pembelian</h1></div>} />
+        <Route path="tagihan" element={<TagihanPembelian />} />
         <Route path="pengiriman" element={<PengirimanPembelian />} />
         <Route path="pesanan" element={<PesananPembelian />} />
         <Route path="pesanan/:id" element={<PurchaseInvoiceDetail />} />
@@ -177,6 +183,26 @@ function AppRoutes() {
           <PrivateRoute>
             <ApprovedRoute>
               <Akun />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/biaya"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <Biaya />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/aset-tetap"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <AsetTetap />
             </ApprovedRoute>
           </PrivateRoute>
         }

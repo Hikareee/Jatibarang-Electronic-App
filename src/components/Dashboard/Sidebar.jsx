@@ -60,7 +60,7 @@ export default function Sidebar({ isOpen, onToggle }) {
       path: '/pembelian',
       subItems: [
         { label: t('overview'), path: '/pembelian/overview' },
-        { label: 'Tagihan Pembelian', path: '/pembelian/invoice/add' },
+        { label: 'Tagihan Pembelian', path: '/pembelian/tagihan' },
         { label: 'Pengiriman Pembelian', path: '/pembelian/pengiriman' },
         { label: 'Pesanan Pembelian', path: '/pembelian/pesanan' },
         { label: 'Penawaran Pembelian', path: '/pembelian/penawaran' },

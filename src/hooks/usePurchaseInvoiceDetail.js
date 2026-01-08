@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { doc, getDoc, updateDoc, collection, addDoc, query, orderBy, limit, getDocs } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { updateAccountBalance } from '../utils/accountBalance'
 
 export function usePurchaseInvoiceDetail(invoiceId) {
   const [invoice, setInvoice] = useState(null)
@@ -82,35 +81,8 @@ export function usePurchaseInvoiceDetail(invoiceId) {
         updatedAt: new Date().toISOString()
       })
 
-      // Update account balance when approved (decrease for purchase invoice - money going out)
-      const accountId = invoiceData.accountId || invoiceData.account
-      const totalAmount = parseFloat(invoiceData.total) || 0
-      
-      if (accountId && totalAmount > 0) {
-        // Find the transaction for this invoice
-        const transactionsRef = collection(db, 'transactions')
-        const transactionsQuery = query(
-          transactionsRef,
-          orderBy('createdAt', 'desc')
-        )
-        const transactionsSnapshot = await getDocs(transactionsQuery)
-        
-        let transactionId = null
-        transactionsSnapshot.docs.forEach(doc => {
-          const data = doc.data()
-          if (data.source?.collection === 'purchaseInvoices' && data.source?.id === invoiceId) {
-            transactionId = doc.id
-          }
-        })
-
-        await updateAccountBalance(accountId, -totalAmount, {
-          type: 'invoice_purchase',
-          transactionId: transactionId || invoiceId,
-          number: invoiceData.number,
-          date: invoiceData.transactionDate || invoiceData.createdAt,
-          description: `Purchase Invoice ${invoiceData.number} (Approved)`
-        })
-      }
+      // Account balance will be updated when payment is made, not when invoice is approved
+      // This allows for partial payments and better cash flow tracking
 
       setInvoice(prev => prev ? { ...prev, status: 'approved', approvedAt: new Date().toISOString() } : null)
       return true
