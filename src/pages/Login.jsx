@@ -97,7 +97,7 @@ export default function Login() {
         <div className="w-full max-w-md">
           <div className="mb-8 text-center lg:text-left">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Welcome to IBASA
+              Welcome to IBASA Accounting Software
             </h2>
             <p className="text-gray-600 dark:text-gray-400">
               Sign in to your account

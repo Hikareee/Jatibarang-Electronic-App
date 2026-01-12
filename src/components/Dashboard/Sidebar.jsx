@@ -110,17 +110,6 @@ export default function Sidebar({ isOpen, onToggle }) {
         </button>
       </div>
 
-      {/* Yellow Banner */}
-      <div className="bg-yellow-400 dark:bg-yellow-500 p-3 mx-4 mt-4 rounded-lg flex items-start gap-2">
-        <AlertCircle className="h-5 w-5 text-yellow-800 dark:text-yellow-900 flex-shrink-0 mt-0.5" />
-        <div className="flex-1">
-          <p className="text-xs text-yellow-900 dark:text-yellow-900 leading-tight">
-            {t('dummyDataNotice')}{' '}
-            <button className="underline font-semibold">{t('clickHere')}</button> {t('toClearData')}
-          </p>
-        </div>
-      </div>
-
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {menuItems.map((item) => {

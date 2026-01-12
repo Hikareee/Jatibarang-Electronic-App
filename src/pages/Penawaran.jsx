@@ -149,14 +149,6 @@ export default function Penawaran() {
             </select>
             <FileText className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
           </div>
-          <button 
-            onClick={() => setShowProModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Tambah</span>
-            <ChevronDown className="h-4 w-4" />
-          </button>
           <div className="relative">
             <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
               <Upload className="h-5 w-5 text-gray-600 dark:text-gray-400" />
@@ -350,39 +342,6 @@ export default function Penawaran() {
           </div>
         )}
       </div>
-
-      {/* PRO Package Modal */}
-      {showProModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 max-w-md w-full mx-4 relative">
-            <button
-              onClick={() => setShowProModal(false)}
-              className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-            </button>
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                Fitur Penawaran tersedia di paket PRO
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Upgrade ke paket PRO untuk mengakses fitur penawaran dan fitur premium lainnya.
-              </p>
-              <button
-                onClick={() => {
-                  // Handle upgrade action
-                  setShowProModal(false)
-                }}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-colors"
-              >
-                <ArrowUp className="h-5 w-5" />
-                Upgrade Sekarang
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Chat Bubble */}
       <div className="fixed bottom-6 right-6 z-50">
         <button className="bg-green-500 hover:bg-green-600 text-white rounded-full p-4 shadow-lg flex items-center gap-3 transition-colors">
