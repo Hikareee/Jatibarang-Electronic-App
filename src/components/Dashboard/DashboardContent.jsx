@@ -51,15 +51,14 @@ export default function DashboardContent() {
   // State for expanding/collapsing accounts list
   const [accountsExpanded, setAccountsExpanded] = useState(false)
 
-  // Prepare account balances chart data
+  // Prepare account balances chart data - show all accounts
   const accountChartData = cashAccounts.length > 0
     ? cashAccounts
-        .filter(acc => (acc.saldo || 0) !== 0) // Only show accounts with non-zero balance
         .map(acc => ({
           name: acc.name || acc.code || 'Akun',
           balance: parseFloat(acc.saldo) || 0,
         }))
-        .sort((a, b) => b.balance - a.balance) // Sort by balance descending
+        .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance)) // Sort by absolute balance descending
     : []
 
   const billsInfo = (data?.bills?.info && typeof data.bills.info === 'object')

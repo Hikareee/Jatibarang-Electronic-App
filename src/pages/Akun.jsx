@@ -335,9 +335,10 @@ export default function Akun() {
                       filteredAccounts.map((account) => (
                         <tr 
                           key={account.id} 
-                          className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                          className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                          onClick={() => navigate(`/account/${account.id}`)}
                         >
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                             <input
                               type="checkbox"
                               checked={selectedAccounts.includes(account.id)}

@@ -15,6 +15,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react'
 import { saveProduct } from '../hooks/useProductsData'
+import FormattedNumberInput from '../components/FormattedNumberInput'
 
 export default function ProductAdd() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -237,10 +238,9 @@ export default function ProductAdd() {
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Harga
                       </label>
-                      <input
-                        type="number"
+                      <FormattedNumberInput
                         value={formData.hargaBeli}
-                        onChange={(e) => setFormData({ ...formData, hargaBeli: parseFloat(e.target.value) || 0 })}
+                        onChange={(value) => setFormData({ ...formData, hargaBeli: value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                     </div>
@@ -268,10 +268,9 @@ export default function ProductAdd() {
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Harga
                       </label>
-                      <input
-                        type="number"
+                      <FormattedNumberInput
                         value={formData.hargaJual}
-                        onChange={(e) => setFormData({ ...formData, hargaJual: parseFloat(e.target.value) || 0 })}
+                        onChange={(value) => setFormData({ ...formData, hargaJual: value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                     </div>

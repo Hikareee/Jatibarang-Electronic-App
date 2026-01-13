@@ -18,6 +18,8 @@ import {
 import { saveInvoice, getNextInvoiceNumber } from '../hooks/useInvoiceData'
 import { useContacts } from '../hooks/useContactsData'
 import { useAccounts } from '../hooks/useAccountsData'
+import FormattedNumberInput from '../components/FormattedNumberInput'
+import { formatNumberInput } from '../utils/numberFormatter'
 
 export default function InvoiceAdd() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -508,12 +510,11 @@ export default function InvoiceAdd() {
                               </div>
                             </td>
                             <td className="py-2 px-2">
-                              <input
-                                type="number"
-                                value={item.price === '' ? '' : item.price}
+                              <FormattedNumberInput
+                                value={item.price}
+                                onChange={(value) => handleItemChange(index, 'price', value)}
                                 placeholder="0"
-                                onChange={(e) => handleItemChange(index, 'price', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
-                                className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+                                className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white bg-white text-gray-900 text-sm"
                               />
                             </td>
                             <td className="py-2 px-2">
@@ -825,15 +826,14 @@ function OptionalFieldPopup({ label, value, onChange, onClose }) {
               Rp
             </button>
           </div>
-          <input
-            type="number"
+          <FormattedNumberInput
             value={localValue.value}
-            onChange={(e) => {
-              const newValue = { ...localValue, value: parseFloat(e.target.value) || 0 }
+            onChange={(value) => {
+              const newValue = { ...localValue, value: value }
               setLocalValue(newValue)
               onChange(newValue)
             }}
-            className="flex-1 px-3 py-2 border border-blue-300 dark:border-blue-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-white dark:text-gray-900 text-sm"
+            className="flex-1 px-3 py-2 border border-blue-300 dark:border-blue-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-white dark:text-gray-900 bg-white text-gray-900 text-sm"
           />
           <span className="font-bold text-gray-900 dark:text-white">
             {new Intl.NumberFormat('id-ID').format(localValue.value || 0)}
