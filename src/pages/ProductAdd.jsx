@@ -135,7 +135,7 @@ export default function ProductAdd() {
                     value={formData.nama}
                     onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
                     placeholder="Nama Produk"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
 
@@ -146,7 +146,7 @@ export default function ProductAdd() {
                   <select
                     value={formData.kategori}
                     onChange={(e) => setFormData({ ...formData, kategori: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
                     <option value="">Pilih Kategori</option>
                     <option value="Shoes">Shoes</option>
@@ -164,7 +164,7 @@ export default function ProductAdd() {
                     type="text"
                     value={formData.kode}
                     onChange={(e) => setFormData({ ...formData, kode: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
 
@@ -175,7 +175,7 @@ export default function ProductAdd() {
                   <select
                     value={formData.satuan}
                     onChange={(e) => setFormData({ ...formData, satuan: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
                     <option value="Pcs">Pcs</option>
                     <option value="Kg">Kg</option>
@@ -193,7 +193,7 @@ export default function ProductAdd() {
                     onChange={(e) => setFormData({ ...formData, deskripsi: e.target.value })}
                     rows={4}
                     placeholder="Deskripsi"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
               </div>
@@ -241,7 +241,7 @@ export default function ProductAdd() {
                         type="number"
                         value={formData.hargaBeli}
                         onChange={(e) => setFormData({ ...formData, hargaBeli: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                     </div>
                   )}
@@ -272,7 +272,7 @@ export default function ProductAdd() {
                         type="number"
                         value={formData.hargaJual}
                         onChange={(e) => setFormData({ ...formData, hargaJual: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                     </div>
                   )}

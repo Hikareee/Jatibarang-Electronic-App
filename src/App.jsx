@@ -32,7 +32,9 @@ import Akun from './pages/Akun'
 import Biaya from './pages/Biaya'
 import AsetTetap from './pages/AsetTetap'
 import Pemesanan from './pages/Pemesanan'
+import PemesananAdd from './pages/PemesananAdd'
 import Penawaran from './pages/Penawaran'
+import AccountDetail from './pages/AccountDetail'
 import ApprovedRoute from './components/ApprovedRoute'
 
 function PrivateRoute({ children }) {
@@ -80,6 +82,14 @@ function AppRoutes() {
         <Route path="tagihan/:id" element={<InvoiceDetail />} />
         <Route path="pengiriman" element={<Pengiriman />} />
         <Route path="pemesanan" element={<Pemesanan />} />
+        <Route 
+          path="pemesanan/tambah" 
+          element={
+            <ApprovedRoute>
+              <PemesananAdd />
+            </ApprovedRoute>
+          } 
+        />
         <Route path="penawaran" element={<Penawaran />} />
       </Route>
       <Route
@@ -206,6 +216,16 @@ function AppRoutes() {
           <PrivateRoute>
             <ApprovedRoute>
               <AsetTetap />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/account/:id"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <AccountDetail />
             </ApprovedRoute>
           </PrivateRoute>
         }

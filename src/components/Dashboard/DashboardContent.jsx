@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { 
   AreaChart, 
   Area, 
@@ -17,7 +18,7 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts'
-import { MoreVertical, ChevronDown, MessageCircle, Loader2 } from 'lucide-react'
+import { MoreVertical, ChevronDown, ChevronUp, MessageCircle, Loader2 } from 'lucide-react'
 import { useDashboardData } from '../../hooks/useDashboardData'
 import { useLanguage } from '../../contexts/LanguageContext'
 
@@ -39,6 +40,7 @@ function formatNumber(num) {
 export default function DashboardContent() {
   const { data, loading, error } = useDashboardData()
   const { t } = useLanguage()
+  const navigate = useNavigate()
 
   // Use Firestore data or show zeros - handle null/undefined safely
   const cashInfo = (data?.cash?.info && typeof data.cash.info === 'object') 
@@ -46,40 +48,19 @@ export default function DashboardContent() {
     : { saldoKledo: 0, saldoBank: 0 }
   const cashAccounts = Array.isArray(data?.cash?.accounts) ? data.cash.accounts : []
 
-  // Timeframe state for CASH chart
-  const timeframes = ['daily', 'weekly', 'monthly', 'yearly']
-  const [cashTimeframe, setCashTimeframe] = useState('monthly')
-  const [cashMenuOpen, setCashMenuOpen] = useState(false)
+  // State for expanding/collapsing accounts list
+  const [accountsExpanded, setAccountsExpanded] = useState(false)
 
-  // Prepare cash time-series data. If we don't have a detailed time series, fallback to cashFlow.
-  const baseCashFlow = (data?.cashFlow && Array.isArray(data.cashFlow) && data.cashFlow.length > 0)
-    ? data.cashFlow
-    : [
-        { month: 'Jul', net: 0 },
-        { month: 'Agt', net: 0 },
-        { month: 'Sep', net: 0 },
-        { month: 'Okt', net: 0 },
-        { month: 'Nov', net: 0 },
-        { month: 'Des', net: 0 },
-      ]
-
-  // Map timeframe to label and key
-  const mapToTimeframe = (items, tf) => {
-    // If no detailed granularity, reuse month-based series
-    if (tf === 'monthly' || !items || items.length === 0) {
-      return items.map(it => ({
-        label: it.month || it.period || it.name || 'Periode',
-        value: it.net !== undefined ? it.net : it.value || 0,
-      }))
-    }
-    // For other timeframes, we don't have granular data, so reuse the same but keep label
-    return items.map(it => ({
-      label: it.month || it.period || it.name || 'Periode',
-      value: it.net !== undefined ? it.net : it.value || 0,
-    }))
-  }
-
-  const cashTimeSeries = mapToTimeframe(baseCashFlow, cashTimeframe)
+  // Prepare account balances chart data
+  const accountChartData = cashAccounts.length > 0
+    ? cashAccounts
+        .filter(acc => (acc.saldo || 0) !== 0) // Only show accounts with non-zero balance
+        .map(acc => ({
+          name: acc.name || acc.code || 'Akun',
+          balance: parseFloat(acc.saldo) || 0,
+        }))
+        .sort((a, b) => b.balance - a.balance) // Sort by balance descending
+    : []
 
   const billsInfo = (data?.bills?.info && typeof data.bills.info === 'object')
     ? data.bills.info 
@@ -244,32 +225,9 @@ export default function DashboardContent() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('cash')}.</h2>
-              <div className="relative">
-                <button
-                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
-                  onClick={() => setCashMenuOpen(!cashMenuOpen)}
-                >
-                  <MoreVertical className="h-5 w-5 text-gray-400" />
-                </button>
-                {cashMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20">
-                    {timeframes.map(tf => (
-                      <button
-                        key={tf}
-                        onClick={() => {
-                          setCashTimeframe(tf)
-                          setCashMenuOpen(false)
-                        }}
-                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                          cashTimeframe === tf ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'
-                        }`}
-                      >
-                        {t(tf)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+                <MoreVertical className="h-5 w-5 text-gray-400" />
+              </button>
             </div>
             
             <div className="mb-4 space-y-2">
@@ -279,64 +237,91 @@ export default function DashboardContent() {
                   {formatNumber(cashInfo.saldoKledo || cashInfo.total || 0)}
                 </span>
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                {t('timeframe')}: {t(cashTimeframe)}
-              </div>
             </div>
 
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={cashTimeSeries}>
-                  <defs>
-                    <linearGradient id="colorCash" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={COLORS.pink} stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor={COLORS.pink} stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                  <XAxis 
-                    dataKey="label" 
-                    stroke="#6B7280"
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis 
-                    stroke="#6B7280"
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => formatNumber(value)}
-                  />
-                  <Tooltip 
-                    formatter={(value) => formatNumber(value)}
-                    labelFormatter={(label) => label}
-                    contentStyle={{ 
-                      backgroundColor: 'white', 
-                      border: '1px solid #E5E7EB',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke={COLORS.pink} 
-                    fillOpacity={1} 
-                    fill="url(#colorCash)" 
-                    strokeWidth={2}
-                  />
-                </AreaChart>
+                  {accountChartData.length > 0 ? (
+                  <BarChart 
+                    data={accountChartData} 
+                    layout="vertical"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis 
+                      type="number"
+                      stroke="#6B7280"
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => formatNumber(value)}
+                    />
+                    <YAxis 
+                      type="category"
+                      dataKey="name" 
+                      stroke="#6B7280"
+                      tick={{ fontSize: 11 }}
+                      width={100}
+                    />
+                    <Tooltip 
+                      formatter={(value) => formatNumber(value)}
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Bar 
+                      dataKey="balance" 
+                      fill={COLORS.pink}
+                      radius={[0, 8, 8, 0]}
+                      onClick={(data) => {
+                        if (data && data.name) {
+                          const account = cashAccounts.find(acc => 
+                            (acc.name || acc.code) === data.name
+                          )
+                          if (account) {
+                            navigate(`/account/${account.id}`)
+                          }
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </BarChart>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                    {t('noAccounts')}
+                  </div>
+                )}
               </ResponsiveContainer>
             </div>
 
-            <div className="mt-4">
-              <div className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-2 px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  <div>{t('account')}</div>
-                  <div className="text-right">{t('balance')}</div>
-                </div>
-                <div className="divide-y divide-gray-200 dark:divide-gray-600">
-                  {cashAccounts.length === 0 ? (
-                    <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{t('noAccounts')}</div>
+            {cashAccounts.length > 0 && (
+              <div className="mt-4">
+                <button
+                  onClick={() => setAccountsExpanded(!accountsExpanded)}
+                  className="w-full flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                >
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {t('account')} ({cashAccounts.length})
+                  </span>
+                  {accountsExpanded ? (
+                    <ChevronUp className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                   ) : (
-                    cashAccounts.map(acc => (
-                      <div key={acc.id} className="grid grid-cols-2 px-4 py-3 text-sm">
+                    <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                  )}
+                </button>
+                
+                {accountsExpanded && (
+                  <div className="mt-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                    <div className="grid grid-cols-2 px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      <div>{t('account')}</div>
+                      <div className="text-right">{t('balance')}</div>
+                    </div>
+                    <div className="divide-y divide-gray-200 dark:divide-gray-600 max-h-64 overflow-y-auto">
+                    {cashAccounts.map(acc => (
+                      <div 
+                        key={acc.id} 
+                        className="grid grid-cols-2 px-4 py-3 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        onClick={() => navigate(`/account/${acc.id}`)}
+                      >
                         <div className="text-gray-900 dark:text-white">
                           {acc.name || acc.code || t('account')}
                         </div>
@@ -344,11 +329,12 @@ export default function DashboardContent() {
                           {formatNumber(acc.saldo || 0)}
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
+                    ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
 
           {/* TAGIHAN YANG PERLU KAMU BAYAR Section */}
