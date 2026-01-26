@@ -32,7 +32,6 @@ import {
 // List of available models in order of preference (best to worst)
 const AVAILABLE_MODELS = [
   'gemini-2.5-flash',
-  'gemini-3-flash',
   'gemini-2.5-flash-lite',
   'gemma-3-12b',
   'gemma-3-27b',
@@ -606,7 +605,7 @@ Pertanyaan user: ${userMessage.content}`
                       AI Assistant
                     </h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Powered by Google Gemini {currentModel && `(${currentModel})`}
+                      Powered by Google Gemini 
                     </p>
                   </div>
                 </div>
