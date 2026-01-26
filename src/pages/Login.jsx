@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useUserApproval } from '../hooks/useUserApproval'
-import TestimonialCarousel from '../components/Login/TestimonialCarousel'
 import LoginForm from '../components/Login/LoginForm'
 
 export default function Login() {
@@ -68,27 +67,26 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
-      {/* Left Side - Testimonials */}
+      {/* Left Side - Register prompt */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 to-blue-800 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
         </div>
-        <div className="relative z-10 flex flex-col justify-center items-center p-12 text-white">
-          <div className="mb-8">
-            <img 
-              src="/logo-white.svg" 
-              alt="IBASA" 
-              className="h-12 mb-8"
-              onError={(e) => {
-                e.target.style.display = 'none'
-                e.target.nextSibling.style.display = 'block'
-              }}
-            />
+        <div className="relative z-10 flex flex-col justify-center items-center p-12 text-white text-center">
+          <div className="mb-12">
             <h1 className="text-4xl font-bold mb-2">IBASA</h1>
             <p className="text-blue-100">Accounting Software</p>
           </div>
-          <TestimonialCarousel />
+          <p className="text-xl text-white/95 mb-6 max-w-sm">
+            Don&apos;t have an account?
+          </p>
+          <Link
+            to="/register"
+            className="inline-flex items-center justify-center px-8 py-3 rounded-lg bg-white text-blue-600 font-semibold hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600"
+          >
+            Register now
+          </Link>
         </div>
       </div>
 
@@ -116,6 +114,13 @@ export default function Login() {
             loading={loading}
             googleLoading={googleLoading}
           />
+
+          <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
+              Register now
+            </Link>
+          </p>
 
           <div className="mt-8 text-center">
             <div className="flex items-center justify-center gap-2 mb-4">

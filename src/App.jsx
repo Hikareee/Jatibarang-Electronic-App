@@ -35,7 +35,9 @@ import Pemesanan from './pages/Pemesanan'
 import PemesananAdd from './pages/PemesananAdd'
 import Penawaran from './pages/Penawaran'
 import AccountDetail from './pages/AccountDetail'
+import AIAssistant from './pages/AIAssistant'
 import ApprovedRoute from './components/ApprovedRoute'
+import ManagerRoute from './components/ManagerRoute'
 
 function PrivateRoute({ children }) {
   const { currentUser } = useAuth()
@@ -64,7 +66,9 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <ApprovedRoute>
-              <Users />
+              <ManagerRoute>
+                <Users />
+              </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>
         }
@@ -135,7 +139,9 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <ApprovedRoute>
-              <Kontak />
+              <ManagerRoute>
+                <Kontak />
+              </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>
         }
@@ -145,7 +151,9 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <ApprovedRoute>
-              <ContactDetail />
+              <ManagerRoute>
+                <ContactDetail />
+              </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>
         }
@@ -155,7 +163,9 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <ApprovedRoute>
-              <Produk />
+              <ManagerRoute>
+                <Produk />
+              </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>
         }
@@ -165,7 +175,9 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <ApprovedRoute>
-              <ProductAdd />
+              <ManagerRoute>
+                <ProductAdd />
+              </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>
         }
@@ -175,7 +187,9 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <ApprovedRoute>
-              <DebtAdd />
+              <ManagerRoute>
+                <DebtAdd />
+              </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>
         }
@@ -185,7 +199,9 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <ApprovedRoute>
-              <ReceivableAdd />
+              <ManagerRoute>
+                <ReceivableAdd />
+              </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>
         }
@@ -195,7 +211,9 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <ApprovedRoute>
-              <Akun />
+              <ManagerRoute>
+                <Akun />
+              </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>
         }
@@ -205,7 +223,9 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <ApprovedRoute>
-              <Biaya />
+              <ManagerRoute>
+                <Biaya />
+              </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>
         }
@@ -215,7 +235,9 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <ApprovedRoute>
-              <AsetTetap />
+              <ManagerRoute>
+                <AsetTetap />
+              </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>
         }
@@ -225,8 +247,18 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <ApprovedRoute>
-              <AccountDetail />
+              <ManagerRoute>
+                <AccountDetail />
+              </ManagerRoute>
             </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/ai-assistant"
+        element={
+          <PrivateRoute>
+            <AIAssistant />
           </PrivateRoute>
         }
       />

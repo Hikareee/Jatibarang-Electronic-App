@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useUserApproval } from '../../hooks/useUserApproval'
 import { 
   Home,
   ShoppingCart, 
@@ -19,12 +20,15 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronUp,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from 'lucide-react'
 
 export default function Sidebar({ isOpen, onToggle }) {
   const location = useLocation()
   const { t } = useLanguage()
+  const { role } = useUserApproval()
+  const isEmployee = role === 'employee'
   const [expandedMenus, setExpandedMenus] = useState({
     penjualan: location.pathname.startsWith('/penjualan'),
     pembelian: location.pathname.startsWith('/pembelian')
@@ -40,7 +44,7 @@ export default function Sidebar({ isOpen, onToggle }) {
     }
   }, [location.pathname])
 
-  const menuItems = [
+  const allMenuItems = [
     { icon: Home, label: t('home'), path: '/dashboard' },
     { 
       icon: ShoppingCart, 
@@ -66,17 +70,23 @@ export default function Sidebar({ isOpen, onToggle }) {
         { label: t('purchaseOffers'), path: '/pembelian/penawaran' },
       ]
     },
-    { icon: Receipt, label: t('expenses'), path: '/biaya' },
-    { icon: Package, label: t('products'), path: '/produk' },
-    { icon: Warehouse, label: t('inventory'), path: '/inventori' },
-    { icon: FileText, label: t('reports'), path: '/laporan' },
-    { icon: Wallet, label: t('cashBank'), path: '/kas-bank' },
-    { icon: BookOpen, label: t('accounts'), path: '/akun' },
-    { icon: Building2, label: t('fixedAssets'), path: '/aset-tetap' },
-    { icon: Users, label: t('contacts'), path: '/kontak' },
-    { icon: Briefcase, label: t('payroll'), path: '/payroll' },
-    { icon: Shield, label: t('users'), path: '/users' },
+    { icon: Receipt, label: t('expenses'), path: '/biaya', managerOnly: true },
+    { icon: Package, label: t('products'), path: '/produk', managerOnly: true },
+    { icon: Warehouse, label: t('inventory'), path: '/inventori', managerOnly: true },
+    { icon: FileText, label: t('reports'), path: '/laporan', managerOnly: true },
+    { icon: Wallet, label: t('cashBank'), path: '/kas-bank', managerOnly: true },
+    { icon: BookOpen, label: t('accounts'), path: '/akun', managerOnly: true },
+    { icon: Building2, label: t('fixedAssets'), path: '/aset-tetap', managerOnly: true },
+    { icon: Users, label: t('contacts'), path: '/kontak', managerOnly: true },
+    { icon: Briefcase, label: t('payroll'), path: '/payroll', managerOnly: true },
+    { icon: Shield, label: t('users'), path: '/users', managerOnly: true },
+    { icon: Sparkles, label: t('aiAssistant'), path: '/ai-assistant' },
   ]
+
+  const menuItems = useMemo(() => 
+    isEmployee ? allMenuItems.filter(item => !item.managerOnly) : allMenuItems,
+    [isEmployee]
+  )
 
   return (
     <aside className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col ${

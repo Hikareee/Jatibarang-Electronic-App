@@ -173,6 +173,7 @@ export function LanguageProvider({ children }) {
       grossProfit: 'Gross Profit',
       netProfitLabel: 'Net Profit',
       loadingDashboard: 'Loading dashboard data...',
+      aiAssistant: 'AI Assistant',
     },
     id: {
       sell: 'Jual',
@@ -330,6 +331,7 @@ export function LanguageProvider({ children }) {
       grossProfit: 'Laba kotor',
       netProfitLabel: 'Laba bersih',
       loadingDashboard: 'Memuat data dashboard...',
+      aiAssistant: 'Asisten AI',
     }
   }
 
