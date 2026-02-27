@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { collection, getDocs } from 'firebase/firestore'
 import Sidebar from '../components/Dashboard/Sidebar'
 import Header from '../components/Dashboard/Header'
 import Footer from '../components/Dashboard/Footer'
@@ -20,6 +21,7 @@ import {
   ChevronLeft
 } from 'lucide-react'
 import { extractData, createDataFromExtracted } from '../utils/aiDataExtraction'
+import { db } from '../firebase/config'
 import { 
   useAIChatHistory, 
   createNewChat, 
@@ -100,6 +102,112 @@ export default function AIAssistant() {
   const [loadingChat, setLoadingChat] = useState(false)
 
   const getInitialMessage = () => (userRole === 'employee' ? INITIAL_MESSAGE_EMPLOYEE : INITIAL_MESSAGE)
+
+  const parseAnalyticsIntent = (text) => {
+    if (!text) return null
+    const lower = text.toLowerCase()
+
+    const isSpendingQuestion =
+      (lower.includes('pengeluaran') || lower.includes('biaya') || lower.includes('spending')) &&
+      (lower.includes('berapa') || lower.includes('berapa total') || lower.includes('total'))
+
+    if (!isSpendingQuestion) return null
+
+    let period = 'all_time'
+    let periodLabel = 'semua waktu'
+
+    if (lower.includes('tahun ini') || lower.includes('this year')) {
+      period = 'this_year'
+      periodLabel = 'tahun ini'
+    } else if (lower.includes('bulan ini') || lower.includes('this month')) {
+      period = 'this_month'
+      periodLabel = 'bulan ini'
+    }
+
+    let itemKeyword = null
+    const itemMatch =
+      lower.match(/untuk\s+(.+?)\?*$/) ||
+      lower.match(/atas\s+(.+?)\?*$/) ||
+      lower.match(/pada\s+(.+?)\?*$/)
+
+    if (itemMatch && itemMatch[1]) {
+      itemKeyword = itemMatch[1].trim()
+    }
+
+    return {
+      type: 'spending',
+      period,
+      periodLabel,
+      itemKeyword,
+    }
+  }
+
+  const fetchSpendingAnalytics = async (intent) => {
+    const now = new Date()
+    let startDate = null
+
+    if (intent.period === 'this_year') {
+      startDate = new Date(now.getFullYear(), 0, 1)
+    } else if (intent.period === 'this_month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+    }
+
+    const expensesSnapshot = await getDocs(collection(db, 'expenses'))
+
+    let total = 0
+    let count = 0
+
+    const matches = []
+
+    expensesSnapshot.forEach((docSnap) => {
+      const data = docSnap.data() || {}
+      const dateString = data.date || data.createdAt
+      if (!dateString) return
+
+      const expenseDate = new Date(dateString)
+      if (Number.isNaN(expenseDate.getTime())) return
+
+      if (startDate && expenseDate < startDate) return
+      if (expenseDate > now) return
+
+      const expenseTotal = parseFloat(data.total) || 0
+
+      if (intent.itemKeyword) {
+        const keyword = intent.itemKeyword.toLowerCase()
+        const items = Array.isArray(data.items) ? data.items : []
+        const hasMatchingItem = items.some((item) => {
+          const text =
+            `${item.product || ''} ${item.description || ''}`.toLowerCase()
+          return text.includes(keyword)
+        })
+
+        if (!hasMatchingItem) {
+          return
+        }
+      }
+
+      total += expenseTotal
+      count += 1
+      matches.push({
+        id: docSnap.id,
+        number: data.number || '',
+        date: data.date || data.createdAt || '',
+        total: expenseTotal,
+        description: data.description || '',
+      })
+    })
+
+    return {
+      kind: 'spending',
+      period: intent.period,
+      periodLabel: intent.periodLabel,
+      itemKeyword: intent.itemKeyword,
+      currency: 'IDR',
+      total,
+      count,
+      sample: matches.slice(0, 10),
+    }
+  }
 
   const loadChatMessages = async (chatId) => {
     if (!chatId) {
@@ -288,6 +396,42 @@ Pertanyaan user: ${userMessage.content}`
         await saveMessage(blockMsg)
         setLoading(false)
         return
+      }
+
+      const analyticsIntent = parseAnalyticsIntent(userInput)
+
+      if (analyticsIntent) {
+        try {
+          const analyticsData = await fetchSpendingAnalytics(analyticsIntent)
+          const modelName = AVAILABLE_MODELS[currentModelIndex] || AVAILABLE_MODELS[0]
+
+          const enrichedMessage = {
+            ...userMessage,
+            content: `Berikut ringkasan data aktual dari Firebase Firestore (jangan mengarang angka baru, gunakan data ini sebagai sumber utama):\n\n` +
+              `${JSON.stringify(analyticsData, null, 2)}\n\n` +
+              `Jawablah pertanyaan user di bawah ini dengan menjelaskan angka-angka di atas dalam Bahasa Indonesia yang mudah dipahami.\n\n` +
+              `Pertanyaan asli user: ${userMessage.content}`,
+          }
+
+          const data = await tryModel(modelName, apiKey, enrichedMessage, userRole)
+
+          setCurrentModelIndex(currentModelIndex)
+          setCurrentModel(modelName)
+
+          const assistantMessage = {
+            id: Date.now() + 1,
+            role: 'assistant',
+            content: data.candidates?.[0]?.content?.parts?.[0]?.text || 'Maaf, saya tidak dapat menghasilkan respons.',
+            timestamp: new Date()
+          }
+
+          setMessages(prev => [...prev, assistantMessage])
+          await saveMessage(assistantMessage)
+          setLoading(false)
+          return
+        } catch (analyticsError) {
+          console.error('Error handling analytics question:', analyticsError)
+        }
       }
 
       // Check if user wants to create data or request forbidden actions

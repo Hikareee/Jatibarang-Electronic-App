@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
-import Sidebar from '../components/Dashboard/Sidebar'
-import Header from '../components/Dashboard/Header'
-import Footer from '../components/Dashboard/Footer'
 import { 
   ChevronLeft, 
   ChevronDown, 
@@ -194,18 +191,9 @@ export default function PurchaseInvoiceEdit() {
 
   if (loading) {
     return (
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-          <main className="flex-1 overflow-y-auto p-6">
-            <div className="flex items-center justify-center h-96">
-              <div className="text-center">
-                <p className="text-gray-600 dark:text-gray-400">Memuat...</p>
-              </div>
-            </div>
-          </main>
-          <Footer />
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <p className="text-gray-600 dark:text-gray-400">Memuat...</p>
         </div>
       </div>
     )
@@ -213,23 +201,14 @@ export default function PurchaseInvoiceEdit() {
 
   if (error || !invoice) {
     return (
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-          <main className="flex-1 overflow-y-auto p-6">
-            <div className="text-center">
-              <p className="text-red-600 dark:text-red-400">{error || 'Pesanan pembelian tidak ditemukan'}</p>
-              <button
-                onClick={() => navigate('/pembelian/pesanan')}
-                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Kembali
-              </button>
-            </div>
-          </main>
-          <Footer />
-        </div>
+      <div className="text-center">
+        <p className="text-red-600 dark:text-red-400">{error || 'Pesanan pembelian tidak ditemukan'}</p>
+        <button
+          onClick={() => navigate('/pembelian/pesanan')}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Kembali
+        </button>
       </div>
     )
   }
@@ -237,67 +216,55 @@ export default function PurchaseInvoiceEdit() {
   // Use the same form structure as PurchaseInvoiceAdd
   // This is a simplified version - you can copy the full form from PurchaseInvoiceAdd.jsx
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Beranda &gt; Pembelian &gt; Pesanan Pembelian &gt; Edit
-            </div>
+    <div className="max-w-7xl mx-auto">
+      <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        Beranda &gt; Pembelian &gt; Pesanan Pembelian &gt; Edit
+      </div>
 
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Edit Pesanan Pembelian
-              </h1>
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => navigate(`/pembelian/pesanan/${id}`)}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                  <span>Kembali</span>
-                </button>
-              </div>
-            </div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          Edit Pesanan Pembelian
+        </h1>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate(`/pembelian/pesanan/${id}`)}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+          >
+            <ChevronLeft className="h-5 w-5" />
+            <span>Kembali</span>
+          </button>
+        </div>
+      </div>
 
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
-              <p className="text-sm text-yellow-800 dark:text-yellow-300">
-                <strong>Catatan:</strong> Perubahan akan dicatat dalam riwayat edit sebagai "edited by {currentUser?.email}"
-              </p>
-            </div>
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+        <p className="text-sm text-yellow-800 dark:text-yellow-300">
+          <strong>Catatan:</strong> Perubahan akan dicatat dalam riwayat edit sebagai "edited by {currentUser?.email}"
+        </p>
+      </div>
 
-            {/* Copy the full form from PurchaseInvoiceAdd.jsx here */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 mb-6">
-              <p className="text-gray-600 dark:text-gray-400">
-                Form editing akan menggunakan struktur yang sama dengan PurchaseInvoiceAdd.
-                Untuk implementasi lengkap, salin seluruh form dari PurchaseInvoiceAdd.jsx
-              </p>
-            </div>
+      {/* Copy the full form from PurchaseInvoiceAdd.jsx here */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <p className="text-gray-600 dark:text-gray-400">
+          Form editing akan menggunakan struktur yang sama dengan PurchaseInvoiceAdd.
+          Untuk implementasi lengkap, salin seluruh form dari PurchaseInvoiceAdd.jsx
+        </p>
+      </div>
 
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => navigate(`/pembelian/pesanan/${id}`)}
-                className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                <Save className="h-5 w-5" />
-                <span>Simpan Perubahan</span>
-              </button>
-            </div>
-          </div>
-        </main>
-        
-        <Footer />
+      <div className="flex justify-end gap-3">
+        <button
+          onClick={() => navigate(`/pembelian/pesanan/${id}`)}
+          className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+        >
+          Batal
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+        >
+          <Save className="h-5 w-5" />
+          <span>Simpan Perubahan</span>
+        </button>
       </div>
     </div>
   )
