@@ -18,6 +18,8 @@ import {
 import { savePurchaseInvoice, getNextPurchaseInvoiceNumber } from '../hooks/usePurchaseInvoiceData'
 import { useContacts } from '../hooks/useContactsData'
 import { useAccounts } from '../hooks/useAccountsData'
+import { storage } from '../firebase/config'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useWarehouses } from '../hooks/useWarehouses'
 import { useAuth } from '../contexts/AuthContext'
 import FormattedNumberInput from '../components/FormattedNumberInput'
@@ -75,6 +77,55 @@ export default function PurchaseInvoiceAdd() {
   const [showDownPayment, setShowDownPayment] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loadingNumber, setLoadingNumber] = useState(true)
+  const [uploadingAttachments, setUploadingAttachments] = useState(false)
+  const [attachmentError, setAttachmentError] = useState('')
+
+  const handleAttachmentFiles = async (event) => {
+    const files = Array.from(event.target.files || [])
+    if (!files.length) return
+
+    try {
+      setUploadingAttachments(true)
+      setAttachmentError('')
+
+      const uploads = await Promise.all(
+        files.map(async (file) => {
+          const safeName = file.name.replace(/[^\w.\-]+/g, '_')
+          const path = `purchase-invoices/${Date.now()}-${safeName}`
+          const storageRef = ref(storage, path)
+          await uploadBytes(storageRef, file)
+          const url = await getDownloadURL(storageRef)
+          return {
+            name: file.name,
+            url,
+            type: file.type || 'application/octet-stream',
+            size: file.size || 0,
+            path,
+            uploadedAt: new Date().toISOString(),
+          }
+        })
+      )
+
+      setFormData((prev) => ({
+        ...prev,
+        attachments: [...(prev.attachments || []), ...uploads],
+      }))
+
+      event.target.value = ''
+    } catch (err) {
+      console.error('Error uploading attachments:', err)
+      setAttachmentError('Gagal mengunggah lampiran')
+    } finally {
+      setUploadingAttachments(false)
+    }
+  }
+
+  const handleRemoveAttachment = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      attachments: (prev.attachments || []).filter((_, i) => i !== index),
+    }))
+  }
 
   // Auto-generate invoice number on component mount
   useEffect(() => {
@@ -574,6 +625,71 @@ export default function PurchaseInvoiceAdd() {
                     <span className="text-gray-700 dark:text-gray-300">Attachment</span>
                     {showAttachment ? <ChevronDown className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                   </button>
+                  {showAttachment && (
+                    <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Upload file (gambar / dokumen)
+                        </label>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"
+                          onChange={handleAttachmentFiles}
+                          className="w-full text-sm text-gray-700 dark:text-gray-200 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-300"
+                        />
+                        {uploadingAttachments && (
+                          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            Mengunggah lampiran...
+                          </p>
+                        )}
+                        {attachmentError && (
+                          <p className="mt-2 text-xs text-red-500">
+                            {attachmentError}
+                          </p>
+                        )}
+                      </div>
+
+                      {(formData.attachments || []).length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Lampiran saat ini
+                          </p>
+                          <ul className="space-y-1">
+                            {formData.attachments.map((att, index) => (
+                              <li
+                                key={`${att.path || att.url || att.name}-${index}`}
+                                className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-200"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="truncate max-w-xs">
+                                    {att.name}
+                                  </span>
+                                  {att.url && (
+                                    <a
+                                      href={att.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
+                                    >
+                                      Buka
+                                    </a>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveAttachment(index)}
+                                  className="ml-2 text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                >
+                                  Hapus
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

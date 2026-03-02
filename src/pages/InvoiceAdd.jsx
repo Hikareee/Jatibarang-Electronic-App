@@ -21,6 +21,8 @@ import { useAccounts } from '../hooks/useAccountsData'
 import { useWarehouses } from '../hooks/useWarehouses'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 import { formatNumberInput } from '../utils/numberFormatter'
+import { storage } from '../firebase/config'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 export default function InvoiceAdd() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -105,6 +107,8 @@ export default function InvoiceAdd() {
   const [showDownPayment, setShowDownPayment] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loadingNumber, setLoadingNumber] = useState(true)
+  const [uploadingAttachments, setUploadingAttachments] = useState(false)
+  const [attachmentError, setAttachmentError] = useState('')
 
   const selectedCustomer = useMemo(() => {
     if (!formData.customer) return null
@@ -198,6 +202,54 @@ export default function InvoiceAdd() {
     const deductions = formData.deductions.reduce((sum, d) => sum + (d.value || 0), 0)
     const downPayments = formData.downPayments.reduce((sum, d) => sum + (d.value || 0), 0)
     return total - deductions - downPayments
+  }
+
+  const handleAttachmentFiles = async (event) => {
+    const files = Array.from(event.target.files || [])
+    if (!files.length) return
+
+    try {
+      setUploadingAttachments(true)
+      setAttachmentError('')
+
+      const uploads = await Promise.all(
+        files.map(async (file) => {
+          const safeName = file.name.replace(/[^\w.\-]+/g, '_')
+          const path = `invoices/${Date.now()}-${safeName}`
+          const storageRef = ref(storage, path)
+          await uploadBytes(storageRef, file)
+          const url = await getDownloadURL(storageRef)
+          return {
+            name: file.name,
+            url,
+            type: file.type || 'application/octet-stream',
+            size: file.size || 0,
+            path,
+            uploadedAt: new Date().toISOString(),
+          }
+        })
+      )
+
+      setFormData((prev) => ({
+        ...prev,
+        attachments: [...(prev.attachments || []), ...uploads],
+      }))
+
+      // reset input so same file can be selected again if needed
+      event.target.value = ''
+    } catch (err) {
+      console.error('Error uploading attachments:', err)
+      setAttachmentError('Gagal mengunggah lampiran')
+    } finally {
+      setUploadingAttachments(false)
+    }
+  }
+
+  const handleRemoveAttachment = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      attachments: (prev.attachments || []).filter((_, i) => i !== index),
+    }))
   }
 
   const handleItemChange = (index, field, value) => {
@@ -695,6 +747,275 @@ export default function InvoiceAdd() {
                   </button>
                 </div>
 
+                {/* Detail Invoice (INV3 PERIZINAN fields) */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Detail Invoice
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Alamat Customer <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={formData.customerAddress}
+                        onChange={(e) => setFormData({ ...formData, customerAddress: e.target.value })}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        placeholder="Alamat customer sesuai invoice"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Attn. <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.attn}
+                        onChange={(e) => setFormData({ ...formData, attn: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        placeholder="Procurement Division"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Kota (KWITANSI) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.city}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        placeholder="Cirebon"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Judul Pekerjaan (baris header tabel) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.jobTitle}
+                        onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        placeholder="PEKERJAAN PERIZINAN"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        ITEM PEKERJAAN (satu per baris) <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={formData.workItems}
+                        onChange={(e) => setFormData({ ...formData, workItems: e.target.value })}
+                        rows={5}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        placeholder={'1. KAJIAN ANDALALIN\n2. PERSETUJUAN TEKNIS AIR LIMBAH (PRETEK AIR LIMBAH )'}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        NO SPH * <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.sphNumber}
+                        onChange={(e) => setFormData({ ...formData, sphNumber: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        NO PO * <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.poNumber}
+                        onChange={(e) => setFormData({ ...formData, poNumber: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        placeholder="043/PO/-CY/X/2024"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        TGL PO * <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.poDate}
+                        onChange={(e) => setFormData({ ...formData, poDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        placeholder="31 OKTOBER 2024"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        VAT Rate (%) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.vatRate}
+                        onChange={(e) => setFormData({ ...formData, vatRate: e.target.value === '' ? '' : Number(e.target.value) })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        PPH Rate (%) <span className="text-red-500">*</span>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.pphRate}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              pphRate: e.target.value === '' ? '' : Number(e.target.value),
+                              pphValueManual: false,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              pphValueManual: !prev.pphValueManual,
+                            }))
+                          }
+                          className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
+                          title="Toggle manual PPH value"
+                        >
+                          Manual
+                        </button>
+                      </div>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        PPH Value (Rp) <span className="text-red-500">*</span>
+                      </label>
+                      <FormattedNumberInput
+                        value={formData.pphValue}
+                        onChange={(value) => setFormData({ ...formData, pphValue: value, pphValueManual: true })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white bg-white text-gray-900"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mt-2">
+                        Header Perusahaan & Bank
+                      </h3>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Nama Perusahaan <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.companyName}
+                        onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Telp <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.companyPhone}
+                        onChange={(e) => setFormData({ ...formData, companyPhone: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Alamat Perusahaan <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={formData.companyAddress}
+                        onChange={(e) => setFormData({ ...formData, companyAddress: e.target.value })}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Email <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={formData.companyEmail}
+                        onChange={(e) => setFormData({ ...formData, companyEmail: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Bank <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.bankName}
+                        onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        No. Rek <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.bankAccountNo}
+                        onChange={(e) => setFormData({ ...formData, bankAccountNo: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        A/N <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.bankAccountName}
+                        onChange={(e) => setFormData({ ...formData, bankAccountName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Nama Penandatangan <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.signName}
+                        onChange={(e) => setFormData({ ...formData, signName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Jabatan <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.signTitle}
+                        onChange={(e) => setFormData({ ...formData, signTitle: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Collapsible Sections */}
                 <div className="space-y-2">
                   <button
@@ -723,6 +1044,71 @@ export default function InvoiceAdd() {
                     <span className="text-gray-700 dark:text-gray-300">{t('attachment')}</span>
                     {showAttachment ? <ChevronDown className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                   </button>
+                  {showAttachment && (
+                    <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Upload file (gambar / dokumen)
+                        </label>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"
+                          onChange={handleAttachmentFiles}
+                          className="w-full text-sm text-gray-700 dark:text-gray-200 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-300"
+                        />
+                        {uploadingAttachments && (
+                          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            Mengunggah lampiran...
+                          </p>
+                        )}
+                        {attachmentError && (
+                          <p className="mt-2 text-xs text-red-500">
+                            {attachmentError}
+                          </p>
+                        )}
+                      </div>
+
+                      {(formData.attachments || []).length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Lampiran saat ini
+                          </p>
+                          <ul className="space-y-1">
+                            {formData.attachments.map((att, index) => (
+                              <li
+                                key={`${att.path || att.url || att.name}-${index}`}
+                                className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-200"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="truncate max-w-xs">
+                                    {att.name}
+                                  </span>
+                                  {att.url && (
+                                    <a
+                                      href={att.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
+                                    >
+                                      Buka
+                                    </a>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveAttachment(index)}
+                                  className="ml-2 text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                >
+                                  Hapus
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <button
                     onClick={() => setShowPaymentConnect(!showPaymentConnect)}
@@ -896,276 +1282,6 @@ export default function InvoiceAdd() {
                   <ChevronDown className="h-4 w-4" />
                 </button>
               </div>
-            </div>
-
-            {/* INV3 PERIZINAN template fields */}
-            <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Template INV3 (Perizinan) - Wajib Diisi
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Alamat Customer <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    value={formData.customerAddress}
-                    onChange={(e) => setFormData({ ...formData, customerAddress: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="Alamat customer sesuai invoice"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Attn. <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.attn}
-                    onChange={(e) => setFormData({ ...formData, attn: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="Procurement Division"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Kota (KWITANSI) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="Cirebon"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Judul Pekerjaan (baris header tabel) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.jobTitle}
-                    onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="PEKERJAAN PERIZINAN"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    ITEM PEKERJAAN (satu per baris) <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    value={formData.workItems}
-                    onChange={(e) => setFormData({ ...formData, workItems: e.target.value })}
-                    rows={5}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    placeholder={'1. KAJIAN ANDALALIN\n2. PERSETUJUAN TEKNIS AIR LIMBAH (PRETEK AIR LIMBAH )'}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    NO SPH * <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.sphNumber}
-                    onChange={(e) => setFormData({ ...formData, sphNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    NO PO * <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.poNumber}
-                    onChange={(e) => setFormData({ ...formData, poNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="043/PO/-CY/X/2024"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    TGL PO * <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.poDate}
-                    onChange={(e) => setFormData({ ...formData, poDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="31 OKTOBER 2024"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    VAT Rate (%) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.vatRate}
-                    onChange={(e) => setFormData({ ...formData, vatRate: e.target.value === '' ? '' : Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    PPH Rate (%) <span className="text-red-500">*</span>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.pphRate}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          pphRate: e.target.value === '' ? '' : Number(e.target.value),
-                          pphValueManual: false,
-                        })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          pphValueManual: !prev.pphValueManual,
-                        }))
-                      }
-                      className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
-                      title="Toggle manual PPH value"
-                    >
-                      Manual
-                    </button>
-                  </div>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    PPH Value (Rp) <span className="text-red-500">*</span>
-                  </label>
-                  <FormattedNumberInput
-                    value={formData.pphValue}
-                    onChange={(value) => setFormData({ ...formData, pphValue: value, pphValueManual: true })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white bg-white text-gray-900"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mt-2">
-                    Header Perusahaan & Bank
-                  </h3>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Nama Perusahaan <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.companyName}
-                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Telp <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.companyPhone}
-                    onChange={(e) => setFormData({ ...formData, companyPhone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Alamat Perusahaan <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    value={formData.companyAddress}
-                    onChange={(e) => setFormData({ ...formData, companyAddress: e.target.value })}
-                    rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.companyEmail}
-                    onChange={(e) => setFormData({ ...formData, companyEmail: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Bank <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.bankName}
-                    onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    No. Rek <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.bankAccountNo}
-                    onChange={(e) => setFormData({ ...formData, bankAccountNo: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    A/N <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.bankAccountName}
-                    onChange={(e) => setFormData({ ...formData, bankAccountName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Nama Penandatangan <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.signName}
-                    onChange={(e) => setFormData({ ...formData, signName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Jabatan <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.signTitle}
-                    onChange={(e) => setFormData({ ...formData, signTitle: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-              </div>
-            </div>
           </div>
         </main>
         
