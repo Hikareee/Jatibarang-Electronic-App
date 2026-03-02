@@ -13,12 +13,19 @@ import { useProducts } from '../hooks/useProductsData'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import jsPDF from 'jspdf'
+import { uploadPaymentProof } from '../firebase/supabaseClient'
+import { v4 as uuidv4 } from 'uuid'
 
 export default function InvoiceDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { t } = useLanguage()
   const { invoice, loading, error, updateInvoice } = useInvoiceDetail(id)
+  const [addingPayment, setAddingPayment] = useState(false)
+  const [paymentPercent, setPaymentPercent] = useState('')
+  const [paymentNote, setPaymentNote] = useState('')
+  const [paymentFile, setPaymentFile] = useState(null)
+  const [paymentError, setPaymentError] = useState('')
   const { products } = useProducts()
   const [showTotalBreakdown, setShowTotalBreakdown] = useState(false)
   const [deliveryStatusMenuOpen, setDeliveryStatusMenuOpen] = useState(false)
@@ -143,6 +150,88 @@ export default function InvoiceDetail() {
   }
 
   const deliveryStatusOptions = [0, 25, 50, 75, 100]
+
+  const cumulativePaidPercent = useMemo(() => {
+    const list = Array.isArray(invoice?.payments) ? invoice.payments : []
+    return list.reduce((s, p) => s + (Number(p.percent) || 0), 0)
+  }, [invoice])
+
+  const handleAddPayment = async () => {
+    try {
+      setPaymentError('')
+      const percent = Number(paymentPercent)
+      if (!Number.isFinite(percent) || percent <= 0) {
+        setPaymentError('Persentase tidak valid')
+        return
+      }
+      const remaining = 100 - cumulativePaidPercent
+      if (percent > remaining + 1e-6) {
+        setPaymentError(`Maksimal ${remaining}% (sisa)`) 
+        return
+      }
+      if (!paymentFile) {
+        setPaymentError('File bukti pembayaran wajib diunggah')
+        return
+      }
+
+      setAddingPayment(true)
+      // Compute grandTotal using same logic as PDF
+      const items = Array.isArray(invoice.items) ? invoice.items : []
+      const vatRate = Number(invoice.vatRate ?? 0)
+      const dpp = items.reduce((sum, item) => {
+        const q = Number(item.quantity || 0)
+        const pr = Number(item.price || 0)
+        const disc = Number(item.discount || 0)
+        const sub = q * pr
+        const d = sub * (disc / 100)
+        return sum + (sub - d)
+      }, 0)
+      const vat = vatRate > 0 ? dpp * (vatRate / 100) : 0
+      const subTotal = dpp + vat
+      const explicitPph = Number(invoice.pph?.value ?? invoice.pphValue ?? NaN)
+      const explicitPphRate = Number(invoice.pph?.rate ?? invoice.pphRate ?? NaN)
+      const pph = Number.isFinite(explicitPph) ? explicitPph : (Number.isFinite(explicitPphRate) ? dpp * (explicitPphRate / 100) : 0)
+      const grandTotal = Number.isFinite(Number(invoice.total)) ? Number(invoice.total) : (subTotal - pph)
+
+      const fileMeta = await uploadPaymentProof(paymentFile, id, 'payments')
+
+      const paymentRecord = {
+        id: uuidv4(),
+        percent,
+        amount: Math.round((grandTotal * percent) / 100),
+        note: paymentNote || '',
+        file: fileMeta,
+        createdAt: new Date().toISOString(),
+      }
+
+      const newPayments = [ ...(invoice.payments || []), paymentRecord ]
+      const newTotalPercent = newPayments.reduce((s, p) => s + (Number(p.percent) || 0), 0)
+      const isPaidOff = Math.abs(newTotalPercent - 100) < 1e-6 || newTotalPercent >= 100
+
+      const invoiceRef = doc(db, 'invoices', id)
+      await updateDoc(invoiceRef, {
+        payments: newPayments,
+        paymentStatus: {
+          totalPercent: Math.min(newTotalPercent, 100),
+          isPaidOff,
+          lastUpdatedAt: new Date().toISOString(),
+        },
+        updatedAt: new Date().toISOString(),
+      })
+
+      await updateInvoice({ payments: newPayments, paymentStatus: { totalPercent: Math.min(newTotalPercent, 100), isPaidOff } })
+
+      // reset form
+      setPaymentPercent('')
+      setPaymentNote('')
+      setPaymentFile(null)
+    } catch (err) {
+      console.error('Add payment error', err)
+      setPaymentError(err.message || 'Gagal menambahkan pembayaran')
+    } finally {
+      setAddingPayment(false)
+    }
+  }
 
   const handleExportPdf = () => {
     if (!invoice) return
@@ -560,7 +649,7 @@ export default function InvoiceDetail() {
 
       {/* Invoice Details */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
               Pelanggan
@@ -795,6 +884,68 @@ export default function InvoiceDetail() {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+      </div>
+
+      {/* Status Pembayaran - moved to bottom */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Status Pembayaran</h3>
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            Dibayar: {cumulativePaidPercent}% {invoice?.paymentStatus?.isPaidOff ? '(Lunas)' : ''}
+          </div>
+          <div className="text-sm text-gray-700 dark:text-gray-300">Sisa: {Math.max(0, 100 - cumulativePaidPercent)}%</div>
+        </div>
+        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded mt-2">
+          <div className="h-2 bg-green-500 rounded" style={{ width: `${Math.min(100, cumulativePaidPercent)}%` }}></div>
+        </div>
+
+        {Array.isArray(invoice?.payments) && invoice.payments.length > 0 && (
+          <div className="mt-3">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-gray-600 dark:text-gray-400">
+                  <th className="text-left py-1">Tanggal</th>
+                  <th className="text-left py-1">Persentase</th>
+                  <th className="text-left py-1">Nominal</th>
+                  <th className="text-left py-1">Catatan</th>
+                  <th className="text-left py-1">Bukti</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoice.payments.map((p) => (
+                  <tr key={p.id} className="text-gray-900 dark:text-white">
+                    <td className="py-1">{new Date(p.createdAt).toLocaleString('id-ID')}</td>
+                    <td className="py-1">{p.percent}%</td>
+                    <td className="py-1">{formatNumber(p.amount)}</td>
+                    <td className="py-1">{p.note || '-'}</td>
+                    <td className="py-1">{p.file?.url ? <a className="text-blue-600 dark:text-blue-400 underline" href={p.file.url} target="_blank" rel="noreferrer">Buka</a> : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {!invoice?.paymentStatus?.isPaidOff && (
+          <div className="mt-4 p-3 border border-gray-200 dark:border-gray-700 rounded">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Persentase</label>
+                <input type="number" className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-white" value={paymentPercent} onChange={(e)=>setPaymentPercent(e.target.value)} placeholder={`0 - ${Math.max(0, 100 - cumulativePaidPercent)}`} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Catatan (opsional)</label>
+                <input type="text" className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-white" value={paymentNote} onChange={(e)=>setPaymentNote(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Bukti Pembayaran (wajib)</label>
+                <input type="file" className="w-full text-sm" onChange={(e)=> setPaymentFile(e.target.files?.[0] || null)} />
+              </div>
+            </div>
+            {paymentError && <p className="text-xs text-red-600 mt-2">{paymentError}</p>}
+            <button onClick={handleAddPayment} disabled={addingPayment} className="mt-3 px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-50">{addingPayment ? 'Menyimpan...' : 'Tambah Pembayaran'}</button>
           </div>
         )}
       </div>

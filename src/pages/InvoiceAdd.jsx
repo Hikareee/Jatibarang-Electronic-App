@@ -22,8 +22,7 @@ import { useProducts } from '../hooks/useProductsData'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 import OptionalFieldPopup from '../components/OptionalFieldPopup'
 import { formatNumberInput } from '../utils/numberFormatter'
-import { storage } from '../firebase/config'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { uploadInvoiceAttachment } from '../firebase/supabaseClient'
 
 export default function InvoiceAdd() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -245,21 +244,11 @@ export default function InvoiceAdd() {
       setUploadingAttachments(true)
       setAttachmentError('')
 
+      // Upload to Supabase attachments bucket as draft (no invoiceId yet)
       const uploads = await Promise.all(
         files.map(async (file) => {
-          const safeName = file.name.replace(/[^\w.\-]+/g, '_')
-          const path = `invoices/${Date.now()}-${safeName}`
-          const storageRef = ref(storage, path)
-          await uploadBytes(storageRef, file)
-          const url = await getDownloadURL(storageRef)
-          return {
-            name: file.name,
-            url,
-            type: file.type || 'application/octet-stream',
-            size: file.size || 0,
-            path,
-            uploadedAt: new Date().toISOString(),
-          }
+          const meta = await uploadInvoiceAttachment(file, null, 'attachments')
+          return meta
         })
       )
 
@@ -268,7 +257,6 @@ export default function InvoiceAdd() {
         attachments: [...(prev.attachments || []), ...uploads],
       }))
 
-      // reset input so same file can be selected again if needed
       event.target.value = ''
     } catch (err) {
       console.error('Error uploading attachments:', err)
@@ -402,6 +390,25 @@ export default function InvoiceAdd() {
   // If save returns an id, navigate to the invoice detail so attachments are visible
   const savedId = await saveInvoice(invoiceData)
       if (savedId) {
+        // If there were draft attachments uploaded before save, re-upload paths under final invoice folder for better structure
+        if ((formData.attachments || []).length > 0) {
+          try {
+            setUploadingAttachments(true)
+            const reuploaded = await Promise.all(
+              (formData.attachments || []).map(async (att) => {
+                // We don't have the original File here anymore, so just keep existing link.
+                // In future enhancement, we could move objects via server-side keys.
+                return att
+              })
+            )
+            // Update Firestore attachments to ensure they are stored on the invoice with Supabase links
+            // saveInvoice already stored attachments from invoiceData; no-op here.
+          } catch (e) {
+            console.warn('Post-save attachment handling skipped:', e)
+          } finally {
+            setUploadingAttachments(false)
+          }
+        }
         navigate(`/penjualan/tagihan/${savedId}`)
       } else {
         navigate('/penjualan/tagihan')
