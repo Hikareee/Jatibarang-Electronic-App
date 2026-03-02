@@ -140,15 +140,20 @@ export default function InvoiceDetail() {
     const marginLeft = 40
     let cursorY = 40
 
-    const companyName = 'PT. INTEGRASI BANGUN PERKASA'
+    const companyName = invoice.companyName || 'PT. INTEGRASI BANGUN PERKASA'
     const companyAddress =
+      invoice.companyAddress ||
       'Jl. Raya Bandengan Mundu No. 09 Ds. Bandengan Kec. Mundu Kab. Cirebon Kode Pos 45173'
-    const companyContact = 'Telp. 0818345654, Email :integrasibangunperkasa@gmail.com'
-    const bankName = 'BANK MANDIRI'
-    const bankAccountNo = '134-00-5000001-6'
-    const bankAccountName = companyName
-    const signName = 'Wempi'
-    const signTitle = 'Direktur'
+    const companyPhone = invoice.companyPhone || '0818345654'
+    const companyEmail = invoice.companyEmail || 'integrasibangunperkasa@gmail.com'
+    const companyContact = `Telp. ${companyPhone}, Email :${companyEmail}`
+    const companyContactKwitansi = `Telp. ${companyPhone}, Email ${companyEmail}`
+
+    const bankName = invoice.bankName || 'BANK MANDIRI'
+    const bankAccountNo = invoice.bankAccountNo || '134-00-5000001-6'
+    const bankAccountName = invoice.bankAccountName || companyName
+    const signName = invoice.signName || 'Wempi'
+    const signTitle = invoice.signTitle || 'Direktur'
 
     const invoiceNumber = invoice.number || '-'
     const customerName = invoice.customerName || invoice.customer || '-'
@@ -157,6 +162,7 @@ export default function InvoiceDetail() {
     const invoiceDateDash = formatDateDash(invoice.transactionDate || invoice.createdAt) || ''
 
     const items = Array.isArray(invoice.items) ? invoice.items : []
+    const vatRate = Number(invoice.vatRate ?? 11)
     const totalBeforeTax = items.reduce((sum, item) => {
       const quantity = Number(item.quantity || 0)
       const price = Number(item.price || 0)
@@ -165,26 +171,22 @@ export default function InvoiceDetail() {
       const itemDiscount = itemSubtotal * (discount / 100)
       return sum + (itemSubtotal - itemDiscount)
     }, 0)
-    const totalTax = items.reduce((sum, item) => {
-      const quantity = Number(item.quantity || 0)
-      const price = Number(item.price || 0)
-      const discount = Number(item.discount || 0)
-      const tax = Number(item.tax || 0)
-      const itemSubtotal = quantity * price
-      const itemDiscount = itemSubtotal * (discount / 100)
-      const afterDisc = itemSubtotal - itemDiscount
-      return sum + afterDisc * (tax / 100)
-    }, 0)
+    const totalTax =
+      Number.isFinite(vatRate) && vatRate > 0 ? totalBeforeTax * (vatRate / 100) : 0
     const subTotal = totalBeforeTax + totalTax
     const explicitPph = Number(invoice.pph?.value ?? invoice.pphValue ?? invoice.pph ?? NaN)
+    const explicitPphRate = Number(invoice.pph?.rate ?? invoice.pphRate ?? NaN)
     const pph = Number.isFinite(explicitPph)
       ? explicitPph
-      : Math.max(0, subTotal - Number(invoice.total || subTotal))
-    const grandTotal = Number(invoice.total || subTotal - pph)
+      : (Number.isFinite(explicitPphRate) ? totalBeforeTax * (explicitPphRate / 100) : 0)
+    const grandTotal = Number.isFinite(Number(invoice.total))
+      ? Number(invoice.total)
+      : subTotal - pph
 
     const poNumber = invoice.poNumber || invoice.reference || ''
     const poDate = invoice.poDate || ''
     const sphNumber = invoice.sphNumber || ''
+    const jobTitle = invoice.jobTitle || ''
 
     const workItems = Array.isArray(invoice.workItems)
       ? invoice.workItems
@@ -246,6 +248,14 @@ export default function InvoiceDetail() {
     cursorY += 16
     docPdf.setFont('Helvetica', 'normal')
 
+    if (jobTitle) {
+      docPdf.setFont('Helvetica', 'bold')
+      docPdf.text(jobTitle, marginLeft + 30, cursorY)
+      docPdf.text('-', marginLeft + 230, cursorY)
+      docPdf.setFont('Helvetica', 'normal')
+      cursorY += 16
+    }
+
     items.forEach((item, index) => {
       if (cursorY > 560) {
         // leave space for totals + footer blocks; move to next page if needed
@@ -257,12 +267,10 @@ export default function InvoiceDetail() {
       const unit = item.unit || ''
       const price = Number(item.price || 0)
       const discount = Number(item.discount || 0)
-      const tax = Number(item.tax || 0)
       const itemSubtotal = quantity * price
       const itemDiscount = itemSubtotal * (discount / 100)
       const afterDisc = itemSubtotal - itemDiscount
-      const itemTax = afterDisc * (tax / 100)
-      const itemTotal = Number(item.amount ?? afterDisc + itemTax)
+      const itemTotal = Number(item.amount ?? afterDisc)
 
       const desc = item.description || item.product || '-'
       const spek = item.spek || item.spec || '-'
@@ -294,8 +302,10 @@ export default function InvoiceDetail() {
         : []
 
     derivedWorkItems.slice(0, 10).forEach((w, idx) => {
-      if (!String(w).trim()) return
-      docPdf.text(`${idx + 1}  ${String(w).trim()}`, marginLeft, cursorY)
+      const raw = String(w || '').trim()
+      if (!raw) return
+      const cleaned = raw.replace(/^\d+[\.\)]\s*/g, '').replace(/^\-\s*/g, '').trim()
+      docPdf.text(`${idx + 1}  ${cleaned}`, marginLeft, cursorY)
       cursorY += 12
     })
 
@@ -324,7 +334,7 @@ export default function InvoiceDetail() {
     docPdf.text('TOTAL', totalsXLabel, totalsY)
     docPdf.text(formatRp(totalBeforeTax), totalsXValue, totalsY, { align: 'right' })
     totalsY += 14
-    docPdf.text('VAT 11% (+)', totalsXLabel, totalsY)
+    docPdf.text(`VAT ${Number.isFinite(vatRate) ? vatRate : 11}% (+)`, totalsXLabel, totalsY)
     docPdf.text(formatRp(totalTax), totalsXValue, totalsY, { align: 'right' })
     totalsY += 14
     docPdf.text('SUB TOTAL', totalsXLabel, totalsY)
@@ -371,7 +381,7 @@ export default function InvoiceDetail() {
     docPdf.setFontSize(9)
     docPdf.text(`${companyAddress},`, marginLeft, cursorY)
     cursorY += 12
-    docPdf.text('Telp. 0818345654, Email integrasibangunperkasa@gmail.com', marginLeft, cursorY)
+    docPdf.text(companyContactKwitansi, marginLeft, cursorY)
 
     cursorY += 18
     docPdf.setFont('Helvetica', 'bold')
@@ -403,10 +413,13 @@ export default function InvoiceDetail() {
     docPdf.text('Untuk Pekerjaan :', marginLeft + 125, cursorY)
 
     cursorY += 14
-    items.slice(0, 3).forEach((item) => {
-      const desc = item.description || item.product || ''
-      if (!desc) return
-      docPdf.text(docPdf.splitTextToSize(desc, 420), marginLeft + 125, cursorY)
+    const kwitansiLines = [
+      jobTitle,
+      items[0]?.description || items[0]?.product || '',
+      items[1]?.description || items[1]?.product || '',
+    ].filter((s) => String(s || '').trim())
+    kwitansiLines.slice(0, 3).forEach((line) => {
+      docPdf.text(docPdf.splitTextToSize(String(line), 420), marginLeft + 125, cursorY)
       cursorY += 12
     })
 

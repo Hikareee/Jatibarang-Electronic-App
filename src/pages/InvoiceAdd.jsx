@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useMemo } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import Sidebar from '../components/Dashboard/Sidebar'
 import Header from '../components/Dashboard/Header'
@@ -18,6 +18,7 @@ import {
 import { saveInvoice, getNextInvoiceNumber } from '../hooks/useInvoiceData'
 import { useContacts } from '../hooks/useContactsData'
 import { useAccounts } from '../hooks/useAccountsData'
+import { useWarehouses } from '../hooks/useWarehouses'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 import { formatNumberInput } from '../utils/numberFormatter'
 
@@ -25,27 +26,55 @@ export default function InvoiceAdd() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { t } = useLanguage()
   const navigate = useNavigate()
+  const location = useLocation()
   const { contacts, loading: contactsLoading } = useContacts()
   const { accounts, loading: accountsLoading } = useAccounts()
+  const { warehouses, loading: warehousesLoading } = useWarehouses()
   
   const [formData, setFormData] = useState({
     customer: '',
+    customerId: '',
+    customerName: '',
+    customerAddress: '',
+    attn: '',
+    city: 'Cirebon',
     account: '', // Account to credit for cash sales
     paymentMethod: 'credit', // 'cash' or 'credit'
     number: '',
     transactionDate: new Date().toISOString().split('T')[0],
     dueDate: '',
     term: 'Net 30',
-    warehouse: 'Unassigned',
+    warehouse: '',
     reference: '',
     tag: '',
     salesPerson: '',
     shippingInfo: {},
     priceIncludesTax: false,
+    // Fields needed for INV3 PERIZINAN template
+    companyName: 'PT. INTEGRASI BANGUN PERKASA',
+    companyAddress:
+      'Jl. Raya Bandengan Mundu No. 09 Ds. Bandengan Kec. Mundu Kab. Cirebon Kode Pos 45173',
+    companyPhone: '0818345654',
+    companyEmail: 'integrasibangunperkasa@gmail.com',
+    bankName: 'BANK MANDIRI',
+    bankAccountNo: '134-00-5000001-6',
+    bankAccountName: 'PT. INTEGRASI BANGUN PERKASA',
+    signName: 'Wempi',
+    signTitle: 'Direktur',
+    jobTitle: '',
+    workItems: '',
+    sphNumber: '..................................',
+    poNumber: '',
+    poDate: '',
+    vatRate: 11,
+    pphRate: 1.75,
+    pphValue: 0,
+    pphValueManual: false,
     items: [
       {
         product: '',
         description: '',
+        spek: '-',
         quantity: 1,
         unit: '',
         discount: '',
@@ -77,6 +106,11 @@ export default function InvoiceAdd() {
   const [saving, setSaving] = useState(false)
   const [loadingNumber, setLoadingNumber] = useState(true)
 
+  const selectedCustomer = useMemo(() => {
+    if (!formData.customer) return null
+    return contacts.find((c) => c.id === formData.customer) || null
+  }, [contacts, formData.customer])
+
   // Auto-generate invoice number on mount
   useEffect(() => {
     const fetchNextNumber = async () => {
@@ -94,23 +128,69 @@ export default function InvoiceAdd() {
     fetchNextNumber()
   }, [])
 
-  const calculateSubTotal = () => {
-    return formData.items.reduce((sum, item) => {
-      const quantity = item.quantity || 0
-      const price = item.price || 0
-      const discount = item.discount || 0
-      const tax = item.tax || 0
-      const itemTotal = (quantity * price) * (1 - discount / 100) * (1 + tax / 100)
-      return sum + itemTotal
+  // Prefill customer if coming from contact page (?contactId=...)
+  useEffect(() => {
+    const qs = new URLSearchParams(location.search || '')
+    const contactId = qs.get('contactId')
+    if (contactId) {
+      setFormData((prev) => ({ ...prev, customer: contactId }))
+    }
+  }, [location.search])
+
+  // When customer selected, prefill name/address (editable)
+  useEffect(() => {
+    if (!selectedCustomer) return
+    setFormData((prev) => ({
+      ...prev,
+      customerId: selectedCustomer.id,
+      customerName: selectedCustomer.name || selectedCustomer.company || prev.customerName,
+      customerAddress:
+        prev.customerAddress ||
+        selectedCustomer.billingAddress ||
+        selectedCustomer.address ||
+        '',
+    }))
+  }, [selectedCustomer])
+
+  const calculateDpp = () =>
+    formData.items.reduce((sum, item) => {
+      const quantity = Number(item.quantity || 0)
+      const price = Number(item.price || 0)
+      const discount = Number(item.discount || 0)
+      const itemSubtotal = quantity * price
+      const itemDiscount = itemSubtotal * (discount / 100)
+      return sum + (itemSubtotal - itemDiscount)
     }, 0)
+
+  const calculateVat = () => {
+    const dpp = calculateDpp()
+    const rate = Number(formData.vatRate || 0)
+    if (!Number.isFinite(rate) || rate <= 0) return 0
+    return dpp * (rate / 100)
   }
 
+  const calculateSubTotalPdf = () => calculateDpp() + calculateVat()
+
+  const calculatePphValue = () => {
+    if (formData.pphValueManual) return Number(formData.pphValue || 0)
+    const dpp = calculateDpp()
+    const rate = Number(formData.pphRate || 0)
+    if (!Number.isFinite(rate) || rate <= 0) return 0
+    return dpp * (rate / 100)
+  }
+
+  useEffect(() => {
+    const next = calculatePphValue()
+    setFormData((prev) => {
+      if (prev.pphValueManual) return prev
+      return { ...prev, pphValue: next }
+    })
+  }, [formData.pphRate, formData.items, formData.pphValueManual])
+
   const calculateTotal = () => {
-    const subTotal = calculateSubTotal()
-    const additionalDiscount = formData.additionalDiscount?.value || 0
-    const shippingCost = formData.shippingCost?.value || 0
-    const transactionFee = formData.transactionFee?.value || 0
-    return subTotal - additionalDiscount + shippingCost + transactionFee
+    const subTotal = calculateSubTotalPdf()
+    const pph = calculatePphValue()
+    return subTotal - pph
   }
 
   const calculateRemaining = () => {
@@ -125,12 +205,11 @@ export default function InvoiceAdd() {
     newItems[index] = { ...newItems[index], [field]: value }
     
     // Calculate amount
-    if (field === 'quantity' || field === 'price' || field === 'discount' || field === 'tax') {
+    if (field === 'quantity' || field === 'price' || field === 'discount') {
       const quantity = parseFloat(newItems[index].quantity || 0)
       const price = parseFloat(newItems[index].price || 0)
       const discount = parseFloat(newItems[index].discount || 0)
-      const tax = parseFloat(newItems[index].tax || 0)
-      const amount = (quantity * price) * (1 - discount / 100) * (1 + tax / 100)
+      const amount = (quantity * price) * (1 - discount / 100)
       newItems[index].amount = amount
     }
     
@@ -145,6 +224,7 @@ export default function InvoiceAdd() {
         {
           product: '',
           description: '',
+          spek: '-',
           quantity: 1,
           unit: '',
           discount: '',
@@ -163,10 +243,64 @@ export default function InvoiceAdd() {
 
   const handleSave = async () => {
     try {
+      // Basic required validation for INV3 PERIZINAN template fields
+      const requiredFields = [
+        { key: 'customer', label: 'Customer' },
+        { key: 'customerAddress', label: 'Alamat Customer' },
+        { key: 'attn', label: 'Attn.' },
+        { key: 'number', label: 'No Invoice' },
+        { key: 'transactionDate', label: 'Tanggal' },
+        { key: 'companyName', label: 'Nama Perusahaan' },
+        { key: 'companyAddress', label: 'Alamat Perusahaan' },
+        { key: 'companyPhone', label: 'Telp Perusahaan' },
+        { key: 'companyEmail', label: 'Email Perusahaan' },
+        { key: 'bankName', label: 'Nama Bank' },
+        { key: 'bankAccountNo', label: 'No. Rek' },
+        { key: 'bankAccountName', label: 'A/N Rekening' },
+        { key: 'signName', label: 'Nama Penandatangan' },
+        { key: 'signTitle', label: 'Jabatan Penandatangan' },
+        { key: 'jobTitle', label: 'Judul Pekerjaan' },
+        { key: 'workItems', label: 'Item Pekerjaan' },
+        { key: 'sphNumber', label: 'No SPH' },
+        { key: 'poNumber', label: 'No PO' },
+        { key: 'poDate', label: 'Tgl PO' },
+      ]
+      for (const f of requiredFields) {
+        const v = formData[f.key]
+        if (v === null || v === undefined || String(v).trim() === '') {
+          alert(`${f.label} wajib diisi`)
+          return
+        }
+      }
+      if (!Array.isArray(formData.items) || formData.items.length === 0) {
+        alert('Minimal 1 item wajib diisi')
+        return
+      }
+      const badItem = formData.items.find((it) => {
+        const desc = String(it.description || it.product || '').trim()
+        const spek = String(it.spek || it.spec || '').trim()
+        const qty = Number(it.quantity || 0)
+        const unit = String(it.unit || '').trim()
+        const price = Number(it.price || 0)
+        return !desc || !spek || !Number.isFinite(qty) || qty <= 0 || !unit || !Number.isFinite(price) || price <= 0
+      })
+      if (badItem) {
+        alert('Semua item wajib punya Deskripsi, Spek, Qty, Satuan, dan Harga (Harsat)')
+        return
+      }
+
       setSaving(true)
       const invoiceData = {
         ...formData,
-        subTotal: calculateSubTotal(),
+        customerId: formData.customerId || formData.customer,
+        customerName: formData.customerName || selectedCustomer?.name || selectedCustomer?.company || '',
+        subTotal: calculateSubTotalPdf(),
+        vatRate: Number(formData.vatRate || 0),
+        pph: {
+          rate: Number(formData.pphRate || 0),
+          value: Number(calculatePphValue() || 0),
+        },
+        pphValue: Number(calculatePphValue() || 0),
         total: calculateTotal(),
         remaining: calculateRemaining(),
         createdAt: new Date().toISOString(),
@@ -334,14 +468,20 @@ export default function InvoiceAdd() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {t('warehouse')} <span className="text-red-500">*</span>
+                        {t('warehouse')}
                       </label>
                       <select
                         value={formData.warehouse}
                         onChange={(e) => setFormData({ ...formData, warehouse: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        disabled={warehousesLoading}
                       >
-                        <option value="Unassigned">Unassigned</option>
+                        <option value="">Tidak dipilih</option>
+                        {warehouses.map((wh) => (
+                          <option key={wh.id} value={wh.id}>
+                            {wh.name}{wh.code ? ` (${wh.code})` : ''}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -439,6 +579,9 @@ export default function InvoiceAdd() {
                             {t('description')} <ChevronDown className="inline h-3 w-3" />
                           </th>
                           <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Spek <ChevronDown className="inline h-3 w-3" />
+                          </th>
+                          <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                             {t('quantity')} <ChevronDown className="inline h-3 w-3" />
                           </th>
                           <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -449,9 +592,6 @@ export default function InvoiceAdd() {
                           </th>
                           <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                             {t('price')} <ChevronDown className="inline h-3 w-3" />
-                          </th>
-                          <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {t('tax')} <ChevronDown className="inline h-3 w-3" />
                           </th>
                           <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                             {t('amount')} <ChevronDown className="inline h-3 w-3" />
@@ -476,6 +616,14 @@ export default function InvoiceAdd() {
                                 type="text"
                                 value={item.description}
                                 onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+                              />
+                            </td>
+                            <td className="py-2 px-2">
+                              <input
+                                type="text"
+                                value={item.spek ?? ''}
+                                onChange={(e) => handleItemChange(index, 'spek', e.target.value)}
                                 className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
                               />
                             </td>
@@ -516,18 +664,6 @@ export default function InvoiceAdd() {
                                 placeholder="0"
                                 className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white bg-white text-gray-900 text-sm"
                               />
-                            </td>
-                            <td className="py-2 px-2">
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="number"
-                                  value={item.tax === '' ? '' : item.tax}
-                                  placeholder="0"
-                                  onChange={(e) => handleItemChange(index, 'tax', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
-                                />
-                                <span className="text-sm text-gray-600 dark:text-gray-300">%</span>
-                              </div>
                             </td>
                             <td className="py-2 px-2">
                               <input
@@ -603,9 +739,31 @@ export default function InvoiceAdd() {
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-700 dark:text-gray-300">{t('subTotal')}</span>
+                      <span className="text-gray-700 dark:text-gray-300">TOTAL (DPP)</span>
                       <span className="font-semibold text-gray-900 dark:text-white">
-                        {formatNumber(calculateSubTotal())}
+                        {formatNumber(calculateDpp())}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700 dark:text-gray-300">
+                        VAT {Number(formData.vatRate || 0)}% (+)
+                      </span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {formatNumber(calculateVat())}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700 dark:text-gray-300">SUB TOTAL</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {formatNumber(calculateSubTotalPdf())}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700 dark:text-gray-300">
+                        PPH (-)
+                      </span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {formatNumber(calculatePphValue())}
                       </span>
                     </div>
 
@@ -666,7 +824,7 @@ export default function InvoiceAdd() {
                     </div>
 
                     <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <span className="font-semibold text-gray-900 dark:text-white">{t('total')}</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">GRAND TOTAL</span>
                       <span className="font-bold text-lg text-gray-900 dark:text-white">
                         {formatNumber(calculateTotal())}
                       </span>
@@ -737,6 +895,275 @@ export default function InvoiceAdd() {
                   <span>{t('save')}</span>
                   <ChevronDown className="h-4 w-4" />
                 </button>
+              </div>
+            </div>
+
+            {/* INV3 PERIZINAN template fields */}
+            <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Template INV3 (Perizinan) - Wajib Diisi
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Alamat Customer <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={formData.customerAddress}
+                    onChange={(e) => setFormData({ ...formData, customerAddress: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="Alamat customer sesuai invoice"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Attn. <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.attn}
+                    onChange={(e) => setFormData({ ...formData, attn: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="Procurement Division"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Kota (KWITANSI) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="Cirebon"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Judul Pekerjaan (baris header tabel) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.jobTitle}
+                    onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="PEKERJAAN PERIZINAN"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    ITEM PEKERJAAN (satu per baris) <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={formData.workItems}
+                    onChange={(e) => setFormData({ ...formData, workItems: e.target.value })}
+                    rows={5}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder={'1. KAJIAN ANDALALIN\n2. PERSETUJUAN TEKNIS AIR LIMBAH (PRETEK AIR LIMBAH )'}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    NO SPH * <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.sphNumber}
+                    onChange={(e) => setFormData({ ...formData, sphNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    NO PO * <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.poNumber}
+                    onChange={(e) => setFormData({ ...formData, poNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="043/PO/-CY/X/2024"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    TGL PO * <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.poDate}
+                    onChange={(e) => setFormData({ ...formData, poDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="31 OKTOBER 2024"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    VAT Rate (%) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.vatRate}
+                    onChange={(e) => setFormData({ ...formData, vatRate: e.target.value === '' ? '' : Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    PPH Rate (%) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.pphRate}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          pphRate: e.target.value === '' ? '' : Number(e.target.value),
+                          pphValueManual: false,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          pphValueManual: !prev.pphValueManual,
+                        }))
+                      }
+                      className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
+                      title="Toggle manual PPH value"
+                    >
+                      Manual
+                    </button>
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    PPH Value (Rp) <span className="text-red-500">*</span>
+                  </label>
+                  <FormattedNumberInput
+                    value={formData.pphValue}
+                    onChange={(value) => setFormData({ ...formData, pphValue: value, pphValueManual: true })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white bg-white text-gray-900"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mt-2">
+                    Header Perusahaan & Bank
+                  </h3>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Nama Perusahaan <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.companyName}
+                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Telp <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.companyPhone}
+                    onChange={(e) => setFormData({ ...formData, companyPhone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Alamat Perusahaan <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={formData.companyAddress}
+                    onChange={(e) => setFormData({ ...formData, companyAddress: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.companyEmail}
+                    onChange={(e) => setFormData({ ...formData, companyEmail: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Bank <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.bankName}
+                    onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    No. Rek <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.bankAccountNo}
+                    onChange={(e) => setFormData({ ...formData, bankAccountNo: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    A/N <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.bankAccountName}
+                    onChange={(e) => setFormData({ ...formData, bankAccountName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Nama Penandatangan <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.signName}
+                    onChange={(e) => setFormData({ ...formData, signName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Jabatan <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.signTitle}
+                    onChange={(e) => setFormData({ ...formData, signTitle: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
               </div>
             </div>
           </div>

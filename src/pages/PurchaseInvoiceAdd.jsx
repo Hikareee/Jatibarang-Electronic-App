@@ -18,6 +18,7 @@ import {
 import { savePurchaseInvoice, getNextPurchaseInvoiceNumber } from '../hooks/usePurchaseInvoiceData'
 import { useContacts } from '../hooks/useContactsData'
 import { useAccounts } from '../hooks/useAccountsData'
+import { useWarehouses } from '../hooks/useWarehouses'
 import { useAuth } from '../contexts/AuthContext'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 import { formatNumberInput } from '../utils/numberFormatter'
@@ -28,6 +29,7 @@ export default function PurchaseInvoiceAdd() {
   const navigate = useNavigate()
   const { contacts, loading: contactsLoading } = useContacts()
   const { accounts, loading: accountsLoading } = useAccounts()
+  const { warehouses, loading: warehousesLoading } = useWarehouses()
   const { currentUser } = useAuth()
   
   const [formData, setFormData] = useState({
@@ -37,7 +39,7 @@ export default function PurchaseInvoiceAdd() {
     transactionDate: new Date().toISOString().split('T')[0],
     dueDate: '',
     term: 'Net 30',
-    warehouse: 'Unassigned',
+    warehouse: '',
     reference: '',
     tag: '',
     shippingInfo: {},
@@ -277,14 +279,20 @@ export default function PurchaseInvoiceAdd() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Gudang <span className="text-red-500">*</span>
+                        Gudang
                       </label>
                       <select
                         value={formData.warehouse}
                         onChange={(e) => setFormData({ ...formData, warehouse: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        disabled={warehousesLoading}
                       >
-                        <option value="Unassigned">Unassigned</option>
+                        <option value="">Tidak dipilih</option>
+                        {warehouses.map((wh) => (
+                          <option key={wh.id} value={wh.id}>
+                            {wh.name}{wh.code ? ` (${wh.code})` : ''}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
