@@ -18,6 +18,7 @@ import { saveInvoice, getNextInvoiceNumber } from '../hooks/useInvoiceData'
 import { useContacts } from '../hooks/useContactsData'
 import { useAccounts } from '../hooks/useAccountsData'
 import { useWarehouses } from '../hooks/useWarehouses'
+import { useProducts } from '../hooks/useProductsData'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 import OptionalFieldPopup from '../components/OptionalFieldPopup'
 import { formatNumberInput } from '../utils/numberFormatter'
@@ -286,7 +287,18 @@ export default function InvoiceAdd() {
   const handleItemChange = (index, field, value) => {
     const newItems = [...formData.items]
     newItems[index] = { ...newItems[index], [field]: value }
-    
+
+    // When product selected, auto-fill from produk tab
+    if (field === 'product' && value) {
+      const selectedProduct = products.find((p) => p.id === value)
+      if (selectedProduct) {
+        newItems[index].description = selectedProduct.nama || selectedProduct.description || newItems[index].description || ''
+        newItems[index].spek = selectedProduct.spek || selectedProduct.spec || newItems[index].spek || '-'
+        newItems[index].unit = selectedProduct.satuan || selectedProduct.unit || newItems[index].unit || ''
+        newItems[index].price = selectedProduct.harga ?? selectedProduct.price ?? newItems[index].price ?? ''
+      }
+    }
+
     // Calculate amount
     if (field === 'quantity' || field === 'price' || field === 'discount') {
       const quantity = parseFloat(newItems[index].quantity || 0)
@@ -295,7 +307,7 @@ export default function InvoiceAdd() {
       const amount = (quantity * price) * (1 - discount / 100)
       newItems[index].amount = amount
     }
-    
+
     setFormData({ ...formData, items: newItems })
   }
 
@@ -357,18 +369,6 @@ export default function InvoiceAdd() {
       }
       if (!Array.isArray(formData.items) || formData.items.length === 0) {
         alert('Minimal 1 item wajib diisi')
-        return
-      }
-      const badItem = formData.items.find((it) => {
-        const desc = String(it.description || it.product || '').trim()
-        const spek = String(it.spek || it.spec || '').trim()
-        const qty = Number(it.quantity || 0)
-        const unit = String(it.unit || '').trim()
-        const price = Number(it.price || 0)
-        return !desc || !spek || !Number.isFinite(qty) || qty <= 0 || !unit || !Number.isFinite(price) || price <= 0
-      })
-      if (badItem) {
-        alert('Semua item wajib punya Deskripsi, Spek, Qty, Satuan, dan Harga (Harsat)')
         return
       }
 
@@ -690,8 +690,14 @@ export default function InvoiceAdd() {
                                 value={item.product}
                                 onChange={(e) => handleItemChange(index, 'product', e.target.value)}
                                 className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+                                disabled={productsLoading}
                               >
                                 <option value="">{t('selectProduct')}</option>
+                                {products.map((product) => (
+                                  <option key={product.id} value={product.id}>
+                                    {product.nama || product.name || 'Unnamed Product'}
+                                  </option>
+                                ))}
                               </select>
                             </td>
                             <td className="py-2 px-2">
@@ -726,6 +732,12 @@ export default function InvoiceAdd() {
                                 className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
                               >
                                 <option value="">Pilih...</option>
+                                {(() => {
+                                  const productUnits = [...new Set(products.map((p) => p.satuan || p.unit).filter(Boolean))]
+                                  const common = ['pcs', 'kg', 'm', 'L', '%']
+                                  const all = [...new Set([...productUnits, ...common])].sort()
+                                  return all.map((u) => <option key={u} value={u}>{u}</option>)
+                                })()}
                               </select>
                             </td>
                             <td className="py-2 px-2">
