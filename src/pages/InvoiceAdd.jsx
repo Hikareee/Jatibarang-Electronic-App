@@ -33,7 +33,8 @@ export default function InvoiceAdd() {
   const { contacts, loading: contactsLoading } = useContacts()
   const { accounts, loading: accountsLoading } = useAccounts()
   const { warehouses, loading: warehousesLoading } = useWarehouses()
-  
+  const { products = [], loading: productsLoading } = useProducts()
+
   const [formData, setFormData] = useState({
     customer: '',
     customerId: '',
