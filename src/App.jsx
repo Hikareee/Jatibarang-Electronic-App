@@ -37,6 +37,7 @@ import Penawaran from './pages/Penawaran'
 import AccountDetail from './pages/AccountDetail'
 import AIAssistant from './pages/AIAssistant'
 import Inventori from './pages/Inventori'
+import GudangDetail from './pages/GudangDetail'
 import ApprovedRoute from './components/ApprovedRoute'
 import ManagerRoute from './components/ManagerRoute'
 
@@ -69,6 +70,18 @@ function AppRoutes() {
             <ApprovedRoute>
               <ManagerRoute>
                 <Inventori />
+              </ManagerRoute>
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/inventori/gudang/:id"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <ManagerRoute>
+                <GudangDetail />
               </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>

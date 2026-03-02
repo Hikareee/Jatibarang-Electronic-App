@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Dashboard/Sidebar'
 import Header from '../components/Dashboard/Header'
 import Footer from '../components/Dashboard/Footer'
@@ -15,11 +16,28 @@ import {
   Filter,
   Printer,
   Warehouse as WarehouseIcon,
-  X
+  X,
+  ChevronRight
 } from 'lucide-react'
+
+async function getNextWarehouseCode() {
+  const ref = collection(db, 'warehouses')
+  const snap = await getDocs(ref)
+  let maxNum = 0
+  snap.docs.forEach(d => {
+    const code = (d.data().code || '').toString()
+    const match = code.match(/^GDNG-(\d+)$/i)
+    if (match) {
+      const n = parseInt(match[1], 10)
+      if (n > maxNum) maxNum = n
+    }
+  })
+  return `GDNG-${String(maxNum + 1).padStart(2, '0')}`
+}
 
 export default function Inventori() {
   const { t } = useLanguage()
+  const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [warehouses, setWarehouses] = useState([])
   const [loading, setLoading] = useState(true)
@@ -52,8 +70,9 @@ export default function Inventori() {
     fetchWarehouses()
   }, [])
 
-  const handleOpenAddWarehouse = () => {
-    setWarehouseForm({ name: '', code: '', description: '' })
+  const handleOpenAddWarehouse = async () => {
+    const nextCode = await getNextWarehouseCode()
+    setWarehouseForm({ name: '', code: nextCode, description: '' })
     setShowAddWarehouse(true)
   }
 
@@ -65,17 +84,18 @@ export default function Inventori() {
 
     try {
       setSavingWarehouse(true)
+      const code = warehouseForm.code.trim() || await getNextWarehouseCode()
       const ref = collection(db, 'warehouses')
       const docRef = await addDoc(ref, {
         name: warehouseForm.name.trim(),
-        code: warehouseForm.code.trim(),
-        description: warehouseForm.description.trim(),
+        code,
+        description: (warehouseForm.description || '').trim(),
         createdAt: serverTimestamp()
       })
 
       setWarehouses(prev => [
         ...prev,
-        { id: docRef.id, ...warehouseForm }
+        { id: docRef.id, name: warehouseForm.name.trim(), code, description: warehouseForm.description }
       ])
 
       setShowAddWarehouse(false)
@@ -159,24 +179,29 @@ export default function Inventori() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {warehouses.map((wh) => (
-                    <div
+                    <button
                       key={wh.id}
-                      className="bg-gray-50 dark:bg-gray-900/40 rounded-lg border border-gray-200 dark:border-gray-700 p-4"
+                      type="button"
+                      onClick={() => navigate(`/inventori/gudang/${wh.id}`)}
+                      className="text-left bg-gray-50 dark:bg-gray-900/40 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-md transition-all flex items-center justify-between group"
                     >
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                        {wh.name}
-                      </p>
-                      {wh.code && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                          Kode: {wh.code}
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                          {wh.name}
                         </p>
-                      )}
-                      {wh.description && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {wh.description}
-                        </p>
-                      )}
-                    </div>
+                        {wh.code && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                            Kode: {wh.code}
+                          </p>
+                        )}
+                        {wh.description && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                            {wh.description}
+                          </p>
+                        )}
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 flex-shrink-0 ml-2" />
+                    </button>
                   ))}
                 </div>
               )}
@@ -212,13 +237,13 @@ export default function Inventori() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Kode
+                      Kode (otomatis)
                     </label>
                     <input
                       type="text"
                       value={warehouseForm.code}
-                      onChange={(e) => setWarehouseForm({ ...warehouseForm, code: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
