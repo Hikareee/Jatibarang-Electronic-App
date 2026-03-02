@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import Sidebar from '../components/Dashboard/Sidebar'
@@ -109,11 +109,37 @@ export default function InvoiceAdd() {
   const [loadingNumber, setLoadingNumber] = useState(true)
   const [uploadingAttachments, setUploadingAttachments] = useState(false)
   const [attachmentError, setAttachmentError] = useState('')
+  const poNumberUserEdited = useRef(false)
 
   const selectedCustomer = useMemo(() => {
     if (!formData.customer) return null
     return contacts.find((c) => c.id === formData.customer) || null
   }, [contacts, formData.customer])
+
+  const MONTHS_ID = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER']
+  const formatDateToInv3TglPo = (date) => {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) return ''
+    return `${date.getDate()} ${MONTHS_ID[date.getMonth()]} ${date.getFullYear()}`
+  }
+  const parseInv3TglPo = (str) => {
+    if (!str || typeof str !== 'string') return null
+    const trimmed = str.trim()
+    if (!trimmed) return null
+    const parts = trimmed.split(/\s+/)
+    if (parts.length < 3) return null
+    const day = parseInt(parts[0], 10)
+    const monthName = parts[1].toUpperCase()
+    const year = parseInt(parts[2], 10)
+    const mi = MONTHS_ID.indexOf(monthName)
+    if (mi === -1 || isNaN(day) || isNaN(year)) return null
+    const date = new Date(year, mi, day)
+    return isNaN(date.getTime()) ? null : date
+  }
+  const poDateIso = useMemo(() => {
+    const d = parseInv3TglPo(formData.poDate)
+    if (!d) return ''
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }, [formData.poDate])
 
   // Auto-generate invoice number on mount
   useEffect(() => {
@@ -121,10 +147,18 @@ export default function InvoiceAdd() {
       try {
         setLoadingNumber(true)
         const nextNumber = await getNextInvoiceNumber()
-        setFormData(prev => ({ ...prev, number: nextNumber }))
+        setFormData(prev => ({
+          ...prev,
+          number: nextNumber,
+          poNumber: poNumberUserEdited.current ? prev.poNumber : (prev.poNumber || `001/PO/-/I/${new Date().getFullYear()}`)
+        }))
       } catch (error) {
         console.error('Error fetching next invoice number:', error)
-        setFormData(prev => ({ ...prev, number: 'INV/00001' }))
+        setFormData(prev => ({
+          ...prev,
+          number: 'INV/00001',
+          poNumber: poNumberUserEdited.current ? prev.poNumber : (prev.poNumber || `001/PO/-/I/${new Date().getFullYear()}`)
+        }))
       } finally {
         setLoadingNumber(false)
       }
@@ -141,18 +175,15 @@ export default function InvoiceAdd() {
     }
   }, [location.search])
 
-  // When customer selected, prefill name/address (editable)
+  // When customer selected, prefill name and address from contact (user can change after)
   useEffect(() => {
     if (!selectedCustomer) return
+    const address = selectedCustomer.billingAddress || selectedCustomer.address || ''
     setFormData((prev) => ({
       ...prev,
       customerId: selectedCustomer.id,
       customerName: selectedCustomer.name || selectedCustomer.company || prev.customerName,
-      customerAddress:
-        prev.customerAddress ||
-        selectedCustomer.billingAddress ||
-        selectedCustomer.address ||
-        '',
+      customerAddress: address,
     }))
   }, [selectedCustomer])
 
@@ -836,7 +867,10 @@ export default function InvoiceAdd() {
                       <input
                         type="text"
                         value={formData.poNumber}
-                        onChange={(e) => setFormData({ ...formData, poNumber: e.target.value })}
+                        onChange={(e) => {
+                          poNumberUserEdited.current = true
+                          setFormData({ ...formData, poNumber: e.target.value })
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                         placeholder="043/PO/-CY/X/2024"
                       />
@@ -845,13 +879,29 @@ export default function InvoiceAdd() {
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         TGL PO * <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="text"
-                        value={formData.poDate}
-                        onChange={(e) => setFormData({ ...formData, poDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                        placeholder="31 OKTOBER 2024"
-                      />
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date"
+                            value={poDateIso}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              if (!val) {
+                                setFormData({ ...formData, poDate: '' })
+                                return
+                              }
+                              setFormData({ ...formData, poDate: formatDateToInv3TglPo(new Date(val + 'T12:00:00')) })
+                            }}
+                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                          />
+                          <Calendar className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                        </div>
+                        {formData.poDate && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Format PDF: {formData.poDate}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     <div>
