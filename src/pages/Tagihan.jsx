@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import { 
@@ -15,14 +15,26 @@ import {
   Loader2
 } from 'lucide-react'
 import { useInvoices } from '../hooks/useInvoiceData'
+import { useContacts } from '../hooks/useContactsData'
 
 export default function Tagihan() {
   const { t } = useLanguage()
   const navigate = useNavigate()
   const { invoices, loading, error } = useInvoices()
+  const { contacts } = useContacts()
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedInvoices, setSelectedInvoices] = useState([])
+
+  const contactNameById = useMemo(() => {
+    if (!Array.isArray(contacts)) return {}
+    const map = {}
+    for (const c of contacts) {
+      if (!c || !c.id) continue
+      map[c.id] = c.name || c.company || c.email || ''
+    }
+    return map
+  }, [contacts])
 
   // Format number to Indonesian format
   const formatNumber = (num) => {
@@ -72,9 +84,16 @@ export default function Tagihan() {
       (selectedStatus === 'partial' && status === 'Dibayar Sebagian') ||
       (selectedStatus === 'paid' && status === 'Lunas')
     
+    const name =
+      invoice.contactName ||
+      invoice.customerName ||
+      (invoice.customer && contactNameById[invoice.customer]) ||
+      invoice.customer ||
+      ''
+
     const matchesSearch = !searchQuery || 
       invoice.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.customer?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       invoice.reference?.toLowerCase().includes(searchQuery.toLowerCase())
     
     return matchesStatus && matchesSearch
@@ -302,7 +321,11 @@ export default function Tagihan() {
                               {invoice.number || 'N/A'}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                              {invoice.customer || 'N/A'}
+                              {invoice.contactName ||
+                                invoice.customerName ||
+                                (invoice.customer && contactNameById[invoice.customer]) ||
+                                invoice.customer ||
+                                'N/A'}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                               {invoice.reference || '-'}
