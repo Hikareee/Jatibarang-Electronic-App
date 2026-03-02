@@ -36,6 +36,7 @@ import PemesananAdd from './pages/PemesananAdd'
 import Penawaran from './pages/Penawaran'
 import AccountDetail from './pages/AccountDetail'
 import AIAssistant from './pages/AIAssistant'
+import Inventori from './pages/Inventori'
 import ApprovedRoute from './components/ApprovedRoute'
 import ManagerRoute from './components/ManagerRoute'
 
@@ -57,6 +58,18 @@ function AppRoutes() {
           <PrivateRoute>
             <ApprovedRoute>
               <Dashboard />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/inventori"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <ManagerRoute>
+                <Inventori />
+              </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>
         }

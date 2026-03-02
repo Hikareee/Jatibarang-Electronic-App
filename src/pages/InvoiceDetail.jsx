@@ -11,6 +11,7 @@ import {
 import { useInvoiceDetail } from '../hooks/useInvoiceDetail'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import jsPDF from 'jspdf'
 
 export default function InvoiceDetail() {
   const { id } = useParams()
@@ -19,6 +20,64 @@ export default function InvoiceDetail() {
   const { invoice, loading, error, updateInvoice } = useInvoiceDetail(id)
   const [showTotalBreakdown, setShowTotalBreakdown] = useState(false)
   const [deliveryStatusMenuOpen, setDeliveryStatusMenuOpen] = useState(false)
+
+  const formatNumberCommas = (num) => {
+    const n = Number(num || 0)
+    if (!Number.isFinite(n)) return '0'
+    return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n)
+  }
+
+  const formatRp = (num) => `Rp${formatNumberCommas(num)}`
+
+  const formatDateDash = (dateString) => {
+    if (!dateString) return ''
+    const d = new Date(dateString)
+    if (Number.isNaN(d.getTime())) return ''
+    return `${d.getDate()}-${d.getMonth() + 1}-${d.getFullYear()}`
+  }
+
+  const toTitleCase = (s) =>
+    String(s || '')
+      .split(' ')
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ')
+
+  const terbilang = (n) => {
+    const num = Math.floor(Number(n || 0))
+    if (!Number.isFinite(num) || num === 0) return 'Nol'
+
+    const satuan = [
+      '',
+      'satu',
+      'dua',
+      'tiga',
+      'empat',
+      'lima',
+      'enam',
+      'tujuh',
+      'delapan',
+      'sembilan',
+      'sepuluh',
+      'sebelas'
+    ]
+
+    const spell = (x) => {
+      if (x < 12) return satuan[x]
+      if (x < 20) return `${spell(x - 10)} belas`
+      if (x < 100) return `${spell(Math.floor(x / 10))} puluh ${spell(x % 10)}`.trim()
+      if (x < 200) return `seratus ${spell(x - 100)}`.trim()
+      if (x < 1000) return `${spell(Math.floor(x / 100))} ratus ${spell(x % 100)}`.trim()
+      if (x < 2000) return `seribu ${spell(x - 1000)}`.trim()
+      if (x < 1000000) return `${spell(Math.floor(x / 1000))} ribu ${spell(x % 1000)}`.trim()
+      if (x < 1000000000) return `${spell(Math.floor(x / 1000000))} juta ${spell(x % 1000000)}`.trim()
+      if (x < 1000000000000)
+        return `${spell(Math.floor(x / 1000000000))} milyar ${spell(x % 1000000000)}`.trim()
+      return `${spell(Math.floor(x / 1000000000000))} triliun ${spell(x % 1000000000000)}`.trim()
+    }
+
+    return toTitleCase(spell(num))
+  }
 
   // Format number to Indonesian format
   const formatNumber = (num) => {
@@ -72,6 +131,313 @@ export default function InvoiceDetail() {
   }
 
   const deliveryStatusOptions = [0, 25, 50, 75, 100]
+
+  const handleExportPdf = () => {
+    if (!invoice) return
+
+    const docPdf = new jsPDF('p', 'pt', 'a4')
+
+    const marginLeft = 40
+    let cursorY = 40
+
+    const companyName = 'PT. INTEGRASI BANGUN PERKASA'
+    const companyAddress =
+      'Jl. Raya Bandengan Mundu No. 09 Ds. Bandengan Kec. Mundu Kab. Cirebon Kode Pos 45173'
+    const companyContact = 'Telp. 0818345654, Email :integrasibangunperkasa@gmail.com'
+    const bankName = 'BANK MANDIRI'
+    const bankAccountNo = '134-00-5000001-6'
+    const bankAccountName = companyName
+    const signName = 'Wempi'
+    const signTitle = 'Direktur'
+
+    const invoiceNumber = invoice.number || '-'
+    const customerName = invoice.customerName || invoice.customer || '-'
+    const customerAddress = invoice.customerAddress || ''
+    const attn = invoice.attn || ''
+    const invoiceDateDash = formatDateDash(invoice.transactionDate || invoice.createdAt) || ''
+
+    const items = Array.isArray(invoice.items) ? invoice.items : []
+    const totalBeforeTax = items.reduce((sum, item) => {
+      const quantity = Number(item.quantity || 0)
+      const price = Number(item.price || 0)
+      const discount = Number(item.discount || 0)
+      const itemSubtotal = quantity * price
+      const itemDiscount = itemSubtotal * (discount / 100)
+      return sum + (itemSubtotal - itemDiscount)
+    }, 0)
+    const totalTax = items.reduce((sum, item) => {
+      const quantity = Number(item.quantity || 0)
+      const price = Number(item.price || 0)
+      const discount = Number(item.discount || 0)
+      const tax = Number(item.tax || 0)
+      const itemSubtotal = quantity * price
+      const itemDiscount = itemSubtotal * (discount / 100)
+      const afterDisc = itemSubtotal - itemDiscount
+      return sum + afterDisc * (tax / 100)
+    }, 0)
+    const subTotal = totalBeforeTax + totalTax
+    const explicitPph = Number(invoice.pph?.value ?? invoice.pphValue ?? invoice.pph ?? NaN)
+    const pph = Number.isFinite(explicitPph)
+      ? explicitPph
+      : Math.max(0, subTotal - Number(invoice.total || subTotal))
+    const grandTotal = Number(invoice.total || subTotal - pph)
+
+    const poNumber = invoice.poNumber || invoice.reference || ''
+    const poDate = invoice.poDate || ''
+    const sphNumber = invoice.sphNumber || ''
+
+    const workItems = Array.isArray(invoice.workItems)
+      ? invoice.workItems
+      : (typeof invoice.workItems === 'string' ? invoice.workItems.split('\n') : [])
+
+    // ---- Page 1: INVOICE ----
+    docPdf.setFont('Helvetica', 'normal')
+    docPdf.setFontSize(10)
+    docPdf.setFont('Helvetica', 'bold')
+    docPdf.text(companyName, marginLeft, cursorY)
+    cursorY += 14
+    docPdf.setFont('Helvetica', 'normal')
+    docPdf.setFontSize(9)
+    docPdf.text(companyAddress, marginLeft, cursorY)
+    cursorY += 12
+    docPdf.text(companyContact, marginLeft, cursorY)
+
+    cursorY += 18
+    docPdf.setFont('Helvetica', 'bold')
+    docPdf.setFontSize(14)
+    docPdf.text('INVOICE', marginLeft, cursorY)
+
+    cursorY += 20
+    docPdf.setFont('Helvetica', 'normal')
+    docPdf.setFontSize(9)
+
+    docPdf.text('Customer :', marginLeft, cursorY)
+    docPdf.text(customerName, marginLeft + 70, cursorY)
+    docPdf.text('No Invoice :', marginLeft + 300, cursorY)
+    docPdf.text(invoiceNumber, marginLeft + 370, cursorY)
+
+    cursorY += 14
+    if (customerAddress) {
+      const addr = docPdf.splitTextToSize(customerAddress, 260)
+      docPdf.text(addr, marginLeft + 70, cursorY)
+    }
+    docPdf.text('DATE', marginLeft + 370, cursorY)
+    docPdf.text(invoiceDateDash || '-', marginLeft + 410, cursorY)
+
+    if (attn) {
+      cursorY += 28
+      docPdf.text(`Attn. ${attn}`, marginLeft + 70, cursorY)
+    }
+
+    cursorY += 30
+    docPdf.setFont('Helvetica', 'bold')
+    docPdf.text('NO', marginLeft, cursorY)
+    docPdf.text('DESCRIPTION', marginLeft + 30, cursorY)
+    docPdf.text('SPEK', marginLeft + 230, cursorY)
+    docPdf.text('QTY', marginLeft + 290, cursorY)
+    docPdf.text('SATUAN', marginLeft + 330, cursorY)
+    docPdf.text('HARSAT', marginLeft + 400, cursorY)
+    docPdf.text('TOTAL', marginLeft + 500, cursorY, { align: 'right' })
+
+    cursorY += 8
+    docPdf.setLineWidth(0.7)
+    docPdf.line(marginLeft, cursorY, marginLeft + 520, cursorY)
+
+    cursorY += 16
+    docPdf.setFont('Helvetica', 'normal')
+
+    items.forEach((item, index) => {
+      if (cursorY > 560) {
+        // leave space for totals + footer blocks; move to next page if needed
+        docPdf.addPage()
+        cursorY = 40
+      }
+
+      const quantity = Number(item.quantity || 0)
+      const unit = item.unit || ''
+      const price = Number(item.price || 0)
+      const discount = Number(item.discount || 0)
+      const tax = Number(item.tax || 0)
+      const itemSubtotal = quantity * price
+      const itemDiscount = itemSubtotal * (discount / 100)
+      const afterDisc = itemSubtotal - itemDiscount
+      const itemTax = afterDisc * (tax / 100)
+      const itemTotal = Number(item.amount ?? afterDisc + itemTax)
+
+      const desc = item.description || item.product || '-'
+      const spek = item.spek || item.spec || '-'
+
+      docPdf.text(String(index + 1), marginLeft, cursorY)
+      docPdf.text(docPdf.splitTextToSize(desc, 190), marginLeft + 30, cursorY)
+      docPdf.text(String(spek || '-'), marginLeft + 230, cursorY)
+      docPdf.text(quantity ? String(quantity) : '-', marginLeft + 290, cursorY)
+      docPdf.text(unit || '', marginLeft + 330, cursorY)
+      docPdf.text(formatNumberCommas(price), marginLeft + 470, cursorY, { align: 'right' })
+      docPdf.text(formatNumberCommas(itemTotal), marginLeft + 520, cursorY, { align: 'right' })
+
+      cursorY += 16
+    })
+
+    cursorY += 6
+    docPdf.setLineWidth(0.7)
+    docPdf.line(marginLeft, cursorY, marginLeft + 520, cursorY)
+
+    cursorY += 16
+    docPdf.setFont('Helvetica', 'bold')
+    docPdf.text('ITEM PEKERJAAN :', marginLeft, cursorY)
+    docPdf.setFont('Helvetica', 'normal')
+
+    cursorY += 14
+    const derivedWorkItems =
+      workItems.length > 0
+        ? workItems
+        : []
+
+    derivedWorkItems.slice(0, 10).forEach((w, idx) => {
+      if (!String(w).trim()) return
+      docPdf.text(`${idx + 1}  ${String(w).trim()}`, marginLeft, cursorY)
+      cursorY += 12
+    })
+
+    cursorY += 10
+    docPdf.setFont('Helvetica', 'bold')
+    docPdf.text('REFERENSI', marginLeft, cursorY)
+    docPdf.setFont('Helvetica', 'normal')
+    cursorY += 14
+    docPdf.text('- NO SPH * :', marginLeft, cursorY)
+    docPdf.text(sphNumber || '..................................', marginLeft + 90, cursorY)
+    cursorY += 12
+    docPdf.text('- NO PO * :', marginLeft, cursorY)
+    docPdf.text(poNumber || '..................................', marginLeft + 90, cursorY)
+    cursorY += 12
+    docPdf.text('- TGL PO * :', marginLeft, cursorY)
+    docPdf.text(poDate || '..................................', marginLeft + 90, cursorY)
+
+    // Totals block (right)
+    const totalsXLabel = marginLeft + 330
+    const totalsXValue = marginLeft + 520
+    cursorY += 10
+    let totalsY = cursorY - 36
+    if (totalsY < 420) totalsY = 420
+
+    docPdf.setFont('Helvetica', 'bold')
+    docPdf.text('TOTAL', totalsXLabel, totalsY)
+    docPdf.text(formatRp(totalBeforeTax), totalsXValue, totalsY, { align: 'right' })
+    totalsY += 14
+    docPdf.text('VAT 11% (+)', totalsXLabel, totalsY)
+    docPdf.text(formatRp(totalTax), totalsXValue, totalsY, { align: 'right' })
+    totalsY += 14
+    docPdf.text('SUB TOTAL', totalsXLabel, totalsY)
+    docPdf.text(formatRp(subTotal), totalsXValue, totalsY, { align: 'right' })
+    totalsY += 14
+    docPdf.text('PPH (-)', totalsXLabel, totalsY)
+    docPdf.text(formatRp(pph), totalsXValue, totalsY, { align: 'right' })
+    totalsY += 14
+    docPdf.text('GRAND TOTAL', totalsXLabel, totalsY)
+    docPdf.text(formatRp(grandTotal), totalsXValue, totalsY, { align: 'right' })
+
+    // Bank + signature
+    let footerY = Math.max(totalsY + 20, 560)
+    if (footerY > 730) footerY = 730
+
+    docPdf.setFont('Helvetica', 'bold')
+    docPdf.text('PEMBAYARAN DAPAT DI TRF KE :', marginLeft, footerY)
+    docPdf.setFont('Helvetica', 'normal')
+    footerY += 14
+    docPdf.text(bankName, marginLeft, footerY)
+    footerY += 12
+    docPdf.text('NO. REK', marginLeft, footerY)
+    docPdf.text(`: ${bankAccountNo}`, marginLeft + 55, footerY)
+    footerY += 12
+    docPdf.text('A/N', marginLeft, footerY)
+    docPdf.text(`: ${bankAccountName}`, marginLeft + 55, footerY)
+
+    docPdf.text('Regards,', marginLeft + 360, footerY - 26)
+    docPdf.setFont('Helvetica', 'bold')
+    docPdf.text(companyName, marginLeft + 360, footerY - 12)
+    docPdf.setFont('Helvetica', 'normal')
+    docPdf.text(signName, marginLeft + 360, footerY + 26)
+    docPdf.text(signTitle, marginLeft + 360, footerY + 40)
+
+    // ---- Page 2: KWITANSI ----
+    docPdf.addPage()
+    cursorY = 40
+
+    docPdf.setFont('Helvetica', 'bold')
+    docPdf.setFontSize(10)
+    docPdf.text(companyName, marginLeft, cursorY)
+    cursorY += 14
+    docPdf.setFont('Helvetica', 'normal')
+    docPdf.setFontSize(9)
+    docPdf.text(`${companyAddress},`, marginLeft, cursorY)
+    cursorY += 12
+    docPdf.text('Telp. 0818345654, Email integrasibangunperkasa@gmail.com', marginLeft, cursorY)
+
+    cursorY += 18
+    docPdf.setFont('Helvetica', 'bold')
+    docPdf.setFontSize(14)
+    docPdf.text('KWITANSI', marginLeft, cursorY)
+    cursorY += 16
+    docPdf.setFontSize(10)
+    docPdf.text(invoiceNumber, marginLeft, cursorY)
+
+    cursorY += 22
+    docPdf.setFont('Helvetica', 'normal')
+    docPdf.setFontSize(10)
+    docPdf.text('Received From', marginLeft, cursorY)
+    docPdf.text(':', marginLeft + 110, cursorY)
+    docPdf.text(customerName, marginLeft + 125, cursorY)
+
+    cursorY += 18
+    docPdf.text('In Number', marginLeft, cursorY)
+    docPdf.text(':', marginLeft + 110, cursorY)
+    docPdf.text(`${terbilang(grandTotal)}.`, marginLeft + 125, cursorY, { maxWidth: 420 })
+
+    cursorY += 18
+    docPdf.text('For Payment', marginLeft, cursorY)
+    docPdf.text(':', marginLeft + 110, cursorY)
+    docPdf.text('Pembayaran Invoice No * :', marginLeft + 125, cursorY)
+    docPdf.text(invoiceNumber, marginLeft + 290, cursorY)
+
+    cursorY += 18
+    docPdf.text('Untuk Pekerjaan :', marginLeft + 125, cursorY)
+
+    cursorY += 14
+    items.slice(0, 3).forEach((item) => {
+      const desc = item.description || item.product || ''
+      if (!desc) return
+      docPdf.text(docPdf.splitTextToSize(desc, 420), marginLeft + 125, cursorY)
+      cursorY += 12
+    })
+
+    cursorY += 12
+    docPdf.text('- NO SPH * :', marginLeft + 125, cursorY)
+    docPdf.text(sphNumber || '..................................', marginLeft + 210, cursorY)
+    cursorY += 12
+    docPdf.text('- NO PO * :', marginLeft + 125, cursorY)
+    docPdf.text(poNumber || '..................................', marginLeft + 210, cursorY)
+    cursorY += 12
+    docPdf.text('- TGL PO * :', marginLeft + 125, cursorY)
+    docPdf.text(poDate || '..................................', marginLeft + 210, cursorY)
+
+    cursorY += 22
+    const city = invoice.city || 'Cirebon'
+    docPdf.text(`${city}, ${invoiceDateDash || '-'}`, marginLeft + 360, cursorY)
+
+    cursorY += 22
+    docPdf.setFont('Helvetica', 'bold')
+    docPdf.text(formatRp(grandTotal), marginLeft + 360, cursorY)
+
+    cursorY += 34
+    docPdf.setFont('Helvetica', 'normal')
+    docPdf.text(signName.toUpperCase(), marginLeft + 360, cursorY)
+    cursorY += 14
+    docPdf.text(signTitle, marginLeft + 360, cursorY)
+
+    const safeNumber = String(invoiceNumber || 'invoice').replace(/[^\w\- ]+/g, ' ').trim()
+    const fileName = `${safeNumber || 'invoice'}.pdf`
+    docPdf.save(fileName)
+  }
 
   if (loading) {
     return (
@@ -146,6 +512,12 @@ export default function InvoiceDetail() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportPdf}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300"
+          >
+            <span>Export PDF</span>
+          </button>
           <button 
             onClick={() => navigate('/penjualan/tagihan')}
             className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
