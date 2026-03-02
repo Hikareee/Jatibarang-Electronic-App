@@ -296,7 +296,17 @@ export default function InvoiceAdd() {
         newItems[index].description = selectedProduct.nama || selectedProduct.description || newItems[index].description || ''
         newItems[index].spek = selectedProduct.spek || selectedProduct.spec || newItems[index].spek || '-'
         newItems[index].unit = selectedProduct.satuan || selectedProduct.unit || newItems[index].unit || ''
-        newItems[index].price = selectedProduct.harga ?? selectedProduct.price ?? newItems[index].price ?? ''
+  // Ensure price is a plain number (not formatted string) so FormattedNumberInput receives a numeric value
+  const p = selectedProduct.harga ?? selectedProduct.price ?? selectedProduct.hargaJual ?? selectedProduct.priceJual ?? newItems[index].price ?? ''
+  const cleaned = p === '' ? '' : Number(String(p).replace(/[^\d.]/g, ''))
+  newItems[index].price = cleaned === '' || Number.isNaN(cleaned) ? '' : cleaned
+
+  // Recalculate amount immediately after autofill so UI updates
+  const quantity = parseFloat(newItems[index].quantity || 0)
+  const price = parseFloat(newItems[index].price || 0)
+  const discount = parseFloat(newItems[index].discount || 0)
+  const amount = (quantity * price) * (1 - (isNaN(discount) ? 0 : discount) / 100)
+  newItems[index].amount = isNaN(amount) ? 0 : amount
       }
     }
 
@@ -373,7 +383,7 @@ export default function InvoiceAdd() {
         return
       }
 
-      setSaving(true)
+  setSaving(true)
       const invoiceData = {
         ...formData,
         customerId: formData.customerId || formData.customer,
@@ -389,8 +399,13 @@ export default function InvoiceAdd() {
         remaining: calculateRemaining(),
         createdAt: new Date().toISOString(),
       }
-      await saveInvoice(invoiceData)
-      navigate('/penjualan/tagihan')
+  // If save returns an id, navigate to the invoice detail so attachments are visible
+  const savedId = await saveInvoice(invoiceData)
+      if (savedId) {
+        navigate(`/penjualan/tagihan/${savedId}`)
+      } else {
+        navigate('/penjualan/tagihan')
+      }
     } catch (error) {
       console.error('Error saving invoice:', error)
       alert('Failed to save invoice')
@@ -674,10 +689,10 @@ export default function InvoiceAdd() {
                           <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                             {t('discount')} <ChevronDown className="inline h-3 w-3" />
                           </th>
-                          <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                          <th className="text-right py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-36 whitespace-nowrap">
                             {t('price')} <ChevronDown className="inline h-3 w-3" />
                           </th>
-                          <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                          <th className="text-right py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-40 whitespace-nowrap">
                             {t('amount')} <ChevronDown className="inline h-3 w-3" />
                           </th>
                           <th className="w-10"></th>
@@ -753,20 +768,22 @@ export default function InvoiceAdd() {
                                 <span className="text-sm text-gray-600 dark:text-gray-300">%</span>
                               </div>
                             </td>
-                            <td className="py-2 px-2">
-                              <FormattedNumberInput
-                                value={item.price}
-                                onChange={(value) => handleItemChange(index, 'price', value)}
-                                placeholder="0"
-                                className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white bg-white text-gray-900 text-sm"
-                              />
+                            <td className="py-2 px-2 text-right align-top">
+                              <div className="inline-block w-32 text-right">
+                                <FormattedNumberInput
+                                  value={item.price}
+                                  onChange={(value) => handleItemChange(index, 'price', value)}
+                                  placeholder="0"
+                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white bg-white text-gray-900 text-sm text-right"
+                                />
+                              </div>
                             </td>
-                            <td className="py-2 px-2">
+                            <td className="py-2 px-2 text-right align-top whitespace-nowrap w-40">
                               <input
                                 type="text"
                                 value={formatNumber(item.amount)}
                                 readOnly
-                                className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-700 dark:text-white text-sm"
+                                className="inline-block w-36 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-700 dark:text-white text-sm text-right"
                               />
                             </td>
                             <td className="py-2 px-2">
@@ -1097,7 +1114,7 @@ export default function InvoiceAdd() {
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                         placeholder="Enter message..."
                       />
-                    </div>
+                    </div>  
                   )}
 
                   <button

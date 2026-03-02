@@ -250,8 +250,11 @@ export default function InvoiceDetail() {
     docPdf.text('SPEK', marginLeft + 230, cursorY)
     docPdf.text('QTY', marginLeft + 290, cursorY)
     docPdf.text('SATUAN', marginLeft + 330, cursorY)
-    docPdf.text('HARSAT', marginLeft + 400, cursorY)
-    docPdf.text('TOTAL', marginLeft + 500, cursorY, { align: 'right' })
+  // Position HARSAT header further left (away from TOTAL) and left-align
+  const xHarsat = marginLeft + 400
+  const xTotal = marginLeft + 520
+  docPdf.text('HARSAT', xHarsat, cursorY)
+  docPdf.text('TOTAL', xTotal, cursorY, { align: 'right' })
 
     cursorY += 8
     docPdf.setLineWidth(0.7)
@@ -292,8 +295,10 @@ export default function InvoiceDetail() {
       docPdf.text(String(spek || '-'), marginLeft + 230, cursorY)
       docPdf.text(quantity ? String(quantity) : '-', marginLeft + 290, cursorY)
       docPdf.text(unit || '', marginLeft + 330, cursorY)
-      docPdf.text(formatNumberCommas(price), marginLeft + 470, cursorY, { align: 'right' })
-      docPdf.text(formatNumberCommas(itemTotal), marginLeft + 520, cursorY, { align: 'right' })
+  // Print HARSAT (price) left-aligned under the HARSAT header (moved left)
+  docPdf.text(formatNumberCommas(price), xHarsat, cursorY)
+  // Print TOTAL aligned to the right under the TOTAL header
+  docPdf.text(formatNumberCommas(itemTotal), xTotal, cursorY, { align: 'right' })
 
       cursorY += 16
     })
@@ -704,84 +709,54 @@ export default function InvoiceDetail() {
               <div className="w-full max-w-md">
                 <div className="space-y-2">
                   {(() => {
-                    const itemsSubtotalBeforeDiscount = invoice.items?.reduce((sum, item) => {
-                      return sum + ((item.quantity || 0) * (item.price || 0))
-                    }, 0) || 0
-                    
-                    const totalItemDiscount = invoice.items?.reduce((sum, item) => {
-                      const quantity = item.quantity || 0
-                      const price = item.price || 0
-                      const discount = item.discount || 0
+                    const dpp = (invoice.items || []).reduce((sum, item) => {
+                      const quantity = Number(item.quantity || 0)
+                      const price = Number(item.price || 0)
+                      const discount = Number(item.discount || 0)
                       const itemSubtotal = quantity * price
                       const itemDiscount = itemSubtotal * (discount / 100)
-                      return sum + itemDiscount
-                    }, 0) || 0
-                    
-                    const subtotalAfterItemDiscount = itemsSubtotalBeforeDiscount - totalItemDiscount
-                    
-                    const totalTax = invoice.items?.reduce((sum, item) => {
-                      const quantity = item.quantity || 0
-                      const price = item.price || 0
-                      const discount = item.discount || 0
-                      const tax = item.tax || 0
-                      const itemSubtotal = quantity * price
-                      const itemDiscount = itemSubtotal * (discount / 100)
-                      const itemAfterDiscount = itemSubtotal - itemDiscount
-                      const itemTax = itemAfterDiscount * (tax / 100)
-                      return sum + itemTax
-                    }, 0) || 0
-                    
-                    const subtotalAfterDiscount = subtotalAfterItemDiscount
-                    const subtotalAfterTax = subtotalAfterDiscount + totalTax
-                    
-                    const additionalDiscount = invoice.additionalDiscount?.value || 0
-                    const shippingCost = invoice.shippingCost?.value || 0
-                    const transactionFee = invoice.transactionFee?.value || 0
-                    const total = subtotalAfterTax - additionalDiscount + shippingCost + transactionFee
-                    
+                      return sum + (itemSubtotal - itemDiscount)
+                    }, 0)
+
+                    const vatRate = Number(invoice.vatRate || 0)
+                    const vat = vatRate > 0 ? dpp * (vatRate / 100) : 0
+                    const subTotal = dpp + vat
+
+                    const explicitPph = Number(invoice.pph?.value ?? invoice.pphValue ?? NaN)
+                    const explicitPphRate = Number(invoice.pph?.rate ?? invoice.pphRate ?? NaN)
+                    const pph = Number.isFinite(explicitPph)
+                      ? explicitPph
+                      : (Number.isFinite(explicitPphRate) ? dpp * (explicitPphRate / 100) : 0)
+
+                    const grandTotal = Number.isFinite(Number(invoice.total))
+                      ? Number(invoice.total)
+                      : subTotal - pph
+
                     return (
                       <>
                         <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                          <span>Subtotal Produk (Sebelum Diskon)</span>
-                          <span>{formatNumber(itemsSubtotalBeforeDiscount)}</span>
+                          <span>TOTAL (DPP)</span>
+                          <span>{formatNumber(dpp)}</span>
                         </div>
-                        {totalItemDiscount > 0 && (
+                        {vat > 0 && (
                           <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                            <span>Diskon Item</span>
-                            <span className="text-red-600 dark:text-red-400">-{formatNumber(totalItemDiscount)}</span>
+                            <span>VAT {Number.isFinite(vatRate) ? vatRate : 0}% (+)</span>
+                            <span>{formatNumber(vat)}</span>
                           </div>
                         )}
                         <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                          <span>Subtotal Setelah Diskon Item</span>
-                          <span>{formatNumber(subtotalAfterItemDiscount)}</span>
+                          <span>SUB TOTAL</span>
+                          <span>{formatNumber(subTotal)}</span>
                         </div>
-                        {totalTax > 0 && (
+                        {pph > 0 && (
                           <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                            <span>Pajak</span>
-                            <span>{formatNumber(totalTax)}</span>
-                          </div>
-                        )}
-                        {additionalDiscount > 0 && (
-                          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                            <span>Diskon Tambahan</span>
-                            <span className="text-red-600 dark:text-red-400">-{formatNumber(additionalDiscount)}</span>
-                          </div>
-                        )}
-                        {shippingCost > 0 && (
-                          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                            <span>Biaya Pengiriman</span>
-                            <span>{formatNumber(shippingCost)}</span>
-                          </div>
-                        )}
-                        {transactionFee > 0 && (
-                          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                            <span>Biaya Transaksi</span>
-                            <span>{formatNumber(transactionFee)}</span>
+                            <span>PPH (-)</span>
+                            <span>{formatNumber(pph)}</span>
                           </div>
                         )}
                         <div className="flex justify-between text-lg font-bold text-gray-900 dark:text-white pt-2 border-t border-gray-200 dark:border-gray-700">
-                          <span>Total</span>
-                          <span>{formatNumber(invoice.total || total)}</span>
+                          <span>GRAND TOTAL</span>
+                          <span>{formatNumber(grandTotal)}</span>
                         </div>
                       </>
                     )

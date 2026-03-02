@@ -26,15 +26,26 @@ export async function getNextInvoiceNumber() {
 export async function saveInvoice(invoiceData) {
   try {
     // Use provided number or generate next
+    // Normalize attachments to plain serializable objects
+    const normalizedAttachments = (invoiceData.attachments || []).map((a) => ({
+      name: a.name || a.fileName || '',
+      url: a.url || a.downloadUrl || '',
+      type: a.type || '',
+      size: a.size || 0,
+      path: a.path || a.storagePath || '',
+      uploadedAt: a.uploadedAt || new Date().toISOString(),
+    }))
+
     const finalInvoiceData = {
       ...invoiceData,
+      attachments: normalizedAttachments,
       number: invoiceData.number || (await getNextInvoiceNumber()),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
 
     // Save to Firestore
-    const docRef = await addDoc(collection(db, 'invoices'), finalInvoiceData)
+  const docRef = await addDoc(collection(db, 'invoices'), finalInvoiceData)
     
     // Update related financial data (cash, sales, etc.)
     await updateFinancialData(finalInvoiceData)
@@ -73,7 +84,7 @@ export async function saveInvoice(invoiceData) {
       })
     }
     
-    return docRef.id
+  return docRef.id
   } catch (error) {
     console.error('Error saving invoice:', error)
     throw error
