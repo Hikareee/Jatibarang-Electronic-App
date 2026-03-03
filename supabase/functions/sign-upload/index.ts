@@ -6,14 +6,33 @@
 // Using Deno.serve eliminates the need for std/http URL imports
 import { createClient } from "@supabase/supabase-js"
 
+// Allow TypeScript to compile when Deno types are not present (e.g., Node editors)
+// This is safe because at runtime on Supabase Edge, the real Deno global exists.
+declare const Deno: any
+
+// Cross-runtime env getter: tries Node (process.env), Vite (import.meta.env), then Deno
+function getEnv(name: string): string | undefined {
+  const pe = (globalThis as any)?.process?.env?.[name]
+  if (pe) return String(pe)
+  const ime = (import.meta as any)?.env?.[name]
+  if (ime) return String(ime)
+  try {
+    if (typeof Deno !== 'undefined' && Deno?.env?.get) {
+      const v = Deno.env.get(name)
+      if (v) return String(v)
+    }
+  } catch {}
+  return undefined
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+const SUPABASE_URL = getEnv("SUPABASE_URL")
+const SERVICE_ROLE_KEY = getEnv("SUPABASE_SERVICE_ROLE_KEY")
 
 if (!SUPABASE_URL) {
   throw new Error("SUPABASE_URL is not set")
@@ -28,7 +47,7 @@ function sanitizeName(name: string) {
   return String(name || "file").replace(/[^\w.\-]+/g, "_")
 }
 
-Deno.serve(async (req) => {
+const handler = async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
@@ -82,4 +101,11 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
   }
-})
+};
+
+// Auto-start on Supabase Edge (Deno). On Node/Vercel, this export is enough.
+if (typeof Deno !== 'undefined' && (Deno as any)?.serve) {
+  (Deno as any).serve(handler)
+}
+
+export default handler
