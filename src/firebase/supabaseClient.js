@@ -13,7 +13,7 @@ function sanitizeName(name) {
 
 async function signedUpload(file, bucket, prefix) {
   if (!file) throw new Error('No file provided')
-  const bucketId = (bucket || 'attachmentinvoice').toString().trim().toLowerCase()
+  const bucketId = (bucket || 'AttachmentInvoice').toString().trim()
   if (!bucketId) throw new Error('Bucket is required')
 
   const safeName = sanitizeName(file.name)
@@ -32,15 +32,10 @@ async function signedUpload(file, bucket, prefix) {
 
   const token = payload.token
   const signedPath = payload.path || path
-  const signedBucket = (payload.bucket || bucketId).toString().trim().toLowerCase()
-
-  const { error: upErr } = await supabase
-    .storage
-    .from(signedBucket)
-    .uploadToSignedUrl(signedPath, token, file)
+  const { error: upErr } = await supabase.storage.from(bucketId).uploadToSignedUrl(signedPath, token, file)
   if (upErr) throw upErr
 
-  const { data: pub } = supabase.storage.from(signedBucket).getPublicUrl(signedPath)
+  const { data: pub } = supabase.storage.from(bucketId).getPublicUrl(signedPath)
   const url = pub?.publicUrl || ''
 
   return {
@@ -71,7 +66,7 @@ export async function uploadPaymentProof(file, invoiceId, bucket = 'payments') {
 }
 
 // Upload invoice attachments to 'AttachmentInvoice' under invoices/{invoiceId} or invoices-draft (uses signed upload)
-export async function uploadInvoiceAttachment(file, invoiceId, bucket = 'attachmentinvoice') {
+export async function uploadInvoiceAttachment(file, invoiceId, bucket = 'AttachmentInvoice') {
   const prefix = invoiceId ? `invoices/${invoiceId}` : 'invoices-draft'
   return signedUpload(file, bucket, prefix)
 }
