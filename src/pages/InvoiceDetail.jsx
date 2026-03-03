@@ -856,37 +856,7 @@ export default function InvoiceDetail() {
           </div>
         )}
 
-        {/* Attachments */}
-        {Array.isArray(invoice.attachments) && invoice.attachments.length > 0 && (
-          <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-              Lampiran
-            </h3>
-            <ul className="space-y-2">
-              {invoice.attachments.map((att, index) => (
-                <li
-                  key={att.path || att.url || `${att.name}-${index}`}
-                  className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-200"
-                >
-                  <span className="truncate max-w-xs">
-                    {att.name || `Lampiran ${index + 1}`}
-                  </span>
-                  {att.url && (
-                    <a
-                      href={att.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ml-2 text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
-                    >
-                      Buka
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+              </div>
 
       {/* Status Pembayaran - moved to bottom */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 mb-6">
@@ -947,6 +917,37 @@ export default function InvoiceDetail() {
             {paymentError && <p className="text-xs text-red-600 mt-2">{paymentError}</p>}
             <button onClick={handleAddPayment} disabled={addingPayment} className="mt-3 px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-50">{addingPayment ? 'Menyimpan...' : 'Tambah Pembayaran'}</button>
           </div>
+        )}
+      </div>
+
+      {/* Lampiran (dari saat membuat invoice) - ditempatkan di bawah Status Pembayaran */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Lampiran</h3>
+        {Array.isArray(invoice.attachments) && invoice.attachments.length > 0 ? (
+          <ul className="space-y-2">
+            {invoice.attachments.map((att, index) => (
+              <li
+                key={att.path || att.url || `${att.name}-${index}`}
+                className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-200"
+              >
+                <span className="truncate max-w-xs">{att.name || `Lampiran ${index + 1}`}</span>
+                {att.url ? (
+                  <a
+                    href={att.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
+                  >
+                    Buka
+                  </a>
+                ) : (
+                  <span className="ml-2 text-gray-500">No link</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-gray-600 dark:text-gray-400">Tidak ada lampiran.</p>
         )}
       </div>
 

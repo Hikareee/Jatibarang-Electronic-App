@@ -247,7 +247,7 @@ export default function InvoiceAdd() {
       // Upload to Supabase attachments bucket as draft (no invoiceId yet)
       const uploads = await Promise.all(
         files.map(async (file) => {
-          const meta = await uploadInvoiceAttachment(file, null, 'attachments')
+          const meta = await uploadInvoiceAttachment(file, null, 'AttachmentInvoice')
           return meta
         })
       )
@@ -260,7 +260,7 @@ export default function InvoiceAdd() {
       event.target.value = ''
     } catch (err) {
       console.error('Error uploading attachments:', err)
-      setAttachmentError('Gagal mengunggah lampiran')
+      setAttachmentError(`Gagal mengunggah lampiran${err?.message ? `: ${err.message}` : ''}`)
     } finally {
       setUploadingAttachments(false)
     }

@@ -12,18 +12,20 @@ function sanitizeName(name) {
 
 async function uploadInternal(file, bucket, prefix) {
   if (!file) throw new Error('No file provided')
-  if (!bucket) throw new Error('Bucket is required')
+  const bucketId = (bucket || 'AttachmentInvoice').toString().trim()
+  if (!bucketId) throw new Error('Bucket is required')
+
   const safeName = sanitizeName(file.name)
   const path = `${prefix}/${Date.now()}-${safeName}`
 
-  const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, {
+  const { error: uploadError } = await supabase.storage.from(bucketId).upload(path, file, {
     cacheControl: '3600',
     upsert: false,
     contentType: file.type || 'application/octet-stream',
   })
   if (uploadError) throw uploadError
 
-  const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path)
+  const { data: pub } = supabase.storage.from(bucketId).getPublicUrl(path)
   const url = pub?.publicUrl || ''
 
   return {
@@ -49,7 +51,7 @@ export async function uploadPaymentProof(file, invoiceId, bucket = 'payments') {
 }
 
 // Upload invoice attachments to 'attachments' bucket under invoices/{invoiceId} or invoices-draft
-export async function uploadInvoiceAttachment(file, invoiceId, bucket = 'attachments') {
+export async function uploadInvoiceAttachment(file, invoiceId, bucket = 'AttachmentInvoice') {
   const prefix = invoiceId ? `invoices/${invoiceId}` : 'invoices-draft'
   return uploadInternal(file, bucket, prefix)
 }

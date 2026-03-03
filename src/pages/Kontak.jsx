@@ -322,10 +322,10 @@ export default function Kontak() {
                           
                           // If name starts with salutation, extract it
                           if (!salutation && name) {
-                            const salutationMatch = name.match(/^(Mr|Mrs|Ms|Dr)\s+/i)
+                            const salutationMatch = name.match(/^(Mr|Mrs|Ms|Dr|PT)\s+/i)
                             if (salutationMatch) {
                               salutation = salutationMatch[1]
-                              name = name.replace(/^(Mr|Mrs|Ms|Dr)\s+/i, '').trim()
+                              name = name.replace(/^(Mr|Mrs|Ms|Dr|PT)\s+/i, '').trim()
                             }
                           }
                           
