@@ -17,8 +17,8 @@ import {
 import { savePurchaseInvoice, getNextPurchaseInvoiceNumber } from '../hooks/usePurchaseInvoiceData'
 import { useContacts } from '../hooks/useContactsData'
 import { useAccounts } from '../hooks/useAccountsData'
-import { storage } from '../firebase/config'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { useProducts } from '../hooks/useProductsData'
+import { uploadToBucket } from '../firebase/supabaseClient'
 import { useWarehouses } from '../hooks/useWarehouses'
 import { useAuth } from '../contexts/AuthContext'
 import FormattedNumberInput from '../components/FormattedNumberInput'
@@ -32,6 +32,7 @@ export default function PurchaseInvoiceAdd() {
   const { contacts, loading: contactsLoading } = useContacts()
   const { accounts, loading: accountsLoading } = useAccounts()
   const { warehouses, loading: warehousesLoading } = useWarehouses()
+  const { products = [], loading: productsLoading } = useProducts()
   const { currentUser } = useAuth()
   
   const [formData, setFormData] = useState({
@@ -90,19 +91,12 @@ export default function PurchaseInvoiceAdd() {
 
       const uploads = await Promise.all(
         files.map(async (file) => {
-          const safeName = file.name.replace(/[^\w.\-]+/g, '_')
-          const path = `purchase-invoices/${Date.now()}-${safeName}`
-          const storageRef = ref(storage, path)
-          await uploadBytes(storageRef, file)
-          const url = await getDownloadURL(storageRef)
-          return {
-            name: file.name,
-            url,
-            type: file.type || 'application/octet-stream',
-            size: file.size || 0,
-            path,
-            uploadedAt: new Date().toISOString(),
-          }
+          // Upload to Supabase bucket 'AttachmentPembelian'
+          const meta = await uploadToBucket(file, {
+            bucket: 'AttachmentPembelian',
+            prefix: 'purchase-invoices-draft',
+          })
+          return meta
         })
       )
 
@@ -175,6 +169,42 @@ export default function PurchaseInvoiceAdd() {
   const handleItemChange = (index, field, value) => {
     const newItems = [...formData.items]
     newItems[index] = { ...newItems[index], [field]: value }
+
+    // When product selected, auto-fill from products collection
+    if (field === 'product' && value) {
+      const selectedProduct = products.find((p) => p.id === value)
+      if (selectedProduct) {
+        newItems[index].description =
+          selectedProduct.nama ||
+          selectedProduct.description ||
+          newItems[index].description ||
+          ''
+        newItems[index].unit =
+          selectedProduct.satuan ||
+          selectedProduct.unit ||
+          newItems[index].unit ||
+          ''
+        const rawPrice =
+          selectedProduct.harga ??
+          selectedProduct.price ??
+          selectedProduct.hargaBeli ??
+          selectedProduct.buyPrice ??
+          selectedProduct.unitPrice ??
+          ''
+        const numericPrice =
+          rawPrice === '' ? '' : Number(String(rawPrice).replace(/[^\d.]/g, ''))
+        newItems[index].price = Number.isFinite(numericPrice) ? numericPrice : ''
+
+        const quantity = parseFloat(newItems[index].quantity || 0)
+        const discount = parseFloat(newItems[index].discount || 0)
+        const tax = parseFloat(newItems[index].tax || 0)
+        const amount =
+          (quantity * (Number(newItems[index].price || 0))) *
+          (1 - discount / 100) *
+          (1 + tax / 100)
+        newItems[index].amount = amount
+      }
+    }
     
     // Calculate amount
     if (field === 'quantity' || field === 'price' || field === 'discount' || field === 'tax') {
@@ -505,8 +535,14 @@ export default function PurchaseInvoiceAdd() {
                                 value={item.product}
                                 onChange={(e) => handleItemChange(index, 'product', e.target.value)}
                                 className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+                                disabled={productsLoading}
                               >
                                 <option value="">Pilih Produk</option>
+                                {products.map((product) => (
+                                  <option key={product.id} value={product.id}>
+                                    {product.nama || product.name || 'Unnamed Product'}
+                                  </option>
+                                ))}
                               </select>
                             </td>
                             <td className="py-2 px-2">
