@@ -195,6 +195,7 @@ export default function TagihanPembelian() {
     return matchesStatus && matchesSearch
   })
 
+
   const toggleSelectInvoice = (invoiceId) => {
     setSelectedInvoices(prev => 
       prev.includes(invoiceId) 
@@ -403,6 +404,10 @@ export default function TagihanPembelian() {
                     {t('proposedBy')}
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    TOTAL
+                    <MoreVertical className="inline h-3 w-3 ml-1" />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Status
                     <MoreVertical className="inline h-3 w-3 ml-1" />
@@ -443,6 +448,9 @@ export default function TagihanPembelian() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {invoice.createdByName || 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white text-right font-medium">
+                        {formatNumber(invoice.total || 0)}
                       </td>
                       <td className="px-4 py-3 text-sm" style={{ position: 'relative' }}>
                         <div className="relative inline-block">
