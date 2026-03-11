@@ -795,6 +795,10 @@ export default function Kontak() {
                       <option value="Mrs">Mrs</option>
                       <option value="Ms">Ms</option>
                       <option value="Dr">Dr</option>
+                      <option value="PT">PT</option>
+                      <option value="CV">CV</option>
+                      <option value="UD">UD</option>
+                      <option value="Koperasi">Koperasi</option>
                     </select>
                     <input
                       type="text"
