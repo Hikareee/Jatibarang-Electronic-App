@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import { 
@@ -13,6 +13,7 @@ import {
 import { usePurchaseInvoiceDetail } from '../hooks/usePurchaseInvoiceDetail'
 import { useUserApproval } from '../hooks/useUserApproval'
 import { useAuth } from '../contexts/AuthContext'
+import { useProducts } from '../hooks/useProductsData'
 
 export default function PurchaseInvoiceDetail() {
   const { id } = useParams()
@@ -21,11 +22,125 @@ export default function PurchaseInvoiceDetail() {
   const { invoice, loading, error, approveInvoice, declineInvoice, updateInvoice } = usePurchaseInvoiceDetail(id)
   const { canApprove, canEditApproved, role } = useUserApproval()
   const { currentUser } = useAuth()
+  const { products } = useProducts()
   const [showDeclineModal, setShowDeclineModal] = useState(false)
   const [declineReason, setDeclineReason] = useState('')
   const [processing, setProcessing] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [showTotalBreakdown, setShowTotalBreakdown] = useState(false)
+  const [editingItemIndex, setEditingItemIndex] = useState(null)
+  const [itemDraft, setItemDraft] = useState(null)
+  const [savingItem, setSavingItem] = useState(false)
+
+  const productNameById = useMemo(() => {
+    if (!Array.isArray(products)) return {}
+    const map = {}
+    for (const p of products) {
+      if (!p || !p.id) continue
+      map[p.id] = p.nama || p.name || p.kode || ''
+    }
+    return map
+  }, [products])
+
+  const calcItemAmount = (item) => {
+    const quantity = Number(item?.quantity || 0)
+    const price = Number(item?.price || 0)
+    const discount = Number(item?.discount || 0)
+    const tax = Number(item?.tax || 0)
+    const amount = (quantity * price) * (1 - discount / 100) * (1 + tax / 100)
+    return Number.isFinite(amount) ? amount : 0
+  }
+
+  const calcTotalsFromItems = (items) => {
+    const subTotal = (items || []).reduce((sum, it) => sum + calcItemAmount(it), 0)
+    const additionalDiscount = Number(invoice?.additionalDiscount?.value || 0)
+    const shippingCost = Number(invoice?.shippingCost?.value || 0)
+    const transactionFee = Number(invoice?.transactionFee?.value || 0)
+    const total = subTotal - additionalDiscount + shippingCost + transactionFee
+    const deductions = Array.isArray(invoice?.deductions)
+      ? invoice.deductions.reduce((s, d) => s + Number(d?.value || 0), 0)
+      : 0
+    const downPayments = Array.isArray(invoice?.downPayments)
+      ? invoice.downPayments.reduce((s, d) => s + Number(d?.value || 0), 0)
+      : 0
+    const remaining = total - deductions - downPayments
+    return {
+      subTotal,
+      total,
+      remaining,
+    }
+  }
+
+  const openEditItem = (index) => {
+    const it = (invoice?.items || [])[index]
+    if (!it) return
+    setEditingItemIndex(index)
+    setItemDraft({
+      product: it.product || '',
+      productName: it.productName || '',
+      description: it.description || '',
+      quantity: it.quantity ?? 0,
+      unit: it.unit || '',
+      discount: it.discount ?? 0,
+      price: it.price ?? 0,
+      tax: it.tax ?? 0,
+    })
+  }
+
+  const closeEditItem = () => {
+    setEditingItemIndex(null)
+    setItemDraft(null)
+  }
+
+  const saveEditedItem = async () => {
+    if (editingItemIndex === null || !itemDraft) return
+    try {
+      setSavingItem(true)
+      const items = Array.isArray(invoice.items) ? [...invoice.items] : []
+      const before = items[editingItemIndex] || {}
+
+      const updated = {
+        ...before,
+        ...itemDraft,
+        quantity: Number(itemDraft.quantity || 0),
+        price: Number(itemDraft.price || 0),
+        discount: Number(itemDraft.discount || 0),
+        tax: Number(itemDraft.tax || 0),
+      }
+      updated.amount = calcItemAmount(updated)
+      // keep consistent display name if we can resolve it
+      updated.productName =
+        updated.productName ||
+        productNameById[updated.product] ||
+        before.productName ||
+        ''
+
+      items[editingItemIndex] = updated
+      const totals = calcTotalsFromItems(items)
+
+      await updateInvoice({
+        items,
+        subTotal: totals.subTotal,
+        total: totals.total,
+        remaining: totals.remaining,
+        editedBy: currentUser?.uid || '',
+        changes: {
+          itemUpdate: {
+            index: editingItemIndex,
+            from: before,
+            to: updated,
+          },
+        },
+      })
+
+      closeEditItem()
+    } catch (err) {
+      console.error('Error saving item edit:', err)
+      alert('Gagal menyimpan perubahan item')
+    } finally {
+      setSavingItem(false)
+    }
+  }
   
   // Check if user can approve (only owner or manager)
   const canApproveInvoice = () => {
@@ -289,6 +404,9 @@ export default function PurchaseInvoiceDetail() {
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
+                    <th className="px-4 py-3 text-left">
+                      <span className="sr-only">Select</span>
+                    </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                       Produk
                     </th>
@@ -322,8 +440,20 @@ export default function PurchaseInvoiceDetail() {
                     
                     return (
                       <tr key={index}>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={editingItemIndex === index}
+                            onChange={(e) => {
+                              if (e.target.checked) openEditItem(index)
+                              else closeEditItem()
+                            }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            title="Edit item ini"
+                          />
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                          {item.product || '-'}
+                          {item.productName || productNameById[item.product] || item.product || '-'}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                           {item.description || '-'}
@@ -348,6 +478,150 @@ export default function PurchaseInvoiceDetail() {
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Item Modal */}
+        {editingItemIndex !== null && itemDraft && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-2xl">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Edit Item
+                </h2>
+                <button
+                  onClick={closeEditItem}
+                  className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+                >
+                  Tutup
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Produk
+                    </label>
+                    <select
+                      value={itemDraft.product}
+                      onChange={(e) =>
+                        setItemDraft((prev) => ({
+                          ...prev,
+                          product: e.target.value,
+                          productName: productNameById[e.target.value] || prev.productName || '',
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                    >
+                      <option value="">Pilih Produk</option>
+                      {(products || []).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nama || p.name || p.kode || 'Unnamed Product'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Deskripsi
+                    </label>
+                    <input
+                      type="text"
+                      value={itemDraft.description}
+                      onChange={(e) => setItemDraft((prev) => ({ ...prev, description: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Kuantitas
+                    </label>
+                    <input
+                      type="number"
+                      value={itemDraft.quantity}
+                      onChange={(e) =>
+                        setItemDraft((prev) => ({ ...prev, quantity: e.target.value === '' ? '' : Number(e.target.value) }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Satuan
+                    </label>
+                    <input
+                      type="text"
+                      value={itemDraft.unit}
+                      onChange={(e) => setItemDraft((prev) => ({ ...prev, unit: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Harga
+                    </label>
+                    <input
+                      type="number"
+                      value={itemDraft.price}
+                      onChange={(e) =>
+                        setItemDraft((prev) => ({ ...prev, price: e.target.value === '' ? '' : Number(e.target.value) }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Diskon (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={itemDraft.discount}
+                      onChange={(e) =>
+                        setItemDraft((prev) => ({ ...prev, discount: e.target.value === '' ? '' : Number(e.target.value) }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Pajak (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={itemDraft.tax}
+                      onChange={(e) =>
+                        setItemDraft((prev) => ({ ...prev, tax: e.target.value === '' ? '' : Number(e.target.value) }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={closeEditItem}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+                  disabled={savingItem}
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={saveEditedItem}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  disabled={savingItem}
+                >
+                  {savingItem ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
             </div>
           </div>
         )}
