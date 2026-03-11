@@ -322,10 +322,10 @@ export default function Kontak() {
                           
                           // If name starts with salutation, extract it
                           if (!salutation && name) {
-                            const salutationMatch = name.match(/^(Mr|Mrs|Ms|Dr|PT)\s+/i)
+                            const salutationMatch = name.match(/^(Mr|Mrs|Ms|Dr|PT|Toko|CV|UD|Koperasi)\s+/i)
                             if (salutationMatch) {
                               salutation = salutationMatch[1]
-                              name = name.replace(/^(Mr|Mrs|Ms|Dr|PT)\s+/i, '').trim()
+                              name = name.replace(/^(Mr|Mrs|Ms|Dr|PT|Toko|CV|UD|Koperasi)\s+/i, '').trim()
                             }
                           }
                           
@@ -798,6 +798,7 @@ export default function Kontak() {
                       <option value="PT">PT</option>
                       <option value="CV">CV</option>
                       <option value="UD">UD</option>
+                      <option value="Toko">Toko</option>
                       <option value="Koperasi">Koperasi</option>
                     </select>
                     <input

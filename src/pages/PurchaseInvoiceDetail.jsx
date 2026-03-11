@@ -7,6 +7,7 @@ import {
   XCircle,
   Loader2,
   MessageCircle,
+  Download,
   ChevronDown,
   ChevronUp
 } from 'lucide-react'
@@ -177,6 +178,107 @@ export default function PurchaseInvoiceDetail() {
     return `${day}/${month}/${year}`
   }
 
+  const toCsvValue = (value) => {
+    if (value === null || value === undefined) return ''
+    const s = String(value)
+    return `"${s.replace(/"/g, '""')}"`
+  }
+
+  const downloadCsv = (filename, headers, rows) => {
+    const headerLine = headers.map(toCsvValue).join(',')
+    const lines = rows.map((r) => r.map(toCsvValue).join(','))
+    const csv = [headerLine, ...lines].join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExportInvoiceCsv = () => {
+    const attachmentUrls = Array.isArray(invoice?.attachments)
+      ? invoice.attachments.map((a) => a?.url).filter(Boolean).join(' | ')
+      : ''
+
+    const headers = [
+      'Invoice ID',
+      'Nomor',
+      'Vendor',
+      'Referensi',
+      'Tanggal',
+      'Tgl Jatuh Tempo',
+      'Total',
+      'Remaining',
+      'Attachment URLs',
+      'Item Index',
+      'Produk',
+      'Deskripsi',
+      'Kuantitas',
+      'Unit',
+      'Harga',
+      'Diskon %',
+      'Pajak %',
+      'Jumlah',
+    ]
+
+    const items = Array.isArray(invoice?.items) ? invoice.items : []
+    const base = [
+      invoice?.id || id || '',
+      invoice?.number || '',
+      invoice?.vendorName || invoice?.vendor || '',
+      invoice?.reference || '',
+      formatDate(invoice?.transactionDate || invoice?.createdAt) || '',
+      formatDate(invoice?.dueDate) || '',
+      Number(invoice?.total || 0),
+      Number(invoice?.remaining !== undefined ? invoice.remaining : (invoice?.total || 0)),
+      attachmentUrls,
+    ]
+
+    const rows =
+      items.length > 0
+        ? items.map((it, idx) => {
+            const productLabel =
+              it?.productName ||
+              productNameById[it?.product] ||
+              it?.product ||
+              ''
+            const amount = Number(it?.amount ?? calcItemAmount(it) ?? 0)
+            return [
+              ...base,
+              idx,
+              productLabel,
+              it?.description || '',
+              Number(it?.quantity || 0),
+              it?.unit || '',
+              Number(it?.price || 0),
+              Number(it?.discount || 0),
+              Number(it?.tax || 0),
+              amount,
+            ]
+          })
+        : [
+            [
+              ...base,
+              '',
+              '',
+              '',
+              '',
+              '',
+              '',
+              '',
+              '',
+            ],
+          ]
+
+    const safeNo = (invoice?.number || 'purchase-invoice').replace(/[^\w.\-]+/g, '_')
+    const stamp = new Date().toISOString().slice(0, 10)
+    downloadCsv(`${safeNo}-${stamp}.csv`, headers, rows)
+  }
+
   // Get status label
   const getStatusLabel = (status, deliveryStatus) => {
     if (status === 'declined') return 'Ditolak'
@@ -296,6 +398,13 @@ export default function PurchaseInvoiceDetail() {
               <span>Edit</span>
             </button>
           )}
+          <button
+            onClick={handleExportInvoiceCsv}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
+          >
+            <Download className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            <span>Export CSV</span>
+          </button>
           {canApproveInvoice() && invoice && (invoice.status === 'draft' || !invoice.status) && (
             <>
               <button

@@ -28,6 +28,8 @@ export default function TagihanPembelian() {
   const { invoices, loading, error, refetch } = usePurchaseInvoices()
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [selectedInvoices, setSelectedInvoices] = useState([])
   const [paymentMenuOpen, setPaymentMenuOpen] = useState(null)
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
@@ -48,6 +50,34 @@ export default function TagihanPembelian() {
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const year = date.getFullYear()
     return `${day}/${month}/${year}`
+  }
+
+  const toCsvValue = (value) => {
+    if (value === null || value === undefined) return ''
+    const s = String(value)
+    return `"${s.replace(/"/g, '""')}"`
+  }
+
+  const downloadCsv = (filename, headers, rows) => {
+    const headerLine = headers.map(toCsvValue).join(',')
+    const lines = rows.map((r) => r.map(toCsvValue).join(','))
+    const csv = [headerLine, ...lines].join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  const getInvoiceDate = (invoice) => {
+    const raw = invoice?.transactionDate || invoice?.createdAt
+    if (!raw) return null
+    const d = new Date(raw)
+    return Number.isNaN(d.getTime()) ? null : d
   }
 
   // Close payment menu when clicking outside
@@ -191,9 +221,45 @@ export default function TagihanPembelian() {
       invoice.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       invoice.vendor?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       invoice.reference?.toLowerCase().includes(searchQuery.toLowerCase())
+
+    const invDate = getInvoiceDate(invoice)
+    const fromOk = !dateFrom || (invDate && invDate >= new Date(`${dateFrom}T00:00:00`))
+    const toOk = !dateTo || (invDate && invDate <= new Date(`${dateTo}T23:59:59.999`))
     
-    return matchesStatus && matchesSearch
+    return matchesStatus && matchesSearch && fromOk && toOk
   })
+
+  const handleExportFilteredCsv = () => {
+    const headers = [
+      'ID',
+      'Nomor',
+      'Vendor',
+      'Referensi',
+      'Tanggal',
+      'Tgl Jatuh Tempo',
+      'Diusulkan Oleh',
+      'Total',
+      'Remaining',
+      'Status Pembayaran',
+    ]
+    const rows = filteredInvoices.map((inv) => {
+      const status = getPaymentStatusLabel(inv)
+      return [
+        inv.id || '',
+        inv.number || '',
+        inv.vendorName || inv.vendor || '',
+        inv.reference || '',
+        formatDate(inv.transactionDate || inv.createdAt) || '',
+        formatDate(inv.dueDate) || '',
+        inv.createdByName || '',
+        Number(inv.total || 0),
+        Number(inv.remaining !== undefined ? inv.remaining : (inv.total || 0)),
+        status,
+      ]
+    })
+    const stamp = new Date().toISOString().slice(0, 10)
+    downloadCsv(`tagihan-pembelian-${stamp}.csv`, headers, rows)
+  }
 
 
   const toggleSelectInvoice = (invoiceId) => {
@@ -258,16 +324,36 @@ export default function TagihanPembelian() {
             <Printer className="h-5 w-5 text-gray-600 dark:text-gray-400" />
             <span className="text-gray-700 dark:text-gray-300">{t('print')}</span>
           </button>
+          <button
+            onClick={handleExportFilteredCsv}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            <Download className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            <span className="text-gray-700 dark:text-gray-300">Export CSV</span>
+          </button>
           <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <MoreVertical className="h-5 w-5 text-gray-600 dark:text-gray-400" />
           </button>
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="06/01/2025 → 06/01/2026"
-              className="pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
-            />
-            <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+              />
+              <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
+            </div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">→</span>
+            <div className="relative">
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+              />
+              <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
+            </div>
           </div>
         </div>
       </div>
@@ -298,13 +384,26 @@ export default function TagihanPembelian() {
               className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             />
           </div>
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="07/01/2025 → 07/01/2026"
-              className="pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
-            />
-            <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+              />
+              <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
+            </div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">→</span>
+            <div className="relative">
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+              />
+              <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
+            </div>
           </div>
         </div>
       </div>
