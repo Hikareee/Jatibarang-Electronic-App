@@ -18,6 +18,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useUserApproval } from '../hooks/useUserApproval'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 import OptionalFieldPopup from '../components/OptionalFieldPopup'
+import { useProducts } from '../hooks/useProductsData'
 
 export default function PurchaseInvoiceEdit() {
   const { id } = useParams()
@@ -28,6 +29,7 @@ export default function PurchaseInvoiceEdit() {
   const { accounts, loading: accountsLoading } = useAccounts()
   const { currentUser } = useAuth()
   const { canEditApproved, role } = useUserApproval()
+  const { products = [], loading: productsLoading } = useProducts()
   const { invoice, loading, error, updateInvoice } = usePurchaseInvoiceDetail(id)
   const [saving, setSaving] = useState(false)
   const [showShippingInfo, setShowShippingInfo] = useState(false)
@@ -134,6 +136,33 @@ export default function PurchaseInvoiceEdit() {
   const handleItemChange = (index, field, value) => {
     const newItems = [...formData.items]
     newItems[index] = { ...newItems[index], [field]: value }
+
+    // When product selected, auto-fill from products collection
+    if (field === 'product' && value) {
+      const selectedProduct = products.find((p) => p.id === value)
+      if (selectedProduct) {
+        newItems[index].description =
+          selectedProduct.nama ||
+          selectedProduct.description ||
+          newItems[index].description ||
+          ''
+        newItems[index].unit =
+          selectedProduct.satuan ||
+          selectedProduct.unit ||
+          newItems[index].unit ||
+          ''
+        const rawPrice =
+          selectedProduct.harga ??
+          selectedProduct.price ??
+          selectedProduct.hargaBeli ??
+          selectedProduct.buyPrice ??
+          selectedProduct.unitPrice ??
+          ''
+        const numericPrice =
+          rawPrice === '' ? '' : Number(String(rawPrice).replace(/[^\d.]/g, ''))
+        newItems[index].price = Number.isFinite(numericPrice) ? numericPrice : newItems[index].price
+      }
+    }
     
     if (field === 'quantity' || field === 'price' || field === 'discount' || field === 'tax') {
       const quantity = field === 'quantity' ? value : newItems[index].quantity || 0
@@ -481,8 +510,14 @@ export default function PurchaseInvoiceEdit() {
                           value={item.product}
                           onChange={(e) => handleItemChange(index, 'product', e.target.value)}
                           className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+                          disabled={productsLoading}
                         >
                           <option value="">Pilih Produk</option>
+                          {products.map((product) => (
+                            <option key={product.id} value={product.id}>
+                              {product.nama || product.name || 'Unnamed Product'}
+                            </option>
+                          ))}
                         </select>
                       </td>
                       <td className="py-2 px-2">
@@ -515,6 +550,14 @@ export default function PurchaseInvoiceEdit() {
                           className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
                         >
                           <option value="">Pilih Satu...</option>
+                          {(() => {
+                            const productUnits = [...new Set(products.map((p) => p.satuan || p.unit).filter(Boolean))]
+                            const common = ['pcs', 'kg', 'm', 'L', '%']
+                            const all = [...new Set([...productUnits, ...common])].sort()
+                            return all.map((u) => (
+                              <option key={u} value={u}>{u}</option>
+                            ))
+                          })()}
                         </select>
                       </td>
                       <td className="py-2 px-2">
