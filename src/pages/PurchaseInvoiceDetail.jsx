@@ -632,28 +632,90 @@ export default function PurchaseInvoiceDetail() {
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
               Lampiran
             </h3>
-            <ul className="space-y-2">
-              {invoice.attachments.map((att, index) => (
-                <li
-                  key={att.path || att.url || `${att.name}-${index}`}
-                  className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-200"
-                >
-                  <span className="truncate max-w-xs">
-                    {att.name || `Lampiran ${index + 1}`}
-                  </span>
-                  {att.url && (
-                    <a
-                      href={att.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ml-2 text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
-                    >
-                      Buka
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {invoice.attachments.map((att, index) => {
+                const key = att.path || att.url || `${att.name}-${index}`
+                const name = att.name || `Lampiran ${index + 1}`
+                const type = (att.type || '').toLowerCase()
+                const url = att.url || ''
+
+                const isImage = type.startsWith('image/')
+                const isPdf = type === 'application/pdf' || name.toLowerCase().endsWith('.pdf')
+                const isVideo = type.startsWith('video/')
+                const isAudio = type.startsWith('audio/')
+
+                return (
+                  <div
+                    key={key}
+                    className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800"
+                  >
+                    <div className="px-4 py-3 flex items-center justify-between gap-3 border-b border-gray-200 dark:border-gray-700">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {name}
+                        </div>
+                        {type && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {type}
+                          </div>
+                        )}
+                      </div>
+                      {url && (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
+                        >
+                          Buka
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="bg-gray-50 dark:bg-gray-900/30">
+                      {!url ? (
+                        <div className="p-4 text-sm text-gray-600 dark:text-gray-400">
+                          File tidak memiliki URL.
+                        </div>
+                      ) : isImage ? (
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+                          <img
+                            src={url}
+                            alt={name}
+                            loading="lazy"
+                            className="w-full h-64 object-contain bg-black/5 dark:bg-white/5"
+                          />
+                        </a>
+                      ) : isPdf ? (
+                        <iframe
+                          title={name}
+                          src={url}
+                          className="w-full h-80"
+                        />
+                      ) : isVideo ? (
+                        <video src={url} controls className="w-full h-64 bg-black" />
+                      ) : isAudio ? (
+                        <div className="p-4">
+                          <audio src={url} controls className="w-full" />
+                        </div>
+                      ) : (
+                        <div className="p-4 text-sm text-gray-700 dark:text-gray-200">
+                          <div className="mb-2">Preview tidak tersedia untuk tipe file ini.</div>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            Unduh / Buka file
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 
