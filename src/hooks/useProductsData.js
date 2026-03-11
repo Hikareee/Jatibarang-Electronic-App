@@ -38,22 +38,39 @@ export function useProducts() {
   return { products, loading, error }
 }
 
+export async function getNextProductCode() {
+  // NOTE: relies on kode being consistently padded to sort well lexicographically
+  const productsRef = collection(db, 'products')
+  const q = query(productsRef, orderBy('kode', 'desc'), limit(1))
+  const snapshot = await getDocs(q)
+
+  const fallbackPrefix = 'SKU/'
+  const fallbackWidth = 5
+
+  if (snapshot.empty) {
+    return `${fallbackPrefix}${String(1).padStart(fallbackWidth, '0')}`
+  }
+
+  const lastProduct = snapshot.docs[0].data()
+  const lastCodeRaw = String(lastProduct?.kode || `${fallbackPrefix}${String(0).padStart(fallbackWidth, '0')}`)
+
+  const parts = lastCodeRaw.split('/')
+  const numericStr = parts.length > 1 ? parts[parts.length - 1] : lastCodeRaw.replace(/\D+/g, '')
+  const lastNum = parseInt(numericStr, 10)
+  const nextNum = Number.isFinite(lastNum) ? lastNum + 1 : 1
+
+  const width = Math.max(
+    fallbackWidth,
+    String(numericStr || '').trim().length || 0,
+    String(nextNum).length
+  )
+
+  return `${fallbackPrefix}${String(nextNum).padStart(width, '0')}`
+}
+
 export async function saveProduct(productData) {
   try {
-    // Get the next product code/SKU
-    const productsRef = collection(db, 'products')
-    const q = query(productsRef, orderBy('kode', 'desc'), limit(1))
-    const snapshot = await getDocs(q)
-    
-    let nextCode = 'SKU/00001'
-    if (!snapshot.empty) {
-      const lastProduct = snapshot.docs[0].data()
-      const lastCode = lastProduct.kode || 'SKU/00000'
-      if (lastCode.includes('/')) {
-        const numPart = parseInt(lastCode.split('/')[1]) || 0
-        nextCode = `SKU/${String(numPart + 1).padStart(5, '0')}`
-      }
-    }
+    const nextCode = await getNextProductCode()
 
     // Use provided code or generate next
     const finalProductData = {
