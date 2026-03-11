@@ -352,6 +352,37 @@ export default function PurchaseInvoiceDetail() {
           </div>
         )}
 
+        {/* Attachments */}
+        {Array.isArray(invoice.attachments) && invoice.attachments.length > 0 && (
+          <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+              Lampiran
+            </h3>
+            <ul className="space-y-2">
+              {invoice.attachments.map((att, index) => (
+                <li
+                  key={att.path || att.url || `${att.name}-${index}`}
+                  className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-200"
+                >
+                  <span className="truncate max-w-xs">
+                    {att.name || `Lampiran ${index + 1}`}
+                  </span>
+                  {att.url && (
+                    <a
+                      href={att.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-2 text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
+                    >
+                      Buka
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Total Breakdown - Expandable */}
         {showTotalBreakdown && (
           <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
