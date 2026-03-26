@@ -38,6 +38,7 @@ import AccountDetail from './pages/AccountDetail'
 import AIAssistant from './pages/AIAssistant'
 import Inventori from './pages/Inventori'
 import GudangDetail from './pages/GudangDetail'
+import Laporan from './pages/Laporan'
 import ApprovedRoute from './components/ApprovedRoute'
 import ManagerRoute from './components/ManagerRoute'
 
@@ -251,6 +252,18 @@ function AppRoutes() {
             <ApprovedRoute>
               <ManagerRoute>
                 <Biaya />
+              </ManagerRoute>
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/laporan"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <ManagerRoute>
+                <Laporan />
               </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>
