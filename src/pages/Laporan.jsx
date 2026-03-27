@@ -469,7 +469,24 @@ export default function Laporan() {
 
             // Use 31 DESEMBER YYYY like reference (upper month)
             const periodUpper = to ? formatTanggalIdUpper(to) : '31 DESEMBER'
+            y += 10
+            const signatureDate = formatTanggalIdShort(new Date().toISOString())
+            docPdf.setFontSize(10)
+            docPdf.setFont('times', 'normal')
+            docPdf.text(`'Cirebon', ${signatureDate}`, 40, y)
+            y += 16
+            y += 14
+            docPdf.text('PT. INTEGRASI BANGUN PERKASA', 120, y)
 
+            y += 18
+            docPdf.setFontSize(12)
+            docPdf.setFont('times', 'bold')
+            docPdf.text('LAPORAN RUGI LABA', 40, y)
+            y += 16
+            docPdf.setFont('times', 'normal')
+            docPdf.setFontSize(10)
+            docPdf.text(`UNTUK TAHUN YANG BERAKHIR PADA TANGGAL ${periodUpper}`, 40, y)
+            y += 16
             row('PENJUALAN', '', 'header')
             row('PENJUALAN', model.penjualan)
             row('TOTAL PENDAPATAN', model.totalPendapatan)
@@ -498,24 +515,7 @@ export default function Laporan() {
             row('LABA / RUGI SETELAH PAJAK', model.labaSetelahPajak)
 
             // Footer order to match reference: signature date/name first, then title lines.
-            y += 10
-            const signatureDate = formatTanggalIdShort(new Date().toISOString())
-            docPdf.setFontSize(10)
-            docPdf.setFont('times', 'normal')
-            docPdf.text(`Tangerang, ${signatureDate}`, 40, y)
-            y += 16
-            docPdf.text('Susilo Budi Imam Hari Anto', 110, y)
-            y += 14
-            docPdf.text('PT. INTEGRASI BANGUN PERKASA', 120, y)
-
-            y += 18
-            docPdf.setFontSize(12)
-            docPdf.setFont('times', 'bold')
-            docPdf.text('LAPORAN RUGI LABA', 40, y)
-            y += 16
-            docPdf.setFont('times', 'normal')
-            docPdf.setFontSize(10)
-            docPdf.text(`UNTUK TAHUN YANG BERAKHIR PADA TANGGAL ${periodUpper}`, 40, y)
+  
           })
         }
         return
