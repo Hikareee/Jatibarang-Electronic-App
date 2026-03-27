@@ -17,6 +17,7 @@ import {
   Calendar,
   X,
 } from 'lucide-react'
+import { use } from 'react'
 
 function formatRp(num) {
   const n = Number(num || 0)
@@ -583,15 +584,15 @@ export default function Laporan() {
             y += 10
             const signatureDate = formatTanggalIdShort(new Date().toISOString())
             // Match reference: PT name -> NERACA -> export date
-            docPdf.text('PT. INTEGRASI BANGUN PERKASA', labelX + 40, y)
+            docPdf.text('PT. INTEGRASI BANGUN PERKASA', labelX + 100, y)
             y += 18
-            docPdf.setFont('times', 'bold')
+            docPdf.setFont('times', 'bold') 
             docPdf.setFontSize(18)
             docPdf.text('NERACA', 170, y)
             y += 18
             docPdf.setFont('times', 'normal')
             docPdf.setFontSize(10)
-            docPdf.text(`Cirebon, ${signatureDate}`, labelX, y)
+            docPdf.text(`Cirebon, ${signatureDate}`, labelX + 100, y)
             y += 20
             docPdf.text(`PER ${periodUpper}`, 160, y)
             y += 22
@@ -726,7 +727,7 @@ export default function Laporan() {
       setReportLoading(false)
     }
   }
-
+  
   const activeReportMeta = useMemo(() => {
     if (!selectedReport) return null
     const map = {

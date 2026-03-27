@@ -137,6 +137,7 @@ export default function Biaya() {
     
     const matchesSearch = !searchQuery || 
       expense.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       expense.recipient?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       expense.reference?.toLowerCase().includes(searchQuery.toLowerCase())
     
@@ -388,6 +389,10 @@ export default function Biaya() {
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Title
+                    <MoreVertical className="inline h-3 w-3 ml-1" />
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Referensi
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
@@ -431,6 +436,9 @@ export default function Biaya() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {expense.number || 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {expense.title || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                         {expense.reference || '-'}

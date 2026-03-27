@@ -73,6 +73,7 @@ export default function Sidebar({ isOpen, onToggle }) {
     { icon: Receipt, label: t('expenses'), path: '/biaya', managerOnly: true },
     { icon: Package, label: t('products'), path: '/produk', managerOnly: true },
     { icon: Warehouse, label: t('inventory'), path: '/inventori', managerOnly: true },
+    { icon: Briefcase, label: 'Proyek', path: '/proyek', managerOnly: true },
     { icon: FileText, label: t('reports'), path: '/laporan', managerOnly: true },
     { icon: Wallet, label: t('cashBank'), path: '/kas-bank', managerOnly: true },
     { icon: BookOpen, label: t('accounts'), path: '/akun', managerOnly: true },

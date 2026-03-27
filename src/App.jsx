@@ -30,6 +30,7 @@ import DebtAdd from './pages/DebtAdd'
 import ReceivableAdd from './pages/ReceivableAdd'
 import Akun from './pages/Akun'
 import Biaya from './pages/Biaya'
+import BiayaAdd from './pages/BiayaAdd'
 import AsetTetap from './pages/AsetTetap'
 import Pemesanan from './pages/Pemesanan'
 import PemesananAdd from './pages/PemesananAdd'
@@ -39,6 +40,8 @@ import AIAssistant from './pages/AIAssistant'
 import Inventori from './pages/Inventori'
 import GudangDetail from './pages/GudangDetail'
 import Laporan from './pages/Laporan'
+import Proyek from './pages/Proyek'
+import ProyekDetail from './pages/ProyekDetail'
 import ApprovedRoute from './components/ApprovedRoute'
 import ManagerRoute from './components/ManagerRoute'
 
@@ -252,6 +255,42 @@ function AppRoutes() {
             <ApprovedRoute>
               <ManagerRoute>
                 <Biaya />
+              </ManagerRoute>
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/biaya/tambah"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <ManagerRoute>
+                <BiayaAdd />
+              </ManagerRoute>
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/proyek"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <ManagerRoute>
+                <Proyek />
+              </ManagerRoute>
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/proyek/:id"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <ManagerRoute>
+                <ProyekDetail />
               </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>

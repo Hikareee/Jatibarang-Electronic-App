@@ -19,6 +19,7 @@ import { useContacts } from '../hooks/useContactsData'
 import { useAccounts } from '../hooks/useAccountsData'
 import { useWarehouses } from '../hooks/useWarehouses'
 import { useProducts } from '../hooks/useProductsData'
+import { useProjects } from '../hooks/useProjectsData'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 import OptionalFieldPopup from '../components/OptionalFieldPopup'
 import { formatNumberInput } from '../utils/numberFormatter'
@@ -33,6 +34,7 @@ export default function InvoiceAdd() {
   const { accounts, loading: accountsLoading } = useAccounts()
   const { warehouses, loading: warehousesLoading } = useWarehouses()
   const { products = [], loading: productsLoading } = useProducts()
+  const { projects = [], loading: projectsLoading } = useProjects()
 
   const [formData, setFormData] = useState({
     customer: '',
@@ -48,7 +50,10 @@ export default function InvoiceAdd() {
     dueDate: '',
     term: 'Net 30',
     warehouse: '',
+    projectId: '',
+    projectName: '',
     reference: '',
+    category: 'Proyek',
     tag: '',
     salesPerson: '',
     shippingInfo: {},
@@ -374,6 +379,8 @@ export default function InvoiceAdd() {
   setSaving(true)
       const invoiceData = {
         ...formData,
+        projectName:
+          projects.find((p) => p.id === formData.projectId)?.name || formData.projectName || '',
         customerId: formData.customerId || formData.customer,
         customerName: formData.customerName || selectedCustomer?.name || selectedCustomer?.company || '',
         subTotal: calculateSubTotalPdf(),
@@ -593,6 +600,25 @@ export default function InvoiceAdd() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Proyek
+                      </label>
+                      <select
+                        value={formData.projectId}
+                        onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        disabled={projectsLoading}
+                      >
+                        <option value="">Tidak dipilih</option>
+                        {projects.map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.name}{project.code ? ` (${project.code})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         {t('reference')}
                       </label>
                       <input
@@ -605,15 +631,40 @@ export default function InvoiceAdd() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Kategori
+                      </label>
+                      <input
+                        type="text"
+                        list="sales-category-options"
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        placeholder="Kategori invoice"
+                      />
+                      <datalist id="sales-category-options">
+                        <option value="Proyek" />
+                        <option value="Retail" />
+                        <option value="Jasa" />
+                      </datalist>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         {t('tag')}
                       </label>
-                      <select
+                      <input
+                        type="text"
+                        list="sales-tag-options"
                         value={formData.tag}
                         onChange={(e) => setFormData({ ...formData, tag: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                      >
-                        <option value="">{t('selectTag')}</option>
-                      </select>
+                        placeholder={t('selectTag')}
+                      />
+                      <datalist id="sales-tag-options">
+                        <option value="Urgent" />
+                        <option value="Proyek" />
+                        <option value="Follow Up" />
+                      </datalist>
                     </div>
                   </div>
 

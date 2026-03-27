@@ -18,6 +18,7 @@ import { savePurchaseInvoice, getNextPurchaseInvoiceNumber } from '../hooks/useP
 import { useContacts } from '../hooks/useContactsData'
 import { useAccounts } from '../hooks/useAccountsData'
 import { useProducts } from '../hooks/useProductsData'
+import { useProjects } from '../hooks/useProjectsData'
 import { uploadToBucket } from '../firebase/supabaseClient'
 import { useWarehouses } from '../hooks/useWarehouses'
 import { useAuth } from '../contexts/AuthContext'
@@ -33,6 +34,7 @@ export default function PurchaseInvoiceAdd() {
   const { accounts, loading: accountsLoading } = useAccounts()
   const { warehouses, loading: warehousesLoading } = useWarehouses()
   const { products = [], loading: productsLoading } = useProducts()
+  const { projects = [], loading: projectsLoading } = useProjects()
   const { currentUser } = useAuth()
   
   const [formData, setFormData] = useState({
@@ -43,7 +45,10 @@ export default function PurchaseInvoiceAdd() {
     dueDate: '',
     term: 'Net 30',
     warehouse: '',
+    projectId: '',
+    projectName: '',
     reference: '',
+    category: 'Pembelian',
     tag: '',
     shippingInfo: {},
     priceIncludesTax: false,
@@ -248,6 +253,8 @@ export default function PurchaseInvoiceAdd() {
       setSaving(true)
       const invoiceData = {
         ...formData,
+        projectName:
+          projects.find((p) => p.id === formData.projectId)?.name || formData.projectName || '',
         subTotal: calculateSubTotal(),
         total: calculateTotal(),
         remaining: calculateRemaining(),
@@ -407,6 +414,25 @@ export default function PurchaseInvoiceAdd() {
                     </div>
 
                     <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Proyek
+                      </label>
+                      <select
+                        value={formData.projectId}
+                        onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        disabled={projectsLoading}
+                      >
+                        <option value="">Tidak dipilih</option>
+                        {projects.map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.name}{project.code ? ` (${project.code})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
                         Referensi
                         <HelpCircle className="h-4 w-4 text-gray-400" />
@@ -435,17 +461,42 @@ export default function PurchaseInvoiceAdd() {
                     </div>
 
                     <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Kategori
+                      </label>
+                      <input
+                        type="text"
+                        list="purchase-category-options"
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        placeholder="Kategori pembelian"
+                      />
+                      <datalist id="purchase-category-options">
+                        <option value="Pembelian" />
+                        <option value="Bahan Baku" />
+                        <option value="Operasional" />
+                      </datalist>
+                    </div>
+
+                    <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
                         Tag
                         <HelpCircle className="h-4 w-4 text-gray-400" />
                       </label>
-                      <select
+                      <input
+                        type="text"
+                        list="purchase-tag-options"
                         value={formData.tag}
                         onChange={(e) => setFormData({ ...formData, tag: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                      >
-                        <option value="">Pilih Tag</option>
-                      </select>
+                        placeholder="Pilih / ketik tag"
+                      />
+                      <datalist id="purchase-tag-options">
+                        <option value="Urgent" />
+                        <option value="Capex" />
+                        <option value="Opex" />
+                      </datalist>
                     </div>
                   </div>
 
