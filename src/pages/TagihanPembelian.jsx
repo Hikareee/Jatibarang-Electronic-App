@@ -618,14 +618,6 @@ export default function TagihanPembelian() {
           </div>
         )}
       </div>
-
-      {/* Chat Bubble */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <button className="bg-green-500 hover:bg-green-600 text-white rounded-full p-4 shadow-lg flex items-center gap-3 transition-colors">
-          <MessageCircle className="h-6 w-6" />
-          <span className="text-sm font-medium">Halo, ada yang bisa saya bantu?</span>
-        </button>
-      </div>
     </div>
   )
 }
