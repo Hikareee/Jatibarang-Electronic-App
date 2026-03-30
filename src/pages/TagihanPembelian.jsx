@@ -238,6 +238,7 @@ export default function TagihanPembelian() {
       'Tanggal',
       'Tgl Jatuh Tempo',
       'Diusulkan Oleh',
+      'Penanggung jawab',
       'Total',
       'Remaining',
       'Status Pembayaran',
@@ -252,6 +253,7 @@ export default function TagihanPembelian() {
         formatDate(inv.transactionDate || inv.createdAt) || '',
         formatDate(inv.dueDate) || '',
         inv.createdByName || '',
+        inv.penanggungJawab || '',
         Number(inv.total || 0),
         Number(inv.remaining !== undefined ? inv.remaining : (inv.total || 0)),
         status,
@@ -503,6 +505,10 @@ export default function TagihanPembelian() {
                     {t('proposedBy')}
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Penanggung jawab
+                    <MoreVertical className="inline h-3 w-3 ml-1" />
+                  </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     TOTAL
                     <MoreVertical className="inline h-3 w-3 ml-1" />
@@ -547,6 +553,9 @@ export default function TagihanPembelian() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {invoice.createdByName || 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {invoice.penanggungJawab || 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white text-right font-medium">
                         {formatNumber(invoice.total || 0)}

@@ -54,6 +54,7 @@ export function usePurchaseInvoices() {
             ...data,
             vendor: vendorName,
             createdByName: createdByName,
+            penanggungJawab: data.penanggungJawab || data.responsibleContactName || '',
             status: data.status || 'draft' // Ensure status is set
           }
         })
