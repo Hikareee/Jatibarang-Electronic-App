@@ -12,21 +12,49 @@ export default function CalculatorTab({ visible = true }) {
   const [aiEnabled, setAiEnabled] = useState(true)
   const [saveHistory, setSaveHistory] = useState(true)
 
+  // Deterministic "real-world" factors (optional). AI remains second opinion.
+  const [includeWaste, setIncludeWaste] = useState(true)
+  const [wastePercent, setWastePercent] = useState(5)
+  const [includeOverhead, setIncludeOverhead] = useState(true)
+  const [overheadPercent, setOverheadPercent] = useState(10)
+  const [includeTransport, setIncludeTransport] = useState(false)
+  const [transportFixed, setTransportFixed] = useState(0)
+  const [roundingMode, setRoundingMode] = useState('none') // none|thousand|hundred
+
   const [loading, setLoading] = useState(false)
   const [loadingList, setLoadingList] = useState(true)
   const [baseResult, setBaseResult] = useState(null)
   const [aiResult, setAiResult] = useState(null)
   const [aiError, setAiError] = useState('')
   const [calcError, setCalcError] = useState('')
+  const [deterministicAdjustedTotal, setDeterministicAdjustedTotal] = useState(null)
 
   const [history, setHistory] = useState([])
 
+  const applyRounding = (value, mode) => {
+    const n = Number(value)
+    if (!Number.isFinite(n)) return 0
+    if (mode === 'thousand') return Math.round(n / 1000) * 1000
+    if (mode === 'hundred') return Math.round(n / 100) * 100
+    return n
+  }
+
   const loadWorkItems = useCallback(async () => {
     setLoadingList(true)
-    const { data, error } = await supabase.from('work_items').select('id, name').order('name')
+    const { data, error } = await supabase.from('work_items').select('id, name, unit, price').order('name')
     if (!error && data) {
-      setWorkItems(data)
-      setWorkItemId((prev) => (prev && data.some((d) => d.id === prev) ? prev : data[0]?.id || ''))
+      // Heuristic: pekerjaan rows have unit empty and price ~0; alat rows have unit+price.
+      const nextPekerjaan = data.filter((w) => {
+        const unit = String(w?.unit ?? '').trim()
+        const priceNum = w?.price === null || w?.price === undefined ? 0 : Number(w?.price)
+        const hasUnit = unit.length > 0 && unit.toLowerCase() !== 'null'
+        const hasPrice = !Number.isNaN(priceNum) && priceNum > 0
+        return !hasUnit && !hasPrice
+      })
+      setWorkItems(nextPekerjaan)
+      setWorkItemId((prev) =>
+        prev && nextPekerjaan.some((d) => d.id === prev) ? prev : nextPekerjaan[0]?.id || ''
+      )
     }
     setLoadingList(false)
   }, [])
@@ -51,6 +79,7 @@ export default function CalculatorTab({ visible = true }) {
     setAiError('')
     setBaseResult(null)
     setAiResult(null)
+    setDeterministicAdjustedTotal(null)
 
     const volNum = Number(volume)
     if (!workItemId) {
@@ -67,11 +96,32 @@ export default function CalculatorTab({ visible = true }) {
       const base = await calculateRAB(supabase, workItemId, volNum)
       setBaseResult(base)
 
+      const wastePctNum = includeWaste ? Math.max(0, Number(wastePercent) || 0) : 0
+      const overheadPctNum = includeOverhead ? Math.max(0, Number(overheadPercent) || 0) : 0
+      const transportNum = includeTransport ? Math.max(0, Number(transportFixed) || 0) : 0
+      const wasteMult = 1 + wastePctNum / 100
+      const overheadMult = 1 + overheadPctNum / 100
+
+      const rawAdjusted = base.total * wasteMult * overheadMult + transportNum
+      const adjustedTotal = applyRounding(rawAdjusted, roundingMode)
+      setDeterministicAdjustedTotal(adjustedTotal)
+
+      const baseForAI = {
+        ...base,
+        deterministic_adjustments: {
+          wastePercent: wastePctNum,
+          overheadPercent: overheadPctNum,
+          transportFixed: transportNum,
+          roundingMode,
+        },
+        deterministic_adjusted_total: adjustedTotal,
+      }
+
       let aiPayload = null
       if (aiEnabled) {
         const wrapName =
           workItems.find((w) => w.id === workItemId)?.name || ''
-        const enriched = { ...base, workItemName: wrapName }
+        const enriched = { ...baseForAI, workItemName: wrapName }
         const aiRes = await fetchAiRabEnhancement(enriched)
         if (aiRes.ok) {
           aiPayload = aiRes.data
@@ -85,7 +135,7 @@ export default function CalculatorTab({ visible = true }) {
         const { error: hErr } = await supabase.from('rab_calculation_history').insert({
           work_item_id: workItemId,
           volume: volNum,
-          base_result: base,
+          base_result: baseForAI,
           ai_result: aiPayload,
           ai_enabled: aiEnabled,
         })
@@ -102,7 +152,7 @@ export default function CalculatorTab({ visible = true }) {
 
   const diff =
     baseResult && aiResult && typeof aiResult.adjusted_total === 'number'
-      ? aiResult.adjusted_total - baseResult.total
+      ? aiResult.adjusted_total - (deterministicAdjustedTotal ?? baseResult.total)
       : null
 
   return (
@@ -148,6 +198,83 @@ export default function CalculatorTab({ visible = true }) {
               value={volume}
               onChange={(e) => setVolume(e.target.value)}
             />
+          </div>
+        </div>
+
+        <div className="bg-gray-50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+            Faktor deterministik (opsional)
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeWaste}
+                onChange={(e) => setIncludeWaste(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              Waste (%)
+            </label>
+            <input
+              type="number"
+              min={0}
+              step="any"
+              disabled={!includeWaste}
+              value={wastePercent}
+              onChange={(e) => setWastePercent(e.target.value)}
+              className="w-28 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-3 py-2 disabled:opacity-50"
+            />
+
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeOverhead}
+                onChange={(e) => setIncludeOverhead(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              Overhead (%)
+            </label>
+            <input
+              type="number"
+              min={0}
+              step="any"
+              disabled={!includeOverhead}
+              value={overheadPercent}
+              onChange={(e) => setOverheadPercent(e.target.value)}
+              className="w-28 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-3 py-2 disabled:opacity-50"
+            />
+
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeTransport}
+                onChange={(e) => setIncludeTransport(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              Transport (Rp)
+            </label>
+            <input
+              type="number"
+              min={0}
+              step="any"
+              disabled={!includeTransport}
+              value={transportFixed}
+              onChange={(e) => setTransportFixed(e.target.value)}
+              className="w-32 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-3 py-2 disabled:opacity-50"
+            />
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-700 dark:text-gray-300">Pembulatan</label>
+              <select
+                value={roundingMode}
+                onChange={(e) => setRoundingMode(e.target.value)}
+                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-3 py-2"
+              >
+                <option value="none">None</option>
+                <option value="hundred">Ke ratusan</option>
+                <option value="thousand">Ke ribuan</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -204,6 +331,15 @@ export default function CalculatorTab({ visible = true }) {
               <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
                 Total: {formatCurrencyIDR(baseResult.total)}
               </p>
+              {deterministicAdjustedTotal !== null &&
+                deterministicAdjustedTotal !== baseResult.total && (
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                    Total + faktor:{" "}
+                    <span className="font-semibold">
+                      {formatCurrencyIDR(deterministicAdjustedTotal)}
+                    </span>
+                  </p>
+                )}
               <ul className="mt-3 space-y-2 text-sm max-h-56 overflow-y-auto">
                 {baseResult.breakdown.map((row, i) => (
                   <li
@@ -249,7 +385,7 @@ export default function CalculatorTab({ visible = true }) {
                             : 'text-gray-500'
                       }`}
                     >
-                      Selisih vs dasar: {diff > 0 ? '+' : ''}
+                      Selisih vs deterministik (faktor): {diff > 0 ? '+' : ''}
                       {formatCurrencyIDR(diff)}
                     </p>
                   )}

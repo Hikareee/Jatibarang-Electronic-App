@@ -34,21 +34,27 @@ export async function calculateRAB(supabase, workItemId, volume) {
 
   const materialIds = [...new Set(details.filter((d) => d.type === 'material').map((d) => d.ref_id))]
   const laborIds = [...new Set(details.filter((d) => d.type === 'labor').map((d) => d.ref_id))]
+  const alatIds = [...new Set(details.filter((d) => d.type === 'alat').map((d) => d.ref_id))]
 
-  const [materialsRes, laborRes] = await Promise.all([
+  const [materialsRes, laborRes, alatRes] = await Promise.all([
     materialIds.length
       ? supabase.from('materials').select('id, name, unit, price').in('id', materialIds)
       : Promise.resolve({ data: [], error: null }),
     laborIds.length
       ? supabase.from('labor').select('id, name, unit, price').in('id', laborIds)
       : Promise.resolve({ data: [], error: null }),
+    alatIds.length
+      ? supabase.from('work_items').select('id, name, unit, price').in('id', alatIds)
+      : Promise.resolve({ data: [], error: null }),
   ])
 
   if (materialsRes.error) throw materialsRes.error
   if (laborRes.error) throw laborRes.error
+  if (alatRes.error) throw alatRes.error
 
   const materialMap = Object.fromEntries((materialsRes.data || []).map((m) => [m.id, m]))
   const laborMap = Object.fromEntries((laborRes.data || []).map((l) => [l.id, l]))
+  const alatMap = Object.fromEntries((alatRes.data || []).map((a) => [a.id, a]))
 
   const breakdown = []
   let total = 0
@@ -59,7 +65,11 @@ export async function calculateRAB(supabase, workItemId, volume) {
       throw new Error('Koefisien tidak valid pada salah satu komponen')
     }
 
-    const ref = row.type === 'material' ? materialMap[row.ref_id] : laborMap[row.ref_id]
+    let ref = null
+    if (row.type === 'material') ref = materialMap[row.ref_id]
+    else if (row.type === 'labor') ref = laborMap[row.ref_id]
+    else if (row.type === 'alat') ref = alatMap[row.ref_id]
+    else ref = null
     if (!ref) {
       breakdown.push({
         detailId: row.id,

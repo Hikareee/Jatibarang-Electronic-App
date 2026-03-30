@@ -14,6 +14,7 @@ function validateNumericPrice(v) {
 export default function MaterialsTab() {
   const [materials, setMaterials] = useState([])
   const [labor, setLabor] = useState([])
+  const [alat, setAlat] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [importMsg, setImportMsg] = useState('')
@@ -30,14 +31,20 @@ export default function MaterialsTab() {
     setLoading(true)
     setError('')
     try {
-      const [mRes, lRes] = await Promise.all([
+      // Fetch materials and labor
+      const [mRes, lRes, alatRes] = await Promise.all([
         supabase.from('materials').select('*').order('name', { ascending: true }),
         supabase.from('labor').select('*').order('name', { ascending: true }),
+        // Per your current Supabase schema, "alat" lives in `work_items`
+        supabase.from('work_items').select('*').order('name', { ascending: true }),
       ])
       if (mRes.error) throw mRes.error
       if (lRes.error) throw lRes.error
+      if (alatRes.error) throw alatRes.error
+
       setMaterials(mRes.data || [])
       setLabor(lRes.data || [])
+      setAlat(alatRes.data || [])
     } catch (e) {
       console.error(e)
       setError(e?.message || 'Gagal memuat data Supabase. Pastikan tabel RAB sudah dibuat.')
@@ -101,6 +108,26 @@ export default function MaterialsTab() {
     }
   }, 500)
 
+  const persistAlat = useDebouncedCallback(async (row) => {
+    const name = String(row.name || '').trim()
+    if (!name) return
+    const price = validateNumericPrice(row.price)
+    if (price === null) return
+    const { error: upErr } = await supabase
+      .from('work_items')
+      .update({
+        name,
+        unit: String(row.unit || '').trim(),
+        price,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', row.id)
+    if (upErr) {
+      console.error(upErr)
+      setError(upErr.message)
+    }
+  }, 500)
+
   const updateMaterialLocal = (id, patch) => {
     setMaterials((prev) => {
       const next = prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
@@ -115,6 +142,15 @@ export default function MaterialsTab() {
       const next = prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
       const row = next.find((r) => r.id === id)
       if (row) persistLabor(row)
+      return next
+    })
+  }
+
+  const updateAlatLocal = (id, patch) => {
+    setAlat((prev) => {
+      const next = prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
+      const row = next.find((r) => r.id === id)
+      if (row) persistAlat(row)
       return next
     })
   }
@@ -155,6 +191,24 @@ export default function MaterialsTab() {
     setLabor((prev) => [...prev, data].sort((a, b) => (a.name || '').localeCompare(b.name || '')))
   }
 
+  const addAlat = async () => {
+    setError('')
+    const { data, error: insErr } = await supabase
+      .from('work_items')
+      .insert({
+        name: 'Alat baru',
+        unit: '',
+        price: 0,
+      })
+      .select()
+      .single()
+    if (insErr) {
+      setError(insErr.message)
+      return
+    }
+    setAlat((prev) => [...prev, data].sort((a, b) => (a.name || '').localeCompare(b.name || '')))
+  }
+
   const deleteMaterial = async (id) => {
     if (!confirm('Hapus material ini?')) return
     const { error: delErr } = await supabase.from('materials').delete().eq('id', id)
@@ -192,6 +246,52 @@ export default function MaterialsTab() {
     setImportMsg('Semua material berhasil dihapus.')
   }
 
+  const deleteAllLabor = async () => {
+    if (!labor.length) return
+    if (!confirm(`Hapus semua upah (${labor.length} item)?`)) return
+    setError('')
+    let { error: delErr } = await supabase.from('labor').delete().not('id', 'is', null)
+    if (delErr) {
+      const chunkSize = 200
+      for (let i = 0; i < labor.length; i += chunkSize) {
+        const ids = labor.slice(i, i + chunkSize).map((m) => m.id)
+        const { error: chunkErr } = await supabase.from('labor').delete().in('id', ids)
+        if (chunkErr) { delErr = chunkErr; break }
+      }
+    }
+    if (delErr) { setError(`Gagal hapus semua upah: ${delErr.message}`); return }
+    setLabor([])
+    setImportMsg('Semua upah berhasil dihapus.')
+  }
+
+  const deleteAllAlat = async () => {
+    if (!alat.length) return
+    if (!confirm(`Hapus semua alat (${alat.length} item)?`)) return
+    setError('')
+
+    // Avoid oversized `id IN (...)` queries.
+    let { error: delErr } = await supabase.from('work_items').delete().not('id', 'is', null)
+    if (delErr) {
+      const chunkSize = 200
+      for (let i = 0; i < alat.length; i += chunkSize) {
+        const ids = alat.slice(i, i + chunkSize).map((a) => a.id)
+        const { error: chunkErr } = await supabase.from('work_items').delete().in('id', ids)
+        if (chunkErr) {
+          delErr = chunkErr
+          break
+        }
+      }
+    }
+
+    if (delErr) {
+      setError(`Gagal hapus semua alat: ${delErr.message}`)
+      return
+    }
+
+    setAlat([])
+    setImportMsg('Semua alat berhasil dihapus.')
+  }
+
   const deleteLabor = async (id) => {
     if (!confirm('Hapus item upah ini?')) return
     const { error: delErr } = await supabase.from('labor').delete().eq('id', id)
@@ -200,6 +300,16 @@ export default function MaterialsTab() {
       return
     }
     setLabor((prev) => prev.filter((r) => r.id !== id))
+  }
+
+  const deleteAlat = async (id) => {
+    if (!confirm('Hapus item alat ini?')) return
+    const { error: delErr } = await supabase.from('work_items').delete().eq('id', id)
+    if (delErr) {
+      setError(delErr.message)
+      return
+    }
+    setAlat((prev) => prev.filter((r) => r.id !== id))
   }
 
   const handleImportMaterials = async (e) => {
@@ -361,7 +471,8 @@ export default function MaterialsTab() {
 
       // Partition
       const materialsRows = data.filter((r) => !r.category || r.category === 'material')
-      const laborRows = data.filter((r) => r.category === 'labor')
+  const laborRows = data.filter((r) => r.category === 'labor')
+  const alatRows = data.filter((r) => r.category === 'alat')
 
       const upsertByName = async (rows, table) => {
         // split: check existence by name
@@ -403,6 +514,12 @@ export default function MaterialsTab() {
 
       await upsertByName(materialsRows, 'materials')
       await upsertByName(laborRows, 'labor')
+      // Upsert alat table if available
+      try {
+        await upsertByName(alatRows, 'work_items')
+      } catch (e) {
+        console.debug('alat upsert failed', e?.message || e)
+      }
 
       setImportMsg(`Import ${importId} applied to catalog.`)
       loadAll()
@@ -478,8 +595,9 @@ export default function MaterialsTab() {
     }
     setImportMsg('Mengimpor...')
     try {
-      const materialsRows = previewRows.filter((r) => !r.category || r.category === 'material')
-      const laborRows = previewRows.filter((r) => r.category === 'labor')
+  const materialsRows = previewRows.filter((r) => !r.category || r.category === 'material')
+  const laborRows = previewRows.filter((r) => r.category === 'labor')
+  const alatRows = previewRows.filter((r) => r.category === 'alat')
 
       const insertChunks = async (rows, table) => {
         if (!rows.length) return 0
@@ -501,6 +619,11 @@ export default function MaterialsTab() {
       let inserted = 0
       inserted += await insertChunks(materialsRows, 'materials')
       inserted += await insertChunks(laborRows, 'labor')
+      try {
+        inserted += await insertChunks(alatRows, 'work_items')
+      } catch (e) {
+        console.debug('insert alat failed', e?.message || e)
+      }
 
       setImportMsg(`Berhasil mengimpor ${inserted} item.`)
       setShowPreview(false)
@@ -664,15 +787,107 @@ export default function MaterialsTab() {
 
       <section className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="font-semibold text-gray-900 dark:text-white">Alat / Peralatan</h2>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={deleteAllAlat}
+              disabled={!alat.length}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-red-300 text-red-700 dark:border-red-800 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              Hapus Semua
+            </button>
+            <button
+              type="button"
+              onClick={addAlat}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+              Tambah
+            </button>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-700/80 text-left text-xs uppercase text-gray-500 dark:text-gray-400">
+              <tr>
+                <th className="px-4 py-2">Nama</th>
+                <th className="px-4 py-2 w-24">Satuan</th>
+                <th className="px-4 py-2 w-36">Harga</th>
+                <th className="px-4 py-2 w-32">Preview</th>
+                <th className="px-4 py-2 w-16" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {alat.map((row) => (
+                <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                  <td className="px-4 py-2">
+                    <input
+                      className="w-full min-w-[12rem] bg-transparent border border-transparent focus:border-blue-500 rounded px-2 py-1 dark:text-white"
+                      value={row.name}
+                      onChange={(e) => updateAlatLocal(row.id, { name: e.target.value })}
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      className="w-full bg-transparent border border-transparent focus:border-blue-500 rounded px-2 py-1 dark:text-white"
+                      value={row.unit ?? ''}
+                      onChange={(e) => updateAlatLocal(row.id, { unit: e.target.value })}
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className="w-full bg-transparent border border-transparent focus:border-blue-500 rounded px-2 py-1 dark:text-white"
+                      value={row.price}
+                      onChange={(e) => updateAlatLocal(row.id, { price: e.target.value })}
+                    />
+                  </td>
+                  <td className="px-4 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">{formatCurrencyIDR(row.price)}</td>
+                  <td className="px-4 py-2">
+                    <button
+                      type="button"
+                      onClick={() => deleteAlat(row.id)}
+                      className="p-1.5 rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {alat.length === 0 && (
+            <p className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Belum ada data alat.</p>
+          )}
+        </div>
+      </section>
+
+      <section className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
           <h2 className="font-semibold text-gray-900 dark:text-white">Upah / tenaga kerja</h2>
-          <button
-            type="button"
-            onClick={addLabor}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" />
-            Tambah
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={deleteAllLabor}
+              disabled={!labor.length}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-red-300 text-red-700 dark:border-red-800 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              Hapus Semua
+            </button>
+            <button
+              type="button"
+              onClick={addLabor}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+              Tambah
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

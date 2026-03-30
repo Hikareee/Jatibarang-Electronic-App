@@ -1,0 +1,58 @@
+[
+  {
+    "table": "labor",
+    "name": "Tukang kaca",
+    "unit": "OH",
+    "price": null,
+    "priceRaw": ""
+  },
+  {
+    "table": "materials",
+    "name": null,
+    "unit": "",
+    "price": null,
+    "priceRaw": ""
+  },
+  {
+    "table": "materials",
+    "name": "MATERIAL PIPA GALVANIS",
+    "unit": "",
+    "price": null,
+    "priceRaw": ""
+  },
+  {
+    "table": "materials",
+    "name": null,
+    "unit": "",
+    "price": null,
+    "priceRaw": ""
+  },
+  {
+    "table": "materials",
+    "name": "MATERIAL PLAFON",
+    "unit": "",
+    "price": null,
+    "priceRaw": ""
+  },
+  {
+    "table": "materials",
+    "name": "MATERIAL LANSEKAP",
+    "unit": "",
+    "price": null,
+    "priceRaw": ""
+  },
+  {
+    "table": "materials",
+    "name": "Crane Truck 3 ton; Winch 5 Ton",
+    "unit": "jam",
+    "price": null,
+    "priceRaw": "#REF!"
+  },
+  {
+    "table": "materials",
+    "name": "Sewa Scaffolding :",
+    "unit": "",
+    "price": null,
+    "priceRaw": ""
+  }
+]

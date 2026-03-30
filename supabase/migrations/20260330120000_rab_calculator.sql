@@ -31,7 +31,7 @@ create table if not exists public.work_items (
 create table if not exists public.work_item_details (
   id uuid primary key default gen_random_uuid(),
   work_item_id uuid not null references public.work_items (id) on delete cascade,
-  type text not null check (type in ('material', 'labor')),
+  type text not null check (type in ('material', 'labor', 'alat')),
   ref_id uuid not null,
   coefficient numeric(18, 6) not null default 1 check (coefficient >= 0),
   created_at timestamptz not null default now()

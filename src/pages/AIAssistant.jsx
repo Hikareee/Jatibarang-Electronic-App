@@ -788,76 +788,65 @@ Pertanyaan user: ${userMessage.content}`
               </div>
             )}
 
-            {/* Messages Container */}
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              <div className="max-w-4xl mx-auto space-y-4">
-                {loadingChat ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
-                    <span className="ml-2 text-gray-600 dark:text-gray-400">Memuat percakapan...</span>
-                  </div>
-                ) : (
-                  messages.map((message, index) => {
-                    const msg = message && typeof message === 'object' ? message : {}
-                    const id = msg.id ?? index
-                    const role = msg.role === 'user' ? 'user' : 'assistant'
-                    const content = typeof msg.content === 'string' ? msg.content : String(msg?.content ?? '')
-                    return (
-                      <div
-                        key={id}
-                        className={`flex gap-3 ${
-                          role === 'user' ? 'justify-end' : 'justify-start'
-                        }`}
-                      >
-                        {role === 'assistant' && (
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
-                            <Bot className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            {/* Messages Container - ChatGPT-like centered column */}
+            <div className="flex-1 overflow-y-auto px-6 py-6">
+              <div className="max-w-3xl mx-auto">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 space-y-4">
+                  {loadingChat ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
+                      <span className="ml-2 text-gray-600 dark:text-gray-400">Memuat percakapan...</span>
+                    </div>
+                  ) : (
+                    messages.map((message, index) => {
+                      const msg = message && typeof message === 'object' ? message : {}
+                      const id = msg.id ?? index
+                      const role = msg.role === 'user' ? 'user' : 'assistant'
+                      const content = typeof msg.content === 'string' ? msg.content : String(msg?.content ?? '')
+                      if (role === 'assistant') {
+                        return (
+                          <div key={id} className="flex items-start gap-4">
+                            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+                              <Bot className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="prose max-w-[70ch]">
+                              <div className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl p-4 whitespace-pre-wrap break-words">
+                                {content}
+                              </div>
+                              <div className="text-xs text-gray-400 mt-1">{formatTime(msg.timestamp)}</div>
+                            </div>
                           </div>
-                        )}
-                        
-                        <div
-                          className={`max-w-[80%] rounded-lg px-4 py-3 ${
-                            role === 'user'
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700'
-                          }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap break-words">
-                            {content}
-                          </p>
-                          <p
-                            className={`text-xs mt-2 ${
-                              role === 'user'
-                                ? 'text-blue-100'
-                                : 'text-gray-500 dark:text-gray-400'
-                            }`}
-                          >
-                            {formatTime(msg.timestamp)}
-                          </p>
-                        </div>
-
-                        {role === 'user' && (
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        )
+                      }
+                      return (
+                        <div key={id} className="flex items-start gap-4 justify-end">
+                          <div className="prose max-w-[70ch] text-right">
+                            <div className="inline-block bg-blue-600 text-white rounded-xl p-4 whitespace-pre-wrap break-words">
+                              {content}
+                            </div>
+                            <div className="text-xs text-blue-200 mt-1">{formatTime(msg.timestamp)}</div>
+                          </div>
+                          <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
                             <User className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                           </div>
-                        )}
+                        </div>
+                      )
+                    })
+                  )}
+
+                  {!loadingChat && loading && (
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+                        <Bot className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                       </div>
-                    )
-                  })
-                )}
-
-                {!loadingChat && loading && (
-                  <div className="flex gap-3 justify-start">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
-                      <Bot className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      <div className="bg-gray-100 dark:bg-gray-700 rounded-xl p-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400" />
+                      </div>
                     </div>
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
-                      <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400" />
-                    </div>
-                  </div>
-                )}
+                  )}
 
-                <div ref={messagesEndRef} />
+                  <div ref={messagesEndRef} />
+                </div>
               </div>
             </div>
 
