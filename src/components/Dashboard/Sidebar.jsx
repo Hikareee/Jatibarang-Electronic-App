@@ -21,7 +21,8 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Calculator
 } from 'lucide-react'
 
 export default function Sidebar({ isOpen, onToggle }) {
@@ -74,6 +75,7 @@ export default function Sidebar({ isOpen, onToggle }) {
     { icon: Package, label: t('products'), path: '/produk', managerOnly: true },
     { icon: Warehouse, label: t('inventory'), path: '/inventori', managerOnly: true },
     { icon: Briefcase, label: 'Proyek', path: '/proyek', managerOnly: true },
+    { icon: Calculator, label: 'Kalkulator RAB', path: '/rab-calculator', managerOnly: true },
     { icon: FileText, label: t('reports'), path: '/laporan', managerOnly: true },
     { icon: Wallet, label: t('cashBank'), path: '/kas-bank', managerOnly: true },
     { icon: BookOpen, label: t('accounts'), path: '/akun', managerOnly: true },

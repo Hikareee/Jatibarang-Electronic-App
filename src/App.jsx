@@ -43,6 +43,7 @@ import GudangDetail from './pages/GudangDetail'
 import Laporan from './pages/Laporan'
 import Proyek from './pages/Proyek'
 import ProyekDetail from './pages/ProyekDetail'
+import RABCalculator from './pages/RABCalculator'
 import ApprovedRoute from './components/ApprovedRoute'
 import ManagerRoute from './components/ManagerRoute'
 
@@ -316,6 +317,18 @@ function AppRoutes() {
             <ApprovedRoute>
               <ManagerRoute>
                 <Laporan />
+              </ManagerRoute>
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/rab-calculator"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <ManagerRoute>
+                <RABCalculator />
               </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>
