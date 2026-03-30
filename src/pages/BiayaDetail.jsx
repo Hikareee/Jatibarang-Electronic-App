@@ -8,6 +8,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore'
 import { useContacts } from '../hooks/useContactsData'
 import { useAccounts } from '../hooks/useAccountsData'
 import { useProjects } from '../hooks/useProjectsData'
+import { useUserApproval } from '../hooks/useUserApproval'
 import { uploadExpenseAttachment } from '../firebase/supabaseClient'
 import { ChevronLeft, Save, Calendar, Loader2, ImagePlus, X } from 'lucide-react'
 import FormattedNumberInput from '../components/FormattedNumberInput'
@@ -19,8 +20,11 @@ export default function BiayaDetail() {
   const { contacts, loading: contactsLoading } = useContacts()
   const { accounts, loading: accountsLoading } = useAccounts()
   const { projects, loading: projectsLoading } = useProjects()
+  const { canEditApproved, loading: approvalLoading } = useUserApproval()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [loadedFormData, setLoadedFormData] = useState(null)
   const [error, setError] = useState(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [imageError, setImageError] = useState('')
@@ -80,6 +84,23 @@ export default function BiayaDetail() {
           accountabilityChain: data.accountabilityChain || '',
           attachment: data.attachment && data.attachment.url ? data.attachment : null,
         })
+        setLoadedFormData({
+          date: dateStr,
+          dueDate: dueStr,
+          number: data.number || '',
+          recipient: data.recipientId || '',
+          account: data.accountId || '',
+          reference: data.reference || '',
+          title: data.title || '',
+          description: data.description || '',
+          total: data.total ?? 0,
+          projectId: data.projectId || '',
+          items: data.items || [],
+          accountableContactId: data.accountableContactId || '',
+          accountabilityChain: data.accountabilityChain || '',
+          attachment: data.attachment && data.attachment.url ? data.attachment : null,
+        })
+        setIsEditing(false)
       } catch (err) {
         console.error(err)
         setError('Gagal memuat biaya')
@@ -136,6 +157,10 @@ export default function BiayaDetail() {
   }
 
   const handleSave = async () => {
+    if (!canEditApproved) {
+      alert('Hanya owner yang bisa mengedit biaya ini')
+      return
+    }
     if (!formData.recipient) {
       alert('Penerima wajib diisi')
       return
@@ -221,13 +246,37 @@ export default function BiayaDetail() {
 
             <div className="flex items-center justify-between mb-6">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Detail Biaya</h1>
-              <button
-                onClick={() => navigate('/biaya')}
-                className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
-              >
-                <ChevronLeft className="h-5 w-5" />
-                <span>Kembali</span>
-              </button>
+              <div className="flex items-center gap-3">
+                {canEditApproved && !approvalLoading && !isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    <span>Edit</span>
+                  </button>
+                )}
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (loadedFormData) setFormData(loadedFormData)
+                      setIsEditing(false)
+                      setImageError('')
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
+                  >
+                    <span>Batal</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate('/biaya')}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                  <span>Kembali</span>
+                </button>
+              </div>
             </div>
 
             {loading ? (
@@ -249,6 +298,7 @@ export default function BiayaDetail() {
                           type="date"
                           value={formData.date}
                           onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                          disabled={!isEditing}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                         />
                         <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
@@ -262,6 +312,7 @@ export default function BiayaDetail() {
                         type="text"
                         value={formData.number}
                         onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+                        disabled={!isEditing}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                       />
                     </div>
@@ -272,7 +323,7 @@ export default function BiayaDetail() {
                       <select
                         value={formData.recipient}
                         onChange={(e) => setFormData({ ...formData, recipient: e.target.value })}
-                        disabled={contactsLoading}
+                        disabled={!isEditing || contactsLoading}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                       >
                         <option value="">Pilih kontak</option>
@@ -293,7 +344,7 @@ export default function BiayaDetail() {
                       <select
                         value={formData.accountableContactId}
                         onChange={(e) => setFormData({ ...formData, accountableContactId: e.target.value })}
-                        disabled={contactsLoading}
+                        disabled={!isEditing || contactsLoading}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                       >
                         <option value="">Tanpa penanggung jawab (opsional)</option>
@@ -314,7 +365,7 @@ export default function BiayaDetail() {
                       <select
                         value={formData.account}
                         onChange={(e) => setFormData({ ...formData, account: e.target.value })}
-                        disabled={accountsLoading}
+                        disabled={!isEditing || accountsLoading}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                       >
                         <option value="">Pilih akun</option>
@@ -332,7 +383,7 @@ export default function BiayaDetail() {
                       <select
                         value={formData.projectId}
                         onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
-                        disabled={projectsLoading}
+                        disabled={!isEditing || projectsLoading}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                       >
                         <option value="">Tanpa proyek</option>
@@ -352,6 +403,7 @@ export default function BiayaDetail() {
                         type="text"
                         value={formData.reference}
                         onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+                        disabled={!isEditing}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                       />
                     </div>
@@ -362,6 +414,7 @@ export default function BiayaDetail() {
                       <FormattedNumberInput
                         value={formData.total}
                         onChange={(value) => setFormData({ ...formData, total: value })}
+                        disabled={!isEditing}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white bg-white text-gray-900"
                       />
                     </div>
@@ -375,6 +428,7 @@ export default function BiayaDetail() {
                       type="text"
                       value={formData.accountabilityChain}
                       onChange={(e) => setFormData({ ...formData, accountabilityChain: e.target.value })}
+                      disabled={!isEditing}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                       placeholder="Contoh: Perusahaan → saya → PT Victory"
                     />
@@ -388,6 +442,7 @@ export default function BiayaDetail() {
                       type="text"
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      disabled={!isEditing}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                     />
                   </div>
@@ -400,6 +455,7 @@ export default function BiayaDetail() {
                       rows={4}
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      disabled={!isEditing}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                     />
                   </div>
@@ -425,14 +481,16 @@ export default function BiayaDetail() {
                               className="max-h-40 max-w-full object-contain bg-gray-50 dark:bg-gray-900"
                             />
                           </a>
-                          <button
-                            type="button"
-                            onClick={handleRemoveAttachment}
-                            className="absolute top-1 right-1 p-1 rounded bg-black/60 text-white hover:bg-black/80"
-                            aria-label="Hapus gambar"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
+                          {isEditing && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveAttachment}
+                              className="absolute top-1 right-1 p-1 rounded bg-black/60 text-white hover:bg-black/80"
+                              aria-label="Hapus gambar"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       )}
                       <label className="inline-flex items-center gap-2 px-4 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
@@ -452,7 +510,7 @@ export default function BiayaDetail() {
                           type="file"
                           accept="image/*"
                           className="hidden"
-                          disabled={uploadingImage}
+                          disabled={!isEditing || uploadingImage}
                           onChange={handleExpenseImageChange}
                         />
                       </label>
@@ -460,16 +518,18 @@ export default function BiayaDetail() {
                   </div>
                 </div>
 
-                <div className="mt-6 flex justify-end">
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    <Save className="h-5 w-5" />
-                    <span>Simpan Perubahan</span>
-                  </button>
-                </div>
+                {isEditing && (
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      <Save className="h-5 w-5" />
+                      <span>Simpan Perubahan</span>
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

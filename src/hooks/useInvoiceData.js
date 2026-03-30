@@ -55,6 +55,8 @@ export async function saveInvoice(invoiceData) {
       type: 'invoice_sale',
       contactId: finalInvoiceData.customerId || finalInvoiceData.contactId || '',
       contactName: finalInvoiceData.customer || '',
+      penanggungJawabId: finalInvoiceData.penanggungJawabId || finalInvoiceData.responsibleContactId || '',
+      penanggungJawab: finalInvoiceData.penanggungJawab || finalInvoiceData.responsibleContactName || '',
       number: finalInvoiceData.number,
       reference: finalInvoiceData.reference || '',
       date: finalInvoiceData.transactionDate || finalInvoiceData.createdAt,

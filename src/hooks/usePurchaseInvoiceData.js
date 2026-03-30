@@ -61,6 +61,8 @@ export async function savePurchaseInvoice(invoiceData, userId = null) {
       type: 'invoice_purchase',
       contactId: finalInvoiceData.vendorId || finalInvoiceData.contactId || '',
       contactName: finalInvoiceData.vendor || '',
+      penanggungJawabId: finalInvoiceData.penanggungJawabId || finalInvoiceData.responsibleContactId || '',
+      penanggungJawab: finalInvoiceData.penanggungJawab || finalInvoiceData.responsibleContactName || '',
       number: finalInvoiceData.number,
       reference: finalInvoiceData.reference || '',
       date: finalInvoiceData.transactionDate || finalInvoiceData.createdAt,

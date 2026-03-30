@@ -516,9 +516,6 @@ export default function Biaya() {
                     Title
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-16">
-                    Foto
-                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Proyek
                     <MoreVertical className="inline h-3 w-3 ml-1" />
@@ -574,24 +571,6 @@ export default function Biaya() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {expense.title || '-'}
-                      </td>
-                      <td
-                        className="px-4 py-3 text-center"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {expense.attachment?.url ? (
-                          <a
-                            href={expense.attachment.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex text-blue-600 dark:text-blue-400 hover:opacity-80"
-                            title="Buka lampiran"
-                          >
-                            <Image className="h-5 w-5" />
-                          </a>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {expense.projectName || '-'}

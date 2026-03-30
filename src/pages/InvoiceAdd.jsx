@@ -41,6 +41,8 @@ export default function InvoiceAdd() {
     customerId: '',
     customerName: '',
     customerAddress: '',
+    penanggungJawabId: '',
+    penanggungJawab: '',
     attn: '',
     city: 'Cirebon',
     account: '', // Account to credit for cash sales
@@ -476,6 +478,33 @@ export default function InvoiceAdd() {
                       <select
                         value={formData.customer}
                         onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                        disabled={contactsLoading}
+                      >
+                        <option value="">{t('selectContact')}</option>
+                        {contacts.map((contact) => (
+                          <option key={contact.id} value={contact.id}>
+                            {contact.name || contact.company || 'Unnamed Contact'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Penanggung jawab
+                      </label>
+                      <select
+                        value={formData.penanggungJawabId}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          const c = contacts.find((cc) => cc.id === value)
+                          setFormData((prev) => ({
+                            ...prev,
+                            penanggungJawabId: value,
+                            penanggungJawab: c ? c.name || c.company || '' : ''
+                          }))
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                         disabled={contactsLoading}
                       >

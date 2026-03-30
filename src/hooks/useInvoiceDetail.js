@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { doc, getDoc, updateDoc } from 'firebase/firestore'
+import { doc, getDoc, updateDoc, collection, query, getDocs, where } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
 export function useInvoiceDetail(invoiceId) {
@@ -70,6 +70,31 @@ export function useInvoiceDetail(invoiceId) {
         ...invoiceData,
         updatedAt: new Date().toISOString()
       })
+
+      // Keep unified transaction record in sync (so payment/status pages match invoice data)
+      try {
+        const penanggungJawabId =
+          invoiceData.penanggungJawabId || invoiceData.responsibleContactId || ''
+        const penanggungJawab =
+          invoiceData.penanggungJawab || invoiceData.responsibleContactName || ''
+
+        const txQ = query(
+          collection(db, 'transactions'),
+          where('source.collection', '==', 'invoices'),
+          where('source.id', '==', invoiceId)
+        )
+        const txSnap = await getDocs(txQ)
+        await Promise.all(
+          txSnap.docs.map((txDoc) =>
+            updateDoc(txDoc.ref, {
+              penanggungJawabId,
+              penanggungJawab
+            })
+          )
+        )
+      } catch (err) {
+        console.warn('Could not sync penanggungJawab to transactions:', err)
+      }
 
       // Refetch invoice
       const updatedSnap = await getDoc(invoiceRef)
