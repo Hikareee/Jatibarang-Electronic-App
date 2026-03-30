@@ -1,5 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { doc, getDoc, updateDoc } from 'firebase/firestore'
+import { db } from '../firebase/config'
+import { updateAccountBalance } from '../utils/accountBalance'
 import { useLanguage } from '../contexts/LanguageContext'
 import Sidebar from '../components/Dashboard/Sidebar'
 import Header from '../components/Dashboard/Header'
@@ -18,7 +21,8 @@ import {
   Loader2,
   BarChart3,
   Upload,
-  ChevronDown
+  ChevronDown,
+  Image
 } from 'lucide-react'
 import { useExpenses } from '../hooks/useExpensesData'
 
@@ -26,10 +30,43 @@ export default function Biaya() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { t } = useLanguage()
   const navigate = useNavigate()
-  const { expenses, loading, error } = useExpenses()
+  const { expenses, loading, error, refetch } = useExpenses()
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedExpenses, setSelectedExpenses] = useState([])
+  const [paymentMenuOpen, setPaymentMenuOpen] = useState(null)
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
+  const paymentMenuRef = useRef(null)
+  const buttonRefs = useRef({})
+
+  const paymentOptions = [
+    { label: 'Belum Dibayar', percentage: 0 },
+    { label: 'Sudah Dibayar 25%', percentage: 25 },
+    { label: 'Sudah Dibayar 50%', percentage: 50 },
+    { label: 'Sudah Dibayar 75%', percentage: 75 },
+    { label: 'Sudah Lunas', percentage: 100 },
+  ]
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (paymentMenuRef.current && !paymentMenuRef.current.contains(event.target)) {
+        const clickedButton = Object.values(buttonRefs.current).find(
+          (ref) => ref && ref.contains(event.target)
+        )
+        if (!clickedButton) {
+          setPaymentMenuOpen(null)
+        }
+      }
+    }
+
+    if (paymentMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [paymentMenuOpen])
 
   // Format number to Indonesian format
   const formatNumber = (num) => {
@@ -47,6 +84,15 @@ export default function Biaya() {
     return `${day}/${month}/${year}`
   }
 
+  const formatAccountabilitySummary = (expense) => {
+    const a = (expense.accountablePerson || '').trim()
+    const c = (expense.accountabilityChain || '').trim()
+    if (a && c) return `${a} · ${c}`
+    if (a) return a
+    if (c) return c
+    return '-'
+  }
+
   // Get status label
   const getStatusLabel = (expense) => {
     const remaining = expense.remaining !== undefined ? expense.remaining : (expense.total || 0)
@@ -57,17 +103,92 @@ export default function Biaya() {
     return 'Belum Dibayar'
   }
 
-  // Get status color
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Lunas':
-        return 'text-green-600 dark:text-green-400'
-      case 'Dibayar Sebagian':
-        return 'text-yellow-600 dark:text-yellow-400'
-      case 'Belum Dibayar':
-        return 'text-red-600 dark:text-red-400'
-      default:
-        return 'text-gray-600 dark:text-gray-400'
+  const getPaymentPercentage = (expense) => {
+    const remaining = expense.remaining !== undefined ? expense.remaining : expense.total || 0
+    const total = expense.total || 0
+    if (total === 0) return 0
+    if (remaining <= 0.01) return 100
+    const paid = total - remaining
+    return Math.round((paid / total) * 100)
+  }
+
+  const getExpensePaymentStatusLabel = (expense) => {
+    const percentage = getPaymentPercentage(expense)
+    if (percentage === 100) return 'Sudah Lunas'
+    if (percentage === 0) return 'Belum Dibayar'
+    return `Sudah Dibayar ${percentage}%`
+  }
+
+  const getPaymentStatusButtonClass = (label) => {
+    if (label === 'Sudah Lunas') {
+      return 'text-green-600 dark:text-green-400'
+    }
+    if (label.includes('Sudah Dibayar')) {
+      return 'text-yellow-600 dark:text-yellow-400'
+    }
+    if (label === 'Belum Dibayar') {
+      return 'text-red-600 dark:text-red-400'
+    }
+    return 'text-gray-600 dark:text-gray-400'
+  }
+
+  const handleExpensePaymentUpdate = async (expenseId, newPercentage) => {
+    try {
+      const expenseRef = doc(db, 'expenses', expenseId)
+      const expenseSnap = await getDoc(expenseRef)
+
+      if (!expenseSnap.exists()) {
+        alert('Biaya tidak ditemukan')
+        return
+      }
+
+      const expenseData = expenseSnap.data()
+      const total = parseFloat(expenseData.total) || 0
+      const rawRem = expenseData.remaining
+      const currentRemaining =
+        rawRem !== undefined && rawRem !== null && !Number.isNaN(Number(rawRem))
+          ? parseFloat(rawRem)
+          : total
+      const newRemaining = total * (1 - newPercentage / 100)
+      const paymentDifference = currentRemaining - newRemaining
+
+      if (Math.abs(paymentDifference) < 0.01) {
+        setPaymentMenuOpen(null)
+        return
+      }
+
+      await updateDoc(expenseRef, {
+        remaining: newRemaining,
+        paidPercentage: newPercentage,
+        paid: newRemaining < 0.01,
+        updatedAt: new Date().toISOString(),
+      })
+
+      const accountId = expenseData.accountId || expenseData.account
+      if (accountId && paymentDifference > 0) {
+        await updateAccountBalance(accountId, -paymentDifference, {
+          type: 'expense_payment',
+          transactionId: expenseId,
+          number: expenseData.number,
+          date: new Date().toISOString(),
+          description: `Pembayaran biaya ${expenseData.number || expenseId} (${newPercentage}%)`,
+        })
+      }
+
+      setPaymentMenuOpen(null)
+      refetch()
+
+      const statusText =
+        newPercentage === 100 ? 'Sudah Lunas' : `Sudah Dibayar ${newPercentage}%`
+      alert(
+        `Status pembayaran diperbarui menjadi ${newPercentage === 0 ? 'Belum Dibayar' : statusText}.` +
+          (paymentDifference > 0
+            ? ` Saldo akun dikurangi ${new Intl.NumberFormat('id-ID').format(paymentDifference)}.`
+            : '')
+      )
+    } catch (err) {
+      console.error('Error updating expense payment:', err)
+      alert('Gagal memperbarui status pembayaran')
     }
   }
 
@@ -139,7 +260,10 @@ export default function Biaya() {
       expense.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       expense.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       expense.recipient?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      expense.reference?.toLowerCase().includes(searchQuery.toLowerCase())
+      expense.reference?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.projectName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.accountablePerson?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.accountabilityChain?.toLowerCase().includes(searchQuery.toLowerCase())
     
     return matchesStatus && matchesSearch
   })
@@ -392,12 +516,23 @@ export default function Biaya() {
                     Title
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-16">
+                    Foto
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Proyek
+                    <MoreVertical className="inline h-3 w-3 ml-1" />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Referensi
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Penerima
+                    Penerima (vendor)
+                    <MoreVertical className="inline h-3 w-3 ml-1" />
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Penanggung jawab
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -416,7 +551,7 @@ export default function Biaya() {
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredExpenses.map((expense) => {
-                  const status = getStatusLabel(expense)
+                  const paymentLabel = getExpensePaymentStatusLabel(expense)
                   return (
                     <tr 
                       key={expense.id} 
@@ -434,11 +569,32 @@ export default function Biaya() {
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {formatDate(expense.date || expense.createdAt)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                      <td className="px-4 py-3 text-sm text-blue-600 dark:text-blue-400 font-medium">
                         {expense.number || 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {expense.title || '-'}
+                      </td>
+                      <td
+                        className="px-4 py-3 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {expense.attachment?.url ? (
+                          <a
+                            href={expense.attachment.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex text-blue-600 dark:text-blue-400 hover:opacity-80"
+                            title="Buka lampiran"
+                          >
+                            <Image className="h-5 w-5" />
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {expense.projectName || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                         {expense.reference || '-'}
@@ -446,10 +602,74 @@ export default function Biaya() {
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {expense.recipient || 'N/A'}
                       </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className={getStatusColor(status)}>
-                          {status}
-                        </span>
+                      <td
+                        className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 max-w-[14rem] truncate"
+                        title={formatAccountabilitySummary(expense)}
+                      >
+                        {formatAccountabilitySummary(expense)}
+                      </td>
+                      <td className="px-4 py-3 text-sm" style={{ position: 'relative' }}>
+                        <div className="relative inline-block">
+                          <button
+                            ref={(el) => {
+                              buttonRefs.current[expense.id] = el
+                            }}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (paymentMenuOpen === expense.id) {
+                                setPaymentMenuOpen(null)
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setMenuPosition({
+                                  top: rect.bottom + window.scrollY + 8,
+                                  left: rect.right + window.scrollX - 200,
+                                })
+                                setPaymentMenuOpen(expense.id)
+                              }
+                            }}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border border-transparent hover:border-gray-300 dark:hover:border-gray-600 ${getPaymentStatusButtonClass(paymentLabel)}`}
+                          >
+                            {paymentLabel}
+                            <ChevronDown className="inline h-3 w-3 ml-1" />
+                          </button>
+                          {paymentMenuOpen === expense.id && (
+                            <div
+                              className="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl"
+                              style={{
+                                zIndex: 9999,
+                                minWidth: '200px',
+                                top: `${menuPosition.top}px`,
+                                left: `${menuPosition.left}px`,
+                              }}
+                              ref={paymentMenuRef}
+                            >
+                              <div className="py-1">
+                                {paymentOptions.map((option) => {
+                                  const currentPercentage = getPaymentPercentage(expense)
+                                  const isSelected = currentPercentage === option.percentage
+                                  return (
+                                    <button
+                                      key={option.percentage}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleExpensePaymentUpdate(expense.id, option.percentage)
+                                      }}
+                                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                                        isSelected
+                                          ? 'text-blue-600 dark:text-blue-400 font-semibold bg-blue-50 dark:bg-blue-900/20'
+                                          : 'text-gray-700 dark:text-gray-300'
+                                      }`}
+                                    >
+                                      {option.label}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {formatNumber(expense.remaining !== undefined ? expense.remaining : (expense.total || 0))}

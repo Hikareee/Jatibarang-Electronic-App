@@ -70,3 +70,9 @@ export async function uploadInvoiceAttachment(file, invoiceId, bucket = 'Attachm
   const prefix = invoiceId ? `invoices/${invoiceId}` : 'invoices-draft'
   return signedUpload(file, bucket, prefix)
 }
+
+// Expense (biaya) images: same bucket, prefix biaya/{expenseId} or biaya-draft before the doc exists
+export async function uploadExpenseAttachment(file, expenseId, bucket = 'AttachmentInvoice') {
+  const prefix = expenseId ? `biaya/${expenseId}` : 'biaya-draft'
+  return signedUpload(file, bucket, prefix)
+}
