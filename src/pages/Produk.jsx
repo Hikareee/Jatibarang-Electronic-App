@@ -23,12 +23,14 @@ import {
   Settings
 } from 'lucide-react'
 import { useProducts } from '../hooks/useProductsData'
+import { useUserApproval } from '../hooks/useUserApproval'
 
 export default function Produk() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { t } = useLanguage()
   const navigate = useNavigate()
   const { products, loading, error } = useProducts()
+  const { canEditApproved, loading: approvalLoading } = useUserApproval()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedProducts, setSelectedProducts] = useState([])
   const [showStockPerWarehouse, setShowStockPerWarehouse] = useState(false)
@@ -395,6 +397,12 @@ export default function Produk() {
                         <tr 
                           key={product.id} 
                           className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                          onClick={() => navigate(`/produk/${product.id}/edit`)}
+                          title={
+                            canEditApproved && !approvalLoading
+                              ? 'Klik untuk mengedit (owner)'
+                              : 'Klik untuk detail (hanya owner yang dapat menyimpan)'
+                          }
                         >
                           <td className="px-4 py-3">
                             <input

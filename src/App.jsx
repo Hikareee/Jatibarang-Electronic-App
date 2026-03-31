@@ -26,6 +26,7 @@ import Kontak from './pages/Kontak'
 import ContactDetail from './pages/ContactDetail'
 import Produk from './pages/Produk'
 import ProductAdd from './pages/ProductAdd'
+import ProductEdit from './pages/ProductEdit'
 import DebtAdd from './pages/DebtAdd'
 import ReceivableAdd from './pages/ReceivableAdd'
 import Akun from './pages/Akun'
@@ -209,6 +210,18 @@ function AppRoutes() {
             <ApprovedRoute>
               <ManagerRoute>
                 <ProductAdd />
+              </ManagerRoute>
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/produk/:id/edit"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <ManagerRoute>
+                <ProductEdit />
               </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>

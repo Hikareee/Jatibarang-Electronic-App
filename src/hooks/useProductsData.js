@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react'
-import { collection, addDoc, getDocs, query, orderBy, limit } from 'firebase/firestore'
+import {
+  collection,
+  addDoc,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  updateDoc,
+} from 'firebase/firestore'
 import { db } from '../firebase/config'
 
 export function useProducts() {
@@ -88,5 +98,27 @@ export async function saveProduct(productData) {
     console.error('Error saving product:', error)
     throw error
   }
+}
+
+export async function getProductById(productId) {
+  const ref = doc(db, 'products', productId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return null
+  return { id: snap.id, ...snap.data() }
+}
+
+/**
+ * Partial update — pass only fields that should change; does not overwrite createdAt.
+ */
+export async function updateProduct(productId, partialData) {
+  const ref = doc(db, 'products', productId)
+  const { id: _omit, createdAt: _c, ...rest } = partialData || {}
+  const payload = Object.fromEntries(
+    Object.entries({
+      ...rest,
+      updatedAt: new Date().toISOString(),
+    }).filter(([, v]) => v !== undefined)
+  )
+  await updateDoc(ref, payload)
 }
 
