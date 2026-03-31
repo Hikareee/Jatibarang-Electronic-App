@@ -1,26 +1,28 @@
 /**
- * One-time SKU renumbering script for Firestore `products`.
+ * Renumber Firestore `products` so every SKU is unique and sequential.
  *
- * - Orders products by "createdAt" ascending (oldest first).
- * - Sets `kode` to sequential "SKU/00001", "SKU/00002", ...
- * - DRY RUN by default. Use `--apply` to actually write.
+ * - Loads ALL documents (no orderBy — avoids missing `createdAt` dropping rows).
+ * - Sorts by `createdAt` → `updatedAt` → document id (stable).
+ * - Assigns `SKU/00001`, `SKU/00002`, … (prefix & width configurable).
+ * - Writes the same value to both `kode` and `sku` (app uses both).
  *
- * Auth (choose one):
- * - Set GOOGLE_APPLICATION_CREDENTIALS to a service account JSON file path
- * - OR set FIREBASE_SERVICE_ACCOUNT_JSON to the JSON contents (string)
+ * DRY RUN by default. Use `--apply` to write.
  *
- * Optional:
- * - FIREBASE_PROJECT_ID (if not included in service account)
- * - SKU_PREFIX (default: "SKU/")
- * - SKU_PAD (default: 5)
- * - LIMIT (for testing, e.g. "50")
+ * Auth (pick one):
+ * - GOOGLE_APPLICATION_CREDENTIALS=/path/to/serviceAccount.json
+ * - FIREBASE_SERVICE_ACCOUNT_JSON='{...}'  (+ FIREBASE_PROJECT_ID if needed)
+ *
+ * Optional env:
+ * - SKU_PREFIX (default SKU/)
+ * - SKU_PAD (default 5)
  *
  * Usage:
- *   node scripts/fix-product-skus.mjs                 # dry run
- *   node scripts/fix-product-skus.mjs --apply        # apply changes
- *   LIMIT=20 node scripts/fix-product-skus.mjs       # dry run first 20
+ *   npm run fix:skus
+ *   npm run fix:skus -- --apply
  */
 
+import fs from 'node:fs'
+import path from 'node:path'
 import admin from 'firebase-admin'
 
 function parseArgs(argv) {
@@ -36,7 +38,7 @@ function getServiceAccount() {
   if (!raw) return null
   try {
     return JSON.parse(raw)
-  } catch (e) {
+  } catch {
     throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON')
   }
 }
@@ -49,7 +51,7 @@ function ensureAdminInitialized() {
     const projectId = process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id
     if (!projectId) {
       throw new Error(
-        'Missing project id. Set FIREBASE_PROJECT_ID or include "project_id" in your service account JSON.'
+        'Missing project id. Set FIREBASE_PROJECT_ID or include "project_id" in service account JSON.'
       )
     }
     admin.initializeApp({
@@ -59,21 +61,39 @@ function ensureAdminInitialized() {
     return
   }
 
-  // Fallback: GOOGLE_APPLICATION_CREDENTIALS
-  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  const jsonPath = process.env.GOOGLE_APPLICATION_CREDENTIALS
+  if (!jsonPath) {
     throw new Error(
       [
         'Missing credentials for Firebase Admin.',
         '',
-        'Set ONE of these:',
-        '- GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/serviceAccount.json',
-        '- FIREBASE_SERVICE_ACCOUNT_JSON=\'{...json...}\'',
+        'Set ONE of:',
+        '- GOOGLE_APPLICATION_CREDENTIALS=/Users/you/Downloads/your-project-firebase-adminsdk-xxxxx.json',
+        '  (must be a real file path from Firebase Console → Project settings → Service accounts → Generate key)',
+        '- FIREBASE_SERVICE_ACCOUNT_JSON=\'{"type":"service_account",...}\'',
         '',
-        'And (if needed) set:',
+        'If needed:',
         '- FIREBASE_PROJECT_ID=your-project-id',
       ].join('\n')
     )
   }
+
+  const resolved = path.isAbsolute(jsonPath) ? jsonPath : path.resolve(process.cwd(), jsonPath)
+  if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+    throw new Error(
+      [
+        `GOOGLE_APPLICATION_CREDENTIALS file not found (or not a file):`,
+        `  "${jsonPath}"`,
+        resolved !== jsonPath ? `  resolved: "${resolved}"` : '',
+        '',
+        'Do not use the placeholder path from the readme. Download a JSON key from Firebase and point to that file.',
+      ]
+        .filter(Boolean)
+        .join('\n')
+    )
+  }
+
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = resolved
 
   admin.initializeApp({
     credential: admin.credential.applicationDefault(),
@@ -90,35 +110,50 @@ function padSku(n, width) {
 function toIso(value) {
   if (!value) return ''
   if (typeof value === 'string') return value
-  // Firestore Timestamp
   if (typeof value.toDate === 'function') return value.toDate().toISOString()
-  // JS Date
   if (value instanceof Date) return value.toISOString()
   return String(value)
+}
+
+/** ms for sort; missing → 0 */
+function toMillis(value) {
+  if (!value) return 0
+  if (typeof value === 'string') {
+    const t = Date.parse(value)
+    return Number.isFinite(t) ? t : 0
+  }
+  if (typeof value.toDate === 'function') return value.toDate().getTime()
+  if (value instanceof Date) return value.getTime()
+  return 0
 }
 
 async function main() {
   const { apply } = parseArgs(process.argv)
   const prefix = (process.env.SKU_PREFIX || 'SKU/').toString()
   const pad = Number(process.env.SKU_PAD || 5)
-  const limit = process.env.LIMIT ? Number(process.env.LIMIT) : null
 
   try {
     ensureAdminInitialized()
   } catch (e) {
     console.error(String(e?.message || e))
     console.error('\nUsage:')
-    console.error('  npm run fix:skus                # dry run')
-    console.error('  npm run fix:skus -- --apply     # apply changes')
+    console.error('  npm run fix:skus           # dry run')
+    console.error('  npm run fix:skus -- --apply')
     process.exit(1)
   }
+
   const db = admin.firestore()
+  const snap = await db.collection('products').get()
+  let docs = snap.docs
 
-  let q = db.collection('products').orderBy('createdAt', 'asc')
-  if (Number.isFinite(limit) && limit > 0) q = q.limit(limit)
-
-  const snap = await q.get()
-  const docs = snap.docs
+  docs = [...docs].sort((a, b) => {
+    const da = a.data() || {}
+    const db_ = b.data() || {}
+    const ta = toMillis(da.createdAt) || toMillis(da.updatedAt)
+    const tb = toMillis(db_.createdAt) || toMillis(db_.updatedAt)
+    if (ta !== tb) return ta - tb
+    return a.id.localeCompare(b.id)
+  })
 
   if (!docs.length) {
     console.log('No products found.')
@@ -131,15 +166,19 @@ async function main() {
     const docSnap = docs[i]
     const data = docSnap.data() || {}
     const desired = `${prefix}${padSku(i + 1, pad)}`
-    const current = String(data.kode || '').trim()
+    const currentKode = String(data.kode || '').trim()
+    const currentSku = String(data.sku || '').trim()
     const createdAt = toIso(data.createdAt) || toIso(data.updatedAt)
     const name = data.nama || data.name || ''
 
-    if (current !== desired) {
+    const needsKode = currentKode !== desired
+    const needsSku = currentSku !== desired
+
+    if (needsKode || needsSku) {
       updates.push({
         id: docSnap.id,
         ref: docSnap.ref,
-        from: current,
+        from: currentKode || currentSku || '(empty)',
         to: desired,
         createdAt,
         name,
@@ -148,13 +187,12 @@ async function main() {
   }
 
   console.log(`Products scanned: ${docs.length}`)
-  console.log(`Changes needed: ${updates.length}`)
+  console.log(`Changes needed: ${updates.length} (kode/sku out of sequence or duplicate)`)
   console.log(`Mode: ${apply ? 'APPLY' : 'DRY RUN'}`)
   console.log('')
 
-  // Print preview (first 50)
   for (const u of updates.slice(0, 50)) {
-    console.log(`${u.createdAt || '-'} | ${u.id} | ${u.name || '-'} | ${u.from || '(empty)'} -> ${u.to}`)
+    console.log(`${u.createdAt || '-'} | ${u.id} | ${u.name || '-'} | ${u.from} -> ${u.to}`)
   }
   if (updates.length > 50) console.log(`...and ${updates.length - 50} more`)
 
@@ -163,29 +201,32 @@ async function main() {
     return
   }
 
-  // Batch write in chunks of 450 to stay under limits
   const chunkSize = 450
   let written = 0
+  const nowIso = new Date().toISOString()
 
-  for (let i = 0; i < updates.length; i += chunkSize) {
-    const chunk = updates.slice(i, i + chunkSize)
+  for (let i = 0; i < docs.length; i += chunkSize) {
+    const chunk = docs.slice(i, i + chunkSize)
     const batch = db.batch()
-    for (const u of chunk) {
-      batch.update(u.ref, {
-        kode: u.to,
-        updatedAt: new Date().toISOString(),
+    for (let j = 0; j < chunk.length; j++) {
+      const docSnap = chunk[j]
+      const globalIndex = i + j
+      const desired = `${prefix}${padSku(globalIndex + 1, pad)}`
+      batch.update(docSnap.ref, {
+        kode: desired,
+        sku: desired,
+        updatedAt: nowIso,
       })
     }
     await batch.commit()
     written += chunk.length
-    console.log(`Committed ${written}/${updates.length}`)
+    console.log(`Committed ${written}/${docs.length}`)
   }
 
-  console.log('Done.')
+  console.log('Done. All products now have unique sequential kode + sku.')
 }
 
 main().catch((err) => {
   console.error(err)
   process.exit(1)
 })
-

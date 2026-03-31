@@ -17,7 +17,10 @@ import {
   Calendar,
   X,
 } from 'lucide-react'
-import { use } from 'react'
+
+/** Company line for Neraca / Neraca Saldo PDFs (unchanged from your data) */
+const PDF_COMPANY_NAME = 'PT. INTEGRASI BANGUN PERKASA'
+const PDF_FOOTER_CITY = 'Cirebon'
 
 function formatRp(num) {
   const n = Number(num || 0)
@@ -279,6 +282,113 @@ function alignRight(docPdf, text, x, y, opts) {
   docPdf.text(text, x - width, y, options)
 }
 
+function pageWidthPt(docPdf) {
+  return docPdf.internal.pageSize.getWidth()
+}
+
+function pageHeightPt(docPdf) {
+  return docPdf.internal.pageSize.getHeight()
+}
+
+/** KKK-style: centered company, bold title, PER date, thick rule */
+function drawStandardReportHeader(docPdf, { title, periodUpper, margin, startY }) {
+  const w = pageWidthPt(docPdf)
+  let y = startY
+  docPdf.setFont('times', 'normal')
+  docPdf.setFontSize(11)
+  docPdf.text(PDF_COMPANY_NAME, w / 2, y, { align: 'center' })
+  y += 16
+  docPdf.setFont('times', 'bold')
+  docPdf.setFontSize(13)
+  docPdf.text(title.toUpperCase(), w / 2, y, { align: 'center' })
+  y += 15
+  docPdf.setFont('times', 'normal')
+  docPdf.setFontSize(10)
+  docPdf.text(periodUpper, w / 2, y, { align: 'center' })
+  y += 12
+  docPdf.setDrawColor(0, 0, 0)
+  docPdf.setLineWidth(1.2)
+  docPdf.line(margin, y, w - margin, y)
+  y += 18
+  return y
+}
+
+/** (Rp) label flush right with short underline (KKK / laporan keuangan style) */
+function drawRpCurrencyRow(docPdf, valueX, y) {
+  docPdf.setFont('times', 'normal')
+  docPdf.setFontSize(10)
+  alignRight(docPdf, '(Rp)', valueX, y)
+  y += 4
+  docPdf.setDrawColor(0, 0, 0)
+  docPdf.setLineWidth(0.5)
+  docPdf.line(valueX - 88, y, valueX, y)
+  y += 14
+  return y
+}
+
+/** Laba rugi: centered company, title, subsidiary date line, thick rule */
+function drawLabaRugiReportHeader(docPdf, { periodUpper, margin, startY }) {
+  const w = pageWidthPt(docPdf)
+  let y = startY
+  docPdf.setFont('times', 'bold')
+  docPdf.setFontSize(11)
+  docPdf.text(PDF_COMPANY_NAME.toUpperCase(), w / 2, y, { align: 'center' })
+  y += 16
+  docPdf.setFontSize(13)
+  docPdf.text('LAPORAN RUGI LABA', w / 2, y, { align: 'center' })
+  y += 15
+  docPdf.setFontSize(10)
+  docPdf.text(
+    `UNTUK TAHUN YANG BERAKHIR PADA TANGGAL ${periodUpper}`,
+    w / 2,
+    y,
+    { align: 'center' }
+  )
+  y += 14
+  docPdf.setDrawColor(0, 0, 0)
+  docPdf.setLineWidth(1.2)
+  docPdf.line(margin, y, w - margin, y)
+  y += 16
+  return y
+}
+
+function drawReportFooter(docPdf, margin) {
+  const w = pageWidthPt(docPdf)
+  const h = pageHeightPt(docPdf)
+  const footY = h - 40
+  docPdf.setFont('times', 'normal')
+  docPdf.setFontSize(10)
+  const footerText = `${PDF_FOOTER_CITY}, ${formatTanggalIdShort(new Date().toISOString())}`
+  alignRight(docPdf, footerText, w - margin, footY)
+}
+
+/** KKK-style: horizontal rule, kota & tanggal kanan, garis tanda tangan */
+function drawAccountingSignatureFooter(docPdf, { margin, totalX, yStart }) {
+  const pageW = pageWidthPt(docPdf)
+  let y = yStart
+  docPdf.setLineWidth(0.5)
+  docPdf.line(margin, y, pageW - margin, y)
+  y += 24
+  docPdf.setFont('times', 'normal')
+  docPdf.setFontSize(10)
+  alignRight(
+    docPdf,
+    `${PDF_FOOTER_CITY}, ${formatTanggalIdShort(new Date().toISOString())}`,
+    totalX,
+    y
+  )
+  y += 20
+  docPdf.setLineWidth(0.35)
+  docPdf.line(totalX - 200, y, totalX, y)
+}
+
+function truncatePdfText(s, maxLen) {
+  const t = String(s || '')
+  if (t.length <= maxLen) return t
+  return `${t.slice(0, maxLen - 1)}…`
+}
+
+
 export default function Laporan() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   useLanguage() // keep Language provider active for translations used elsewhere
@@ -439,83 +549,149 @@ export default function Laporan() {
         } else {
           const endLabel = to ? `${to}` : '-'
           downloadPdf(`KKK_LABA_RUGI_${endLabel}.pdf`, (docPdf) => {
-            // Match the reference PDF layout: same line wording and two-column style.
             docPdf.setFont('times', 'normal')
-            docPdf.setFontSize(10)
+            const margin = 48
+            const pageW = pageWidthPt(docPdf)
+            const totalX = pageW - margin
+            const midX = pageW - margin - 130
+            const labelX = margin
+            const ind1 = margin + 14
+            let y = 40
 
-            const valueX = 500
-            const labelX = 40
-            let y = 30
+            const periodUpper = to ? formatTanggalIdUpper(to) : '31 DESEMBER 2025'
 
-            // Header currency marker (reference shows "Rp")
-            docPdf.text('Rp', labelX, y)
-            y += 16
+            y = drawLabaRugiReportHeader(docPdf, { periodUpper, margin, startY: y })
+            y = drawRpCurrencyRow(docPdf, totalX, y)
 
-            const row = (label, value, style) => {
-              if (style === 'header') {
-                docPdf.setFontSize(11)
-                docPdf.setFont('times', 'bold')
-              } else {
-                docPdf.setFontSize(10)
-                docPdf.setFont('times', 'normal')
-              }
-              docPdf.text(label, labelX, y)
-              if (value !== undefined && value !== '') {
-                const out = typeof value === 'string' ? value : formatRp(value)
-                alignRight(docPdf, out, valueX, y)
-              }
-              y += style === 'header' ? 16 : 14
+            const strWidth = (txt) =>
+              docPdf.getStringUnitWidth(txt) * docPdf.internal.getFontSize() / docPdf.internal.scaleFactor
+
+            const lineAboveTotal = (rightEdge, yy) => {
+              docPdf.setDrawColor(0, 0, 0)
+              docPdf.setLineWidth(0.35)
+              // Keep this safely above the text baseline (jsPDF y can behave like top/alphabetic)
+              docPdf.line(rightEdge - 100, yy - 6, rightEdge, yy - 6)
             }
 
-            // Use 31 DESEMBER YYYY like reference (upper month)
-            const periodUpper = to ? formatTanggalIdUpper(to) : '31 DESEMBER'
-            y += 10
-            const signatureDate = formatTanggalIdShort(new Date().toISOString())
-            docPdf.setFontSize(10)
+            const secTitle = (txt) => {
+              docPdf.setFont('times', 'bold')
+              docPdf.setFontSize(10)
+              docPdf.text(txt, labelX, y)
+              docPdf.setLineWidth(0.35)
+              docPdf.line(labelX, y + 4, labelX + strWidth(txt), y + 4)
+              y += 16
+            }
+
+            const detailMid = (lbl, val, underlineAmount = false) => {
+              docPdf.setFont('times', 'normal')
+              docPdf.setFontSize(10)
+              docPdf.text(lbl, ind1, y)
+              const out = typeof val === 'string' ? val : formatRp(val)
+              alignRight(docPdf, out, midX, y)
+              if (underlineAmount) {
+                docPdf.setLineWidth(0.35)
+                docPdf.line(midX - strWidth(out), y + 4, midX, y + 4)
+              }
+              y += 13
+            }
+
+            const detailMidBold = (lbl, val, underlineAmount = false) => {
+              docPdf.setFont('times', 'bold')
+              docPdf.setFontSize(10)
+              docPdf.text(lbl, ind1, y)
+              const out = typeof val === 'string' ? val : formatRp(val)
+              alignRight(docPdf, out, midX, y)
+              if (underlineAmount) {
+                docPdf.setLineWidth(0.35)
+                docPdf.line(midX - strWidth(out), y + 4, midX, y + 4)
+              }
+              y += 13
+            }
+
+            const itemTotalRight = (lbl, val) => {
+              lineAboveTotal(totalX, y)
+              docPdf.setFont('times', 'normal')
+              docPdf.setFontSize(10)
+              docPdf.text(lbl, ind1, y)
+              alignRight(docPdf, formatRp(val), totalX, y)
+              y += 14
+            }
+
+            const sectionTotalRight = (lbl, val) => {
+              lineAboveTotal(totalX, y)
+              docPdf.setFont('times', 'bold')
+              docPdf.setFontSize(10)
+              docPdf.text(lbl, labelX, y)
+              alignRight(docPdf, formatRp(val), totalX, y)
+              y += 14
+            }
+
+            const bandTotalRight = (lbl, val) => {
+              lineAboveTotal(totalX, y)
+              docPdf.setFont('times', 'bold')
+              docPdf.setFontSize(10)
+              docPdf.text(lbl, labelX, y)
+              alignRight(docPdf, formatRp(val), totalX, y)
+              docPdf.setLineWidth(0.35)
+              docPdf.line(totalX - 102, y + 6, totalX, y + 6)
+              y += 17
+            }
+
+            const finalNetAfterTax = (lbl, val) => {
+              lineAboveTotal(totalX, y)
+              docPdf.setFont('times', 'bold')
+              docPdf.setFontSize(10)
+              docPdf.text(lbl, labelX, y)
+              alignRight(docPdf, formatRp(val), totalX, y)
+              docPdf.setLineWidth(0.85)
+              docPdf.line(totalX - 108, y + 7, totalX, y + 7)
+              docPdf.line(totalX - 108, y + 9, totalX, y + 9)
+              y += 19
+            }
+
+            secTitle('PENJUALAN')
+            itemTotalRight('PENJUALAN', model.penjualan)
+            sectionTotalRight('TOTAL PENDAPATAN', model.totalPendapatan)
+
+            secTitle('HARGA POKOK PENJUALAN')
+            detailMid('PERSEDIAAN BARANG AWAL', model.persediaanAwal)
+            detailMid('PEMBELIAN BERSIH', model.pembelianBersih)
+            detailMid('BARANG SIAP DIJUAL', model.barangSiapDijual, true)
+            detailMid('PERSEDIAAN BARANG AKHIR', model.persediaanAkhir)
+            detailMidBold('TOTAL HARGA POKOK BARANG', model.totalHPPBar)
+            detailMid('BIAYA PENJUALAN LANGSUNG', model.biayaPenjualanLangsung || 0, true)
+            sectionTotalRight('TOTAL HARGA POKOK PENJUALAN', model.totalHargaPokokPenjualan)
+
+            bandTotalRight('LABA KOTOR', model.labaKotor)
+
+            secTitle('BIAYA OPERASI')
+            detailMid('BIAYA KARYAWAN', model.biayaKaryawan)
+            detailMid('BIAYA UMUM & ADMINISTRASI', model.biayaUmumAdmin, true)
+            sectionTotalRight('TOTAL BIAYA OPERASI', model.totalBiayaOperasi)
+
+            sectionTotalRight('LABA/RUGI USAHA', model.labaUsaha)
+
+            secTitle('PENDAPATAN DAN BIAYA LAIN-LAIN')
+            detailMid('PENDAPATAN LAIN-LAIN', model.pendapatanLainLain)
+            detailMid('BIAYA LAIN-LAIN', model.biayaLainLain, true)
+            sectionTotalRight('TOTAL PENDAPATAN & BIAYA LAIN-LAIN', model.totalPendapatanBiayaLain)
+
+            sectionTotalRight('LABA / RUGI SEBELUM PAJAK', model.labaSebelumPajak)
+
+            lineAboveTotal(totalX, y)
             docPdf.setFont('times', 'normal')
-            docPdf.text(`'Cirebon', ${signatureDate}`, 40, y)
-            y += 16
+            docPdf.setFontSize(10)
+            docPdf.text('PAJAK PENGHASILAN', ind1, y)
+            const pajakOut =
+              model.pajakPenghasilan && Number(model.pajakPenghasilan) !== 0
+                ? formatRp(model.pajakPenghasilan)
+                : '-'
+            alignRight(docPdf, pajakOut, totalX, y)
             y += 14
-            docPdf.text('PT. INTEGRASI BANGUN PERKASA', 120, y)
 
-            y += 18
-            docPdf.setFontSize(12)
-            docPdf.setFont('times', 'bold')
-            docPdf.text('LAPORAN RUGI LABA', 40, y)
-            y += 16
-            docPdf.setFont('times', 'normal')
-            docPdf.setFontSize(10)
-            docPdf.text(`UNTUK TAHUN YANG BERAKHIR PADA TANGGAL ${periodUpper}`, 40, y)
-            y += 16
-            row('PENJUALAN', '', 'header')
-            row('PENJUALAN', model.penjualan)
-            row('TOTAL PENDAPATAN', model.totalPendapatan)
-            row('HARGA POKOK PENJUALAN', '', 'header')
-            row('PERSEDIAAN BARANG AWAL', model.persediaanAwal)
-            row('PEMBELIAN BERSIH', model.pembelianBersih)
-            row('BARANG SIAP DIJUAL', model.barangSiapDijual)
-            row('PERSEDIAAN BARANG AKHIR', model.persediaanAkhir)
-            row('TOTAL HARGA POKOK BARANG', model.totalHPPBar)
-            row('BIAYA PENJUALAN LANGSUNG', model.biayaPenjualanLangsung || 0)
-            row('TOTAL HARGA POKOK PENJUALAN', model.totalHargaPokokPenjualan)
-            row('LABA KOTOR', model.labaKotor)
-            row('BIAYA OPERASI', '', 'header')
-            row('BIAYA KARYAWAN', model.biayaKaryawan)
-            row('BIAYA UMUM & ADMINISTRASI', model.biayaUmumAdmin)
-            row('TOTAL BIAYA OPERASI', model.totalBiayaOperasi)
-            row('LABA/RUGI USAHA', model.labaUsaha)
-            row('PENDAPATAN DAN BIAYA LAIN-LAIN', '', 'header')
-            row('PENDAPATAN LAIN-LAIN', model.pendapatanLainLain)
-            // In reference it prints (8.414.206) with parentheses for negative.
-            row('BIAYA LAIN-LAIN', model.biayaLainLain)
-            row('TOTAL PENDAPATAN & BIAYA LAIN-LAIN', model.totalPendapatanBiayaLain)
-            row('LABA / RUGI SEBELUM PAJAK', model.labaSebelumPajak)
-            // Pajak line uses '-' in reference if empty.
-            row('PAJAK PENGHASILAN', model.pajakPenghasilan ? model.pajakPenghasilan : '-')
-            row('LABA / RUGI SETELAH PAJAK', model.labaSetelahPajak)
+            finalNetAfterTax('LABA / RUGI SETELAH PAJAK', model.labaSetelahPajak)
 
-            // Footer order to match reference: signature date/name first, then title lines.
-  
+            drawAccountingSignatureFooter(docPdf, { margin, totalX, yStart: y + 8 })
           })
         }
         return
@@ -546,108 +722,105 @@ export default function Laporan() {
         } else {
           const endLabel = to ? `${to}` : '-'
           downloadPdf(`KKK_NERACA_${endLabel}.pdf`, (docPdf) => {
-            docPdf.setFont('times', 'normal')
-            docPdf.setFontSize(10)
+            const margin = 48
+            const valueX = pageWidthPt(docPdf) - margin
+            const labelX = margin
+            const indent1 = margin + 10
+            const indent2 = margin + 22
+            let y = 42
 
-            const valueX = 500
-            const labelX = 40
-            let y = 30  
+            const periodUpper = to ? formatTanggalIdUpper(to) : '31 DESEMBER'
+            y = drawStandardReportHeader(docPdf, {
+              title: 'NERACA',
+              periodUpper: `PER ${periodUpper}`,
+              margin,
+              startY: y,
+            })
+            y = drawRpCurrencyRow(docPdf, valueX, y)
 
-            const section = (label) => {
-              docPdf.setFontSize(11)
+            const section = (label, subLevel = 0) => {
+              const x = subLevel <= 0 ? labelX : subLevel === 1 ? indent1 : indent2
+              docPdf.setFontSize(10)
               docPdf.setFont('times', 'bold')
-              docPdf.text(label, labelX, y)
-              y += 18
+              docPdf.text(label, x, y)
+              y += 14
             }
 
-            const line = (label, value) => {
-              docPdf.setFont('times', 'normal')
+            const line = (label, value, { indent = 1, bold = false } = {}) => {
+              const x = indent <= 0 ? labelX : indent === 1 ? indent1 : indent2
+              docPdf.setFont('times', bold ? 'bold' : 'normal')
               docPdf.setFontSize(10)
-              docPdf.text(label, labelX, y)
+              docPdf.text(label, x, y)
               alignRight(docPdf, formatRp(value), valueX, y)
-              y += 14
+              if (bold) {
+                docPdf.setDrawColor(0, 0, 0)
+                docPdf.setLineWidth(0.35)
+                docPdf.line(valueX - 120, y - 2, valueX, y - 2)
+              }
+              y += 13
             }
 
             const netLine = (value) => {
               docPdf.setFont('times', 'normal')
-              docPdf.text('', labelX, y)
               alignRight(docPdf, formatRp(value), valueX, y)
-              y += 14
+              y += 13
             }
 
-            // PERIOD
-            const periodUpper = to ? formatTanggalIdUpper(to) : '31 DESEMBER'
+            section('AKTIVA', 0)
+            section('AKTIVA LANCAR', 1)
+            line('KAS & BANK', model.kasBank, { indent: 2 })
+            line('PIUTANG USAHA (IDR)', model.piutangUsaha, { indent: 2 })
+            line('PIUTANG PEMEGANG SAHAM', model.piutangPemegangSaham, { indent: 2 })
+            line('PIUTANG LAIN-LAIN', model.piutangLainLain, { indent: 2 })
+            line('PERSEDIAAN BARANG', model.persediaanBarang, { indent: 2 })
+            line('UANG MUKA PEMBELIAN (IDR)', model.uangMukaPembelian, { indent: 2 })
+            line('BEBAN & PAJAK DIBAYAR DIMUKA', model.bebanPajakDibayarDimuka, { indent: 2 })
+            line('TOTAL AKTIVA LANCAR', model.totalAktivaLancar, { indent: 1, bold: true })
 
-            // Header
-            docPdf.setFont('times', 'normal')
-            docPdf.setFontSize(10)
-            y += 10
-            const signatureDate = formatTanggalIdShort(new Date().toISOString())
-            // Match reference: PT name -> NERACA -> export date
-            docPdf.text('PT. INTEGRASI BANGUN PERKASA', labelX + 100, y)
-            y += 18
-            docPdf.setFont('times', 'bold') 
-            docPdf.setFontSize(18)
-            docPdf.text('NERACA', 170, y)
-            y += 18
-            docPdf.setFont('times', 'normal')
-            docPdf.setFontSize(10)
-            docPdf.text(`Cirebon, ${signatureDate}`, labelX + 100, y)
-            y += 20
-            docPdf.text(`PER ${periodUpper}`, 160, y)
-            y += 22
-
-            section('AKTIVA')
-            section('AKTIVA LANCAR')
-            line('KAS & BANK', model.kasBank)
-            line('PIUTANG USAHA (IDR)', model.piutangUsaha)
-            line('PIUTANG PEMEGANG SAHAM', model.piutangPemegangSaham)
-            line('PIUTANG LAIN-LAIN', model.piutangLainLain)
-            line('PERSEDIAAN BARANG', model.persediaanBarang)
-            line('UANG MUKA PEMBELIAN (IDR)', model.uangMukaPembelian)
-            line('BEBAN & PAJAK DIBAYAR DIMUKA', model.bebanPajakDibayarDimuka)
-            line('TOTAL AKTIVA LANCAR', model.totalAktivaLancar)
-
-            section('AKTIVA TETAP')
-            // Inventory
-            line('INVENTARIS KANTOR', model.inventarisGross)
-            line('AKUMULASI PENYUSUTAN INVENTARIS KANTOR', model.inventarisAcc)
+            section('AKTIVA TETAP', 1)
+            line('INVENTARIS KANTOR', model.inventarisGross, { indent: 2 })
+            line('AKUMULASI PENYUSUTAN INVENTARIS KANTOR', model.inventarisAcc, { indent: 2 })
             netLine(model.inventarisNet)
-            // Vehicles
-            line('KENDARAAN', model.kendaraanGross)
-            line('AKUMULASI PENYUSUTAN KENDARAAN', model.kendaraanAcc)
+            line('KENDARAAN', model.kendaraanGross, { indent: 2 })
+            line('AKUMULASI PENYUSUTAN KENDARAAN', model.kendaraanAcc, { indent: 2 })
             netLine(model.kendaraanNet)
-            // Building
-            line('BANGUNAN', model.bangunanGross)
-            line('AKUMULASI PENYUSUTAN BANGUNAN', model.bangunanAcc)
+            line('BANGUNAN', model.bangunanGross, { indent: 2 })
+            line('AKUMULASI PENYUSUTAN BANGUNAN', model.bangunanAcc, { indent: 2 })
             netLine(model.bangunanNet)
-            line('TOTAL AKTIVA TETAP', model.totalAktivaTetap)
+            line('TOTAL AKTIVA TETAP', model.totalAktivaTetap, { indent: 1, bold: true })
 
-            line('TOTAL AKTIVA', model.totalAktiva)
+            line('TOTAL AKTIVA', model.totalAktiva, { indent: 0, bold: true })
 
-            section('HUTANG & MODAL')
-            section('HUTANG LANCAR')
-            line('HUTANG USAHA (IDR)', model.hutangUsaha)
-            line('HUTANG LAIN-LAIN', model.hutangLain)
-            line('HUTANG PAJAK', model.hutangPajak)
-            line('HUTANG LEASING', model.hutangLeasing)
-            line('HUTANG BANK', model.hutangBank)
-            line('UANG MUKA PENJUALAN', model.uangMukaPenjualan)
-            line('BIAYA YMH DIBAYAR', model.biayaYmhDibayar)
-            line('TOTAL HUTANG LANCAR', model.hutangLancarTotal)
+            section('HUTANG & MODAL', 0)
+            section('HUTANG LANCAR', 1)
+            line('HUTANG USAHA (IDR)', model.hutangUsaha, { indent: 2 })
+            line('HUTANG LAIN-LAIN', model.hutangLain, { indent: 2 })
+            line('HUTANG PAJAK', model.hutangPajak, { indent: 2 })
+            line('HUTANG LEASING', model.hutangLeasing, { indent: 2 })
+            line('HUTANG BANK', model.hutangBank, { indent: 2 })
+            line('UANG MUKA PENJUALAN', model.uangMukaPenjualan, { indent: 2 })
+            line('BIAYA YMH DIBAYAR', model.biayaYmhDibayar, { indent: 2 })
+            line('TOTAL HUTANG LANCAR', model.hutangLancarTotal, { indent: 1, bold: true })
 
-            section('MODAL')
-            line('MODAL YANG DISETOR', model.modalDisetor)
-            line('LABA / RUGI DITAHAN', model.labaDitahan)
-            line('LABA / RUGI TAHUN BERJALAN', model.labaTahunBerjalan)
-            line('TOTAL MODAL', model.totalModal)
+            section('MODAL', 1)
+            line('MODAL YANG DISETOR', model.modalDisetor, { indent: 2 })
+            line('LABA / RUGI DITAHAN', model.labaDitahan, { indent: 2 })
+            line('LABA / RUGI TAHUN BERJALAN', model.labaTahunBerjalan, { indent: 2 })
+            line('TOTAL MODAL', model.totalModal, { indent: 1, bold: true })
 
-            // Bottom "HUTANG & MODAL" total line (label + value on same row)
+            y += 4
+            docPdf.setDrawColor(0, 0, 0)
+            docPdf.setLineWidth(0.9)
+            docPdf.line(labelX, y, valueX, y)
+            y += 12
             docPdf.setFont('times', 'bold')
             docPdf.setFontSize(11)
             docPdf.text('HUTANG & MODAL', labelX, y)
             alignRight(docPdf, formatRp(model.totalHutangModal), valueX, y)
-            y += 20
+            docPdf.setLineWidth(0.9)
+            docPdf.line(labelX, y + 4, valueX, y + 4)
+
+            drawAccountingSignatureFooter(docPdf, { margin, totalX: valueX, yStart: y + 12 })
           })
         }
 
@@ -687,36 +860,109 @@ export default function Laporan() {
           downloadCsv(`neraca-saldo-${stamp}.csv`, headers, bodyRows)
         } else {
           downloadPdf(`KKK_NERACA_SALDO_${stamp}.pdf`, (docPdf) => {
-            docPdf.setFontSize(18)
-            docPdf.text('NERACA SALDO', 40, 55)
-            docPdf.setFontSize(10)
-            docPdf.text(`PERIODE: ${to || '-'}`, 40, 75)
-            docPdf.setFontSize(11)
+            docPdf.setFont('times', 'normal')
 
-            // Very simple table rendering
-            let y = 105
-            const colX = [40, 120, 260, 360, 430, 520]
-            docPdf.text('Kode', colX[0], y)
-            docPdf.text('Nama', colX[1], y)
-            docPdf.text('Kategori', colX[2], y)
-            docPdf.text('Debit', colX[3], y)
-            docPdf.text('Kredit', colX[4], y)
-            docPdf.text('Saldo', colX[5], y)
-            y += 16
+            const margin = 48
+            const pageW = pageWidthPt(docPdf)
+            const valueX = pageW - margin
+            const debitRight = pageW - margin - 128
+            const creditRight = pageW - margin - 68
+            const periodLine = to ? `PER ${formatTanggalIdUpper(to)}` : 'PER —'
 
-            const maxRows = 200
-            prepared.slice(0, maxRows).forEach((r) => {
-              docPdf.setFontSize(9.5)
-              docPdf.text(String(r.code), colX[0], y)
-              docPdf.text(String(r.name), colX[1], y)
-              docPdf.text(String(r.category), colX[2], y)
-              docPdf.text(formatRp(r.debit), colX[3], y)
-              docPdf.text(formatRp(r.credit), colX[4], y)
-              docPdf.text(formatRp(r.saldo), colX[5], y)
-              y += 12
+            const colCode = margin
+            const colName = margin + 56
+            const colCat = margin + 232
+
+            const sorted = [...prepared].sort((a, b) =>
+              String(a.code).localeCompare(String(b.code), undefined, { numeric: true })
+            )
+
+            const totalDebit = sorted.reduce((s, r) => s + (Number(r.debit) || 0), 0)
+            const totalCredit = sorted.reduce((s, r) => s + (Number(r.credit) || 0), 0)
+            const totalSaldo = sorted.reduce((s, r) => s + (Number(r.saldo) || 0), 0)
+
+            const footerReserve = 52
+            const rowH = 10
+
+            let y = 40
+            let continuation = ''
+
+            const drawTableHeader = (yy) => {
+              docPdf.setFont('times', 'bold')
+              docPdf.setFontSize(9)
+              docPdf.text('KODE', colCode, yy)
+              docPdf.text('NAMA AKUN', colName, yy)
+              docPdf.text('KATEGORI', colCat, yy)
+              alignRight(docPdf, 'DEBIT', debitRight, yy)
+              alignRight(docPdf, 'KREDIT', creditRight, yy)
+              alignRight(docPdf, 'SALDO', valueX, yy)
+              yy += 5
+              docPdf.setDrawColor(0, 0, 0)
+              docPdf.setLineWidth(0.45)
+              docPdf.line(margin, yy, pageW - margin, yy)
+              yy += 11
+              docPdf.setFont('times', 'normal')
+              docPdf.setFontSize(8.5)
+              return yy
+            }
+
+            const startPage = () => {
+              y = continuation
+                ? drawStandardReportHeader(docPdf, {
+                    title: `NERACA SALDO${continuation}`,
+                    periodUpper: periodLine,
+                    margin,
+                    startY: 40,
+                  })
+                : drawStandardReportHeader(docPdf, {
+                    title: 'NERACA SALDO',
+                    periodUpper: periodLine,
+                    margin,
+                    startY: 40,
+                  })
+              y = drawRpCurrencyRow(docPdf, valueX, y)
+              y = drawTableHeader(y)
+            }
+
+            startPage()
+
+            sorted.forEach((r) => {
+              if (y > pageHeightPt(docPdf) - footerReserve) {
+                drawReportFooter(docPdf, margin)
+                docPdf.addPage()
+                continuation = ' (LANJUTAN)'
+                startPage()
+              }
+              docPdf.text(truncatePdfText(r.code, 14), colCode, y)
+              docPdf.text(truncatePdfText(r.name, 34), colName, y)
+              docPdf.text(truncatePdfText(r.category, 22), colCat, y)
+              alignRight(docPdf, formatRp(r.debit), debitRight, y)
+              alignRight(docPdf, formatRp(r.credit), creditRight, y)
+              alignRight(docPdf, formatRp(r.saldo), valueX, y)
+              y += rowH
             })
-            docPdf.setFontSize(10)
-            docPdf.text('— generated by Laporan tab —', 40, 780)
+
+            if (y > pageHeightPt(docPdf) - footerReserve - 24) {
+              drawReportFooter(docPdf, margin)
+              docPdf.addPage()
+              continuation = ' (LANJUTAN)'
+              startPage()
+            }
+
+            y += 6
+            docPdf.setDrawColor(0, 0, 0)
+            docPdf.setLineWidth(0.65)
+            docPdf.line(margin, y - 4, pageW - margin, y - 4)
+            docPdf.setFont('times', 'bold')
+            docPdf.setFontSize(9)
+            docPdf.text('JUMLAH', colName, y)
+            alignRight(docPdf, formatRp(totalDebit), debitRight, y)
+            alignRight(docPdf, formatRp(totalCredit), creditRight, y)
+            alignRight(docPdf, formatRp(totalSaldo), valueX, y)
+            docPdf.setFont('times', 'normal')
+            y += rowH
+
+            drawAccountingSignatureFooter(docPdf, { margin, totalX: valueX, yStart: y + 8 })
           })
         }
       }

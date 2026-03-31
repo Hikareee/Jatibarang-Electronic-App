@@ -12,6 +12,7 @@ import {
   Plus,
   Save,
   Image as ImageIcon,
+  Pencil,
 } from 'lucide-react'
 import { getProductById, updateProduct } from '../hooks/useProductsData'
 import FormattedNumberInput from '../components/FormattedNumberInput'
@@ -33,6 +34,17 @@ const defaultForm = {
   wholesalePrices: [],
 }
 
+function cloneProductForm(p) {
+  return {
+    ...p,
+    accountSettings: p.accountSettings && typeof p.accountSettings === 'object' ? { ...p.accountSettings } : {},
+    taxSettings: p.taxSettings && typeof p.taxSettings === 'object' ? { ...p.taxSettings } : {},
+    wholesalePrices: Array.isArray(p.wholesalePrices)
+      ? p.wholesalePrices.map((row) => (row && typeof row === 'object' ? { ...row } : row))
+      : [],
+  }
+}
+
 export default function ProductEdit() {
   const { id } = useParams()
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -50,6 +62,8 @@ export default function ProductEdit() {
   const [showImage, setShowImage] = useState(false)
   const [showAccountTax, setShowAccountTax] = useState(false)
   const [showWholesalePrice, setShowWholesalePrice] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const baselineFormRef = useRef(null)
 
   const autosizeSku = () => {
     const el = skuRef.current
@@ -69,6 +83,7 @@ export default function ProductEdit() {
       try {
         setLoading(true)
         setLoadError(null)
+        setEditMode(false)
         const p = await getProductById(id)
         if (!alive) return
         if (!p) {
@@ -76,7 +91,7 @@ export default function ProductEdit() {
           setLoading(false)
           return
         }
-        setFormData({
+        const loaded = {
           nama: p.nama || '',
           kategori: p.kategori || '',
           kode: p.kode || p.sku || '',
@@ -91,7 +106,10 @@ export default function ProductEdit() {
           accountSettings: p.accountSettings || {},
           taxSettings: p.taxSettings || {},
           wholesalePrices: p.wholesalePrices || [],
-        })
+        }
+        const snapshot = cloneProductForm(loaded)
+        baselineFormRef.current = snapshot
+        setFormData(snapshot)
       } catch (err) {
         console.error(err)
         if (alive) setLoadError('error')
@@ -113,6 +131,7 @@ export default function ProductEdit() {
       alert('Hanya pemilik (owner) yang dapat mengedit produk.')
       return
     }
+    if (!editMode) return
     if (!formData.nama || !formData.kategori || !formData.satuan) {
       alert('Nama Produk, Kategori, dan Satuan wajib diisi')
       return
@@ -181,7 +200,14 @@ export default function ProductEdit() {
     )
   }
 
-  const disabled = !canEdit
+  const fieldsLocked = !canEdit || !editMode
+
+  const handleCancelEdit = () => {
+    if (baselineFormRef.current) {
+      setFormData(cloneProductForm(baselineFormRef.current))
+    }
+    setEditMode(false)
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
@@ -197,12 +223,38 @@ export default function ProductEdit() {
             </div>
 
             <div className="flex items-center justify-between mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Edit Produk</h1>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Edit Produk</h1>
+                {canEdit && !approvalLoading && !editMode && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Klik Edit untuk mengubah data produk.
+                  </p>
+                )}
+              </div>
               <div className="flex items-center gap-3">
                 {!canEdit && !approvalLoading && (
                   <span className="text-sm text-amber-600 dark:text-amber-400">
                     Lihat saja — hanya owner yang dapat mengubah.
                   </span>
+                )}
+                {canEdit && !approvalLoading && !editMode && (
+                  <button
+                    type="button"
+                    onClick={() => setEditMode(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    <span>Edit</span>
+                  </button>
+                )}
+                {canEdit && !approvalLoading && editMode && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Batal
+                  </button>
                 )}
                 <button
                   type="button"
@@ -254,7 +306,7 @@ export default function ProductEdit() {
                     type="text"
                     value={formData.nama}
                     onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
-                    disabled={disabled}
+                    disabled={fieldsLocked}
                     placeholder="Nama Produk"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
                   />
@@ -267,7 +319,7 @@ export default function ProductEdit() {
                   <select
                     value={formData.kategori}
                     onChange={(e) => setFormData({ ...formData, kategori: e.target.value })}
-                    disabled={disabled}
+                    disabled={fieldsLocked}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
                   >
                     <option value="">Pilih Kategori</option>
@@ -288,7 +340,7 @@ export default function ProductEdit() {
                     onChange={(e) => setFormData({ ...formData, kode: e.target.value })}
                     onInput={autosizeSku}
                     rows={1}
-                    disabled={disabled}
+                    disabled={fieldsLocked}
                     placeholder="SKU/00001"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none overflow-hidden disabled:opacity-60"
                   />
@@ -301,7 +353,7 @@ export default function ProductEdit() {
                   <select
                     value={formData.satuan}
                     onChange={(e) => setFormData({ ...formData, satuan: e.target.value })}
-                    disabled={disabled}
+                    disabled={fieldsLocked}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
                   >
                     <option value="Pcs">Pcs</option>
@@ -319,7 +371,7 @@ export default function ProductEdit() {
                     <FormattedNumberInput
                       value={formData.qty}
                       onChange={(value) => setFormData({ ...formData, qty: value })}
-                      disabled={disabled}
+                      disabled={fieldsLocked}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
                     />
                   </div>
@@ -330,7 +382,7 @@ export default function ProductEdit() {
                     <FormattedNumberInput
                       value={formData.hpp}
                       onChange={(value) => setFormData({ ...formData, hpp: value })}
-                      disabled={disabled}
+                      disabled={fieldsLocked}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
                     />
                   </div>
@@ -344,7 +396,7 @@ export default function ProductEdit() {
                     value={formData.deskripsi}
                     onChange={(e) => setFormData({ ...formData, deskripsi: e.target.value })}
                     rows={4}
-                    disabled={disabled}
+                    disabled={fieldsLocked}
                     placeholder="Deskripsi"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
                   />
@@ -377,8 +429,8 @@ export default function ProductEdit() {
                     </label>
                     <button
                       type="button"
-                      onClick={() => canEdit && setFormData({ ...formData, sayaBeli: !formData.sayaBeli })}
-                      disabled={disabled}
+                      onClick={() => !fieldsLocked && setFormData({ ...formData, sayaBeli: !formData.sayaBeli })}
+                      disabled={fieldsLocked}
                       className={`relative w-12 h-6 rounded-full transition-colors ${
                         formData.sayaBeli ? 'bg-blue-600' : 'bg-gray-300'
                       } disabled:opacity-60`}
@@ -398,7 +450,7 @@ export default function ProductEdit() {
                       <FormattedNumberInput
                         value={formData.hargaBeli}
                         onChange={(value) => setFormData({ ...formData, hargaBeli: value })}
-                        disabled={disabled}
+                        disabled={fieldsLocked}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
                       />
                     </div>
@@ -412,8 +464,8 @@ export default function ProductEdit() {
                     </label>
                     <button
                       type="button"
-                      onClick={() => canEdit && setFormData({ ...formData, sayaJual: !formData.sayaJual })}
-                      disabled={disabled}
+                      onClick={() => !fieldsLocked && setFormData({ ...formData, sayaJual: !formData.sayaJual })}
+                      disabled={fieldsLocked}
                       className={`relative w-12 h-6 rounded-full transition-colors ${
                         formData.sayaJual ? 'bg-blue-600' : 'bg-gray-300'
                       } disabled:opacity-60`}
@@ -433,7 +485,7 @@ export default function ProductEdit() {
                       <FormattedNumberInput
                         value={formData.hargaJual}
                         onChange={(value) => setFormData({ ...formData, hargaJual: value })}
-                        disabled={disabled}
+                        disabled={fieldsLocked}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
                       />
                     </div>
@@ -459,7 +511,7 @@ export default function ProductEdit() {
                 </div>
               </div>
 
-              {canEdit && (
+              {canEdit && editMode && (
                 <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
                   <button
                     type="button"
