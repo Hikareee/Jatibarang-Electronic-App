@@ -25,6 +25,7 @@ import {
   Image
 } from 'lucide-react'
 import { useExpenses } from '../hooks/useExpensesData'
+import { useProjects } from '../hooks/useProjectsData'
 
 export default function Biaya() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -33,11 +34,17 @@ export default function Biaya() {
   const { expenses, loading, error, refetch } = useExpenses()
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedProjectId, setSelectedProjectId] = useState('all')
   const [selectedExpenses, setSelectedExpenses] = useState([])
   const [paymentMenuOpen, setPaymentMenuOpen] = useState(null)
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
   const paymentMenuRef = useRef(null)
   const buttonRefs = useRef({})
+  const { projects, loading: projectsLoading } = useProjects()
+  const selectedProjectName =
+    selectedProjectId === 'all'
+      ? ''
+      : projects.find((p) => p.id === selectedProjectId)?.name || ''
 
   const paymentOptions = [
     { label: 'Belum Dibayar', percentage: 0 },
@@ -264,8 +271,13 @@ export default function Biaya() {
       expense.projectName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       expense.accountablePerson?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       expense.accountabilityChain?.toLowerCase().includes(searchQuery.toLowerCase())
+
+    const matchesProject =
+      selectedProjectId === 'all' ||
+      expense.projectId === selectedProjectId ||
+      (selectedProjectName && expense.projectName === selectedProjectName)
     
-    return matchesStatus && matchesSearch
+    return matchesStatus && matchesSearch && matchesProject
   })
 
   const toggleSelectExpense = (expenseId) => {
@@ -422,6 +434,22 @@ export default function Biaya() {
               className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             />
           </div>
+            <div className="relative">
+              <select
+                value={selectedProjectId}
+                onChange={(e) => setSelectedProjectId(e.target.value)}
+                disabled={projectsLoading}
+                className="w-56 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-60"
+              >
+                <option value="all">Semua Proyek</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.code ? `${p.code} — ` : ''}
+                    {p.name || p.id}
+                  </option>
+                ))}
+              </select>
+            </div>
           <div className="relative">
             <input
               type="text"

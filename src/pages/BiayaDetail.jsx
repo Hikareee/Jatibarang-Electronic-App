@@ -10,7 +10,7 @@ import { useAccounts } from '../hooks/useAccountsData'
 import { useProjects } from '../hooks/useProjectsData'
 import { useUserApproval } from '../hooks/useUserApproval'
 import { uploadExpenseAttachment } from '../firebase/supabaseClient'
-import { ChevronLeft, Save, Calendar, Loader2, ImagePlus, X } from 'lucide-react'
+import { ChevronLeft, Save, Calendar, Loader2, ImagePlus, FileText, X } from 'lucide-react'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 
 export default function BiayaDetail() {
@@ -115,8 +115,10 @@ export default function BiayaDetail() {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file || !id) return
-    if (!file.type.startsWith('image/')) {
-      setImageError('Pilih file gambar (JPG, PNG, WebP, dll.)')
+    const isImage = file.type?.startsWith('image/')
+    const isPdf = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf')
+    if (!isImage && !isPdf) {
+      setImageError('Pilih file gambar atau PDF')
       return
     }
     const maxMb = 8
@@ -462,7 +464,7 @@ export default function BiayaDetail() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Lampiran gambar (opsional)
+                      Lampiran (opsional: gambar atau PDF)
                     </label>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                       Diunggah ke Supabase. Unggah atau hapus langsung tersimpan; field lain tetap memakai tombol Simpan
@@ -474,19 +476,46 @@ export default function BiayaDetail() {
                     <div className="flex flex-wrap items-start gap-4">
                       {formData.attachment?.url && (
                         <div className="relative inline-block rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
-                          <a href={formData.attachment.url} target="_blank" rel="noreferrer">
-                            <img
-                              src={formData.attachment.url}
-                              alt={formData.attachment.name || 'Lampiran'}
-                              className="max-h-40 max-w-full object-contain bg-gray-50 dark:bg-gray-900"
-                            />
-                          </a>
+                          {formData.attachment.type?.startsWith('image/') ? (
+                            <a href={formData.attachment.url} target="_blank" rel="noreferrer">
+                              <img
+                                src={formData.attachment.url}
+                                alt={formData.attachment.name || 'Lampiran'}
+                                className="max-h-40 max-w-full object-contain bg-gray-50 dark:bg-gray-900"
+                              />
+                            </a>
+                          ) : (formData.attachment.type === 'application/pdf' ||
+                            formData.attachment.name?.toLowerCase().endsWith('.pdf')) ? (
+                            <div className="p-4 bg-gray-50 dark:bg-gray-900 h-full flex flex-col items-start gap-2">
+                              <FileText className="h-8 w-8 text-gray-700 dark:text-gray-200" />
+                              <a
+                                href={formData.attachment.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-600 dark:text-blue-400 hover:underline break-all"
+                              >
+                                {formData.attachment.name || 'Lihat PDF'}
+                              </a>
+                            </div>
+                          ) : (
+                            <div className="p-4 bg-gray-50 dark:bg-gray-900 h-full flex flex-col items-start gap-2">
+                              <FileText className="h-8 w-8 text-gray-700 dark:text-gray-200" />
+                              <a
+                                href={formData.attachment.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-600 dark:text-blue-400 hover:underline break-all"
+                              >
+                                {formData.attachment.name || 'Lihat Lampiran'}
+                              </a>
+                            </div>
+                          )}
                           {isEditing && (
                             <button
                               type="button"
                               onClick={handleRemoveAttachment}
                               className="absolute top-1 right-1 p-1 rounded bg-black/60 text-white hover:bg-black/80"
-                              aria-label="Hapus gambar"
+                              aria-label="Hapus lampiran"
                             >
                               <X className="h-4 w-4" />
                             </button>
@@ -503,12 +532,12 @@ export default function BiayaDetail() {
                           {uploadingImage
                             ? 'Mengunggah...'
                             : formData.attachment
-                              ? 'Ganti gambar'
-                              : 'Pilih gambar'}
+                              ? 'Ganti lampiran'
+                              : 'Pilih lampiran'}
                         </span>
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/*,application/pdf"
                           className="hidden"
                           disabled={!isEditing || uploadingImage}
                           onChange={handleExpenseImageChange}

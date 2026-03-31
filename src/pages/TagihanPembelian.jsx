@@ -21,6 +21,7 @@ import { usePurchaseInvoices } from '../hooks/usePurchaseInvoices'
 import { doc, updateDoc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { updateAccountBalance } from '../utils/accountBalance'
+import { useProjects } from '../hooks/useProjectsData'
 
 export default function TagihanPembelian() {
   const { t } = useLanguage()
@@ -28,6 +29,7 @@ export default function TagihanPembelian() {
   const { invoices, loading, error, refetch } = usePurchaseInvoices()
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedProjectId, setSelectedProjectId] = useState('all')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [selectedInvoices, setSelectedInvoices] = useState([])
@@ -35,6 +37,11 @@ export default function TagihanPembelian() {
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
   const paymentMenuRef = useRef(null)
   const buttonRefs = useRef({})
+  const { projects, loading: projectsLoading } = useProjects()
+  const selectedProjectName =
+    selectedProjectId === 'all'
+      ? ''
+      : projects.find((p) => p.id === selectedProjectId)?.name || ''
 
   // Format number to Indonesian format
   const formatNumber = (num) => {
@@ -225,8 +232,13 @@ export default function TagihanPembelian() {
     const invDate = getInvoiceDate(invoice)
     const fromOk = !dateFrom || (invDate && invDate >= new Date(`${dateFrom}T00:00:00`))
     const toOk = !dateTo || (invDate && invDate <= new Date(`${dateTo}T23:59:59.999`))
-    
-    return matchesStatus && matchesSearch && fromOk && toOk
+
+    const matchesProject =
+      selectedProjectId === 'all' ||
+      invoice.projectId === selectedProjectId ||
+      (selectedProjectName && invoice.projectName === selectedProjectName)
+
+    return matchesStatus && matchesSearch && matchesProject && fromOk && toOk
   })
 
   const handleExportFilteredCsv = () => {
@@ -385,6 +397,22 @@ export default function TagihanPembelian() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             />
+          </div>
+          <div className="relative">
+            <select
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              disabled={projectsLoading}
+              className="pl-3 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-60"
+            >
+              <option value="all">Semua Proyek</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.code ? `${p.code} — ` : ''}
+                  {p.name || p.id}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">

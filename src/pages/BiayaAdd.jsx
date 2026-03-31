@@ -8,7 +8,7 @@ import { useAccounts } from '../hooks/useAccountsData'
 import { useProjects } from '../hooks/useProjectsData'
 import { getNextExpenseNumber, saveExpense } from '../hooks/useExpensesData'
 import { uploadExpenseAttachment } from '../firebase/supabaseClient'
-import { ChevronLeft, Save, Calendar, ImagePlus, X, Loader2 } from 'lucide-react'
+import { ChevronLeft, Save, Calendar, ImagePlus, FileText, X, Loader2 } from 'lucide-react'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 
 export default function BiayaAdd() {
@@ -58,8 +58,10 @@ export default function BiayaAdd() {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (!file.type.startsWith('image/')) {
-      setImageError('Pilih file gambar (JPG, PNG, WebP, dll.)')
+    const isImage = file.type?.startsWith('image/')
+    const isPdf = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf')
+    if (!isImage && !isPdf) {
+      setImageError('Pilih file gambar atau PDF')
       return
     }
     const maxMb = 8
@@ -312,9 +314,9 @@ export default function BiayaAdd() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Lampiran gambar (opsional)
-                </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Lampiran (opsional: gambar atau PDF)
+                  </label>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                   Disimpan di Supabase Storage (bucket yang sama dengan lampiran invoice).
                 </p>
@@ -324,16 +326,42 @@ export default function BiayaAdd() {
                 <div className="flex flex-wrap items-start gap-4">
                   {attachment?.url && (
                     <div className="relative inline-block rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
-                      <img
-                        src={attachment.url}
-                        alt={attachment.name || 'Lampiran'}
-                        className="max-h-40 max-w-full object-contain bg-gray-50 dark:bg-gray-900"
-                      />
+                      {attachment.type?.startsWith('image/') ? (
+                        <img
+                          src={attachment.url}
+                          alt={attachment.name || 'Lampiran'}
+                          className="max-h-40 max-w-full object-contain bg-gray-50 dark:bg-gray-900"
+                        />
+                      ) : (attachment.type === 'application/pdf' || attachment.name?.toLowerCase().endsWith('.pdf') ? (
+                        <div className="p-4 bg-gray-50 dark:bg-gray-900 h-full flex flex-col items-start gap-2">
+                          <FileText className="h-8 w-8 text-gray-700 dark:text-gray-200" />
+                          <a
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 dark:text-blue-400 hover:underline break-all"
+                          >
+                            {attachment.name || 'Lihat PDF'}
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-gray-50 dark:bg-gray-900 h-full flex flex-col items-start gap-2">
+                          <FileText className="h-8 w-8 text-gray-700 dark:text-gray-200" />
+                          <a
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 dark:text-blue-400 hover:underline break-all"
+                          >
+                            {attachment.name || 'Lihat Lampiran'}
+                          </a>
+                        </div>
+                      ))}
                       <button
                         type="button"
                         onClick={() => setAttachment(null)}
                         className="absolute top-1 right-1 p-1 rounded bg-black/60 text-white hover:bg-black/80"
-                        aria-label="Hapus gambar"
+                        aria-label="Hapus lampiran"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -346,11 +374,11 @@ export default function BiayaAdd() {
                       <ImagePlus className="h-5 w-5 text-gray-500" />
                     )}
                     <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {uploadingImage ? 'Mengunggah...' : attachment ? 'Ganti gambar' : 'Pilih gambar'}
+                      {uploadingImage ? 'Mengunggah...' : attachment ? 'Ganti lampiran' : 'Pilih lampiran'}
                     </span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,application/pdf"
                       className="hidden"
                       disabled={uploadingImage}
                       onChange={handleExpenseImageChange}
