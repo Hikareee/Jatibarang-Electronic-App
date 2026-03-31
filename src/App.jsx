@@ -33,6 +33,7 @@ import Akun from './pages/Akun'
 import Biaya from './pages/Biaya'
 import BiayaAdd from './pages/BiayaAdd'
 import BiayaDetail from './pages/BiayaDetail'
+import UserProfile from './pages/UserProfile'
 import AsetTetap from './pages/AsetTetap'
 import Pemesanan from './pages/Pemesanan'
 import PemesananAdd from './pages/PemesananAdd'
@@ -330,6 +331,18 @@ function AppRoutes() {
             <ApprovedRoute>
               <ManagerRoute>
                 <Laporan />
+              </ManagerRoute>
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/profil"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <ManagerRoute>
+                <UserProfile />
               </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>

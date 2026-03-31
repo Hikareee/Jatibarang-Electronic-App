@@ -3,7 +3,7 @@ import Sidebar from '../components/Dashboard/Sidebar'
 import Header from '../components/Dashboard/Header'
 import Footer from '../components/Dashboard/Footer'
 import { useLanguage } from '../contexts/LanguageContext'
-import { getDocs, collection, query, orderBy } from 'firebase/firestore'
+import { getDocs, collection, query, orderBy, doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAccounts } from '../hooks/useAccountsData'
 import jsPDF from 'jspdf'
@@ -290,26 +290,31 @@ function pageHeightPt(docPdf) {
   return docPdf.internal.pageSize.getHeight()
 }
 
-/** KKK-style: centered company, bold title, PER date, thick rule */
-function drawStandardReportHeader(docPdf, { title, periodUpper, margin, startY }) {
+/** KKK-style: centered header stack + thick rule (shared for all laporan) */
+function drawAccountingReportHeader(docPdf, { title, subtitle, margin, startY }) {
   const w = pageWidthPt(docPdf)
   let y = startY
-  docPdf.setFont('times', 'normal')
-  docPdf.setFontSize(11)
-  docPdf.text(PDF_COMPANY_NAME, w / 2, y, { align: 'center' })
-  y += 16
   docPdf.setFont('times', 'bold')
+  docPdf.setFontSize(11)
+  docPdf.text(PDF_COMPANY_NAME.toUpperCase(), w / 2, y, { align: 'center' })
+  y += 16
   docPdf.setFontSize(13)
   docPdf.text(title.toUpperCase(), w / 2, y, { align: 'center' })
   y += 15
-  docPdf.setFont('times', 'normal')
   docPdf.setFontSize(10)
-  docPdf.text(periodUpper, w / 2, y, { align: 'center' })
-  y += 12
+  if (Array.isArray(subtitle)) {
+    subtitle.forEach((line) => {
+      docPdf.text(String(line || ''), w / 2, y, { align: 'center' })
+      y += 12
+    })
+  } else if (subtitle) {
+    docPdf.text(String(subtitle), w / 2, y, { align: 'center' })
+    y += 12
+  }
   docPdf.setDrawColor(0, 0, 0)
   docPdf.setLineWidth(1.2)
   docPdf.line(margin, y, w - margin, y)
-  y += 18
+  y += 16
   return y
 }
 
@@ -326,31 +331,7 @@ function drawRpCurrencyRow(docPdf, valueX, y) {
   return y
 }
 
-/** Laba rugi: centered company, title, subsidiary date line, thick rule */
-function drawLabaRugiReportHeader(docPdf, { periodUpper, margin, startY }) {
-  const w = pageWidthPt(docPdf)
-  let y = startY
-  docPdf.setFont('times', 'bold')
-  docPdf.setFontSize(11)
-  docPdf.text(PDF_COMPANY_NAME.toUpperCase(), w / 2, y, { align: 'center' })
-  y += 16
-  docPdf.setFontSize(13)
-  docPdf.text('LAPORAN RUGI LABA', w / 2, y, { align: 'center' })
-  y += 15
-  docPdf.setFontSize(10)
-  docPdf.text(
-    `UNTUK TAHUN YANG BERAKHIR PADA TANGGAL ${periodUpper}`,
-    w / 2,
-    y,
-    { align: 'center' }
-  )
-  y += 14
-  docPdf.setDrawColor(0, 0, 0)
-  docPdf.setLineWidth(1.2)
-  docPdf.line(margin, y, w - margin, y)
-  y += 16
-  return y
-}
+// (Legacy header helpers replaced by drawAccountingReportHeader)
 
 function drawReportFooter(docPdf, margin) {
   const w = pageWidthPt(docPdf)
@@ -386,6 +367,25 @@ function truncatePdfText(s, maxLen) {
   const t = String(s || '')
   if (t.length <= maxLen) return t
   return `${t.slice(0, maxLen - 1)}…`
+}
+
+async function resolveContactNamesById(ids) {
+  const unique = Array.from(new Set((ids || []).filter(Boolean)))
+  const out = new Map()
+  await Promise.all(
+    unique.map(async (id) => {
+      try {
+        const snap = await getDoc(doc(db, 'contacts', id))
+        if (snap.exists()) {
+          const d = snap.data() || {}
+          out.set(id, d.name || d.company || id)
+        }
+      } catch (e) {
+        // ignore; fall back to id
+      }
+    })
+  )
+  return out
 }
 
 
@@ -430,7 +430,7 @@ export default function Laporan() {
       },
       {
         title: 'Pembelian',
-        items: [{ key: 'pembelian-detail', label: 'Detail Pembelian', disabled: true }],
+        items: [{ key: 'pembelian-detail', label: 'Detail Pembelian' }],
       },
     ]
   }, [])
@@ -489,6 +489,23 @@ export default function Laporan() {
         if (toD && d > toD) return false
         return true
       })
+  }
+
+  const fetchPurchasesDetail = async ({ from, to }) => {
+    const rows = await fetchPurchases({ from, to })
+    const vendorIds = rows
+      .map((r) => r.vendor)
+      .filter((v) => v && String(v).length > 0 && !String(v).includes(' '))
+    const vendorMap = await resolveContactNamesById(vendorIds)
+    return rows.map((r) => {
+      const rawVendor = r.vendor || ''
+      const vendorName = vendorMap.get(rawVendor) || rawVendor || 'N/A'
+      return {
+        ...r,
+        vendorId: rawVendor,
+        vendorName,
+      }
+    })
   }
 
   const fetchExpenses = async ({ from, to }) => {
@@ -560,7 +577,12 @@ export default function Laporan() {
 
             const periodUpper = to ? formatTanggalIdUpper(to) : '31 DESEMBER 2025'
 
-            y = drawLabaRugiReportHeader(docPdf, { periodUpper, margin, startY: y })
+            y = drawAccountingReportHeader(docPdf, {
+              title: 'LAPORAN RUGI LABA',
+              subtitle: `UNTUK TAHUN YANG BERAKHIR PADA TANGGAL ${periodUpper}`,
+              margin,
+              startY: y,
+            })
             y = drawRpCurrencyRow(docPdf, totalX, y)
 
             const strWidth = (txt) =>
@@ -723,47 +745,64 @@ export default function Laporan() {
           const endLabel = to ? `${to}` : '-'
           downloadPdf(`KKK_NERACA_${endLabel}.pdf`, (docPdf) => {
             const margin = 48
-            const valueX = pageWidthPt(docPdf) - margin
+            const pageW = pageWidthPt(docPdf)
+            const valueX = pageW - margin
+            const amountColW = 118
             const labelX = margin
             const indent1 = margin + 10
             const indent2 = margin + 22
+            const rowGap = 3
+            const lh = 12
             let y = 42
 
             const periodUpper = to ? formatTanggalIdUpper(to) : '31 DESEMBER'
-            y = drawStandardReportHeader(docPdf, {
+            y = drawAccountingReportHeader(docPdf, {
               title: 'NERACA',
-              periodUpper: `PER ${periodUpper}`,
+              subtitle: `PER ${periodUpper}`,
               margin,
               startY: y,
             })
             y = drawRpCurrencyRow(docPdf, valueX, y)
+
+            const strWidthUnits = (txt) =>
+              docPdf.getStringUnitWidth(txt) * docPdf.internal.getFontSize() / docPdf.internal.scaleFactor
 
             const section = (label, subLevel = 0) => {
               const x = subLevel <= 0 ? labelX : subLevel === 1 ? indent1 : indent2
               docPdf.setFontSize(10)
               docPdf.setFont('times', 'bold')
               docPdf.text(label, x, y)
-              y += 14
+              docPdf.setDrawColor(0, 0, 0)
+              docPdf.setLineWidth(0.35)
+              docPdf.line(x, y + 4, x + strWidthUnits(label), y + 4)
+              y += 16
             }
 
             const line = (label, value, { indent = 1, bold = false } = {}) => {
               const x = indent <= 0 ? labelX : indent === 1 ? indent1 : indent2
               docPdf.setFont('times', bold ? 'bold' : 'normal')
               docPdf.setFontSize(10)
-              docPdf.text(label, x, y)
-              alignRight(docPdf, formatRp(value), valueX, y)
+              const labelMaxW = Math.max(72, valueX - amountColW - x)
+              const parts = docPdf.splitTextToSize(label, labelMaxW)
+              const yStart = y
+              parts.forEach((part, i) => {
+                docPdf.text(part, x, yStart + i * lh)
+              })
+              const yAmt = yStart + (parts.length - 1) * lh
               if (bold) {
                 docPdf.setDrawColor(0, 0, 0)
                 docPdf.setLineWidth(0.35)
-                docPdf.line(valueX - 120, y - 2, valueX, y - 2)
+                docPdf.line(valueX - amountColW, yAmt - 6, valueX, yAmt - 6)
               }
-              y += 13
+              alignRight(docPdf, formatRp(value), valueX, yAmt)
+              y = yStart + parts.length * lh + rowGap
             }
 
             const netLine = (value) => {
               docPdf.setFont('times', 'normal')
+              docPdf.setFontSize(10)
               alignRight(docPdf, formatRp(value), valueX, y)
-              y += 13
+              y += lh + rowGap
             }
 
             section('AKTIVA', 0)
@@ -818,9 +857,9 @@ export default function Laporan() {
             docPdf.text('HUTANG & MODAL', labelX, y)
             alignRight(docPdf, formatRp(model.totalHutangModal), valueX, y)
             docPdf.setLineWidth(0.9)
-            docPdf.line(labelX, y + 4, valueX, y + 4)
+            docPdf.line(labelX, y + 6, valueX, y + 6)
 
-            drawAccountingSignatureFooter(docPdf, { margin, totalX: valueX, yStart: y + 12 })
+            drawAccountingSignatureFooter(docPdf, { margin, totalX: valueX, yStart: y + 18 })
           })
         }
 
@@ -908,15 +947,15 @@ export default function Laporan() {
 
             const startPage = () => {
               y = continuation
-                ? drawStandardReportHeader(docPdf, {
+                ? drawAccountingReportHeader(docPdf, {
                     title: `NERACA SALDO${continuation}`,
-                    periodUpper: periodLine,
+                    subtitle: periodLine,
                     margin,
                     startY: 40,
                   })
-                : drawStandardReportHeader(docPdf, {
+                : drawAccountingReportHeader(docPdf, {
                     title: 'NERACA SALDO',
-                    periodUpper: periodLine,
+                    subtitle: periodLine,
                     margin,
                     startY: 40,
                   })
@@ -965,6 +1004,126 @@ export default function Laporan() {
             drawAccountingSignatureFooter(docPdf, { margin, totalX: valueX, yStart: y + 8 })
           })
         }
+      }
+
+      if (type === 'pembelian-detail') {
+        const purchases = await fetchPurchasesDetail({ from, to })
+        const sorted = [...purchases].sort((a, b) => {
+          const da = new Date(a.transactionDate || a.createdAt || 0).getTime() || 0
+          const dbb = new Date(b.transactionDate || b.createdAt || 0).getTime() || 0
+          return da - dbb
+        })
+
+        const totalAll = sorted.reduce((s, r) => s + (Number(r.total) || 0), 0)
+        const periodUpper = (() => {
+          if (from && to) return `PERIODE ${formatTanggalIdUpper(from)} - ${formatTanggalIdUpper(to)}`
+          if (to) return `PER ${formatTanggalIdUpper(to)}`
+          return 'PER —'
+        })()
+
+        if (format === 'csv') {
+          const headers = ['Tanggal', 'No', 'Vendor', 'Status', 'Jatuh Tempo', 'Total']
+          const rows = sorted.map((r) => [
+            r.transactionDate || '',
+            r.number || '',
+            r.vendorName || r.vendor || '',
+            r.status || '',
+            r.dueDate || '',
+            Number(r.total) || 0,
+          ])
+          const stamp = to ? to.slice(0, 4) : 'periode'
+          downloadCsv(`detail-pembelian-${stamp}.csv`, headers, rows)
+        } else {
+          const stamp = to ? to : 'periode'
+          downloadPdf(`KKK_DETAIL_PEMBELIAN_${stamp}.pdf`, (docPdf) => {
+            docPdf.setFont('times', 'normal')
+            const margin = 48
+            const pageW = pageWidthPt(docPdf)
+            const pageH = pageHeightPt(docPdf)
+            const valueX = pageW - margin
+            const footerReserve = 68
+            const rowH = 10
+
+            const colDate = margin
+            const colNo = margin + 74
+            const colVendor = margin + 170
+            const colStatus = margin + 360
+            const colDue = margin + 430
+            const colTotal = valueX
+
+            let y = 40
+            let continuation = ''
+
+            const drawTableHeader = (yy) => {
+              docPdf.setFont('times', 'bold')
+              docPdf.setFontSize(9)
+              docPdf.text('TANGGAL', colDate, yy)
+              docPdf.text('NO', colNo, yy)
+              docPdf.text('VENDOR', colVendor, yy)
+              docPdf.text('STATUS', colStatus, yy)
+              docPdf.text('J.TEMPO', colDue, yy)
+              alignRight(docPdf, 'TOTAL', colTotal, yy)
+              yy += 5
+              docPdf.setDrawColor(0, 0, 0)
+              docPdf.setLineWidth(0.45)
+              docPdf.line(margin, yy, pageW - margin, yy)
+              yy += 11
+              docPdf.setFont('times', 'normal')
+              docPdf.setFontSize(8.5)
+              return yy
+            }
+
+            const startPage = () => {
+              y = drawAccountingReportHeader(docPdf, {
+                title: `DETAIL PEMBELIAN${continuation}`,
+                subtitle: periodUpper,
+                margin,
+                startY: 40,
+              })
+              y = drawRpCurrencyRow(docPdf, valueX, y)
+              y = drawTableHeader(y)
+            }
+
+            startPage()
+
+            sorted.forEach((r) => {
+              if (y > pageH - footerReserve) {
+                drawReportFooter(docPdf, margin)
+                docPdf.addPage()
+                continuation = ' (LANJUTAN)'
+                startPage()
+              }
+              docPdf.text(truncatePdfText(r.transactionDate || '', 12), colDate, y)
+              docPdf.text(truncatePdfText(r.number || '', 14), colNo, y)
+              docPdf.text(truncatePdfText(r.vendorName || r.vendor || '', 28), colVendor, y)
+              docPdf.text(truncatePdfText(r.status || '', 10), colStatus, y)
+              docPdf.text(truncatePdfText(r.dueDate || '', 12), colDue, y)
+              alignRight(docPdf, formatRp(Number(r.total) || 0), colTotal, y)
+              y += rowH
+            })
+
+            if (y > pageH - footerReserve - 24) {
+              drawReportFooter(docPdf, margin)
+              docPdf.addPage()
+              continuation = ' (LANJUTAN)'
+              startPage()
+            }
+
+            y += 6
+            docPdf.setDrawColor(0, 0, 0)
+            docPdf.setLineWidth(0.65)
+            docPdf.line(margin, y - 4, pageW - margin, y - 4)
+            docPdf.setFont('times', 'bold')
+            docPdf.setFontSize(9)
+            docPdf.text('TOTAL', colVendor, y)
+            alignRight(docPdf, formatRp(totalAll), colTotal, y)
+            docPdf.setFont('times', 'normal')
+            y += rowH
+
+            drawAccountingSignatureFooter(docPdf, { margin, totalX: valueX, yStart: y + 10 })
+          })
+        }
+        return
       }
     } catch (err) {
       console.error(err)

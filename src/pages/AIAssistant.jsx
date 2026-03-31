@@ -6,10 +6,10 @@ import Footer from '../components/Dashboard/Footer'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useUserApproval } from '../hooks/useUserApproval'
-import { 
-  Send, 
-  Bot, 
-  User, 
+import {
+  Send,
+  Bot,
+  User,
   Loader2,
   Sparkles,
   AlertCircle,
@@ -18,7 +18,8 @@ import {
   Trash2,
   Edit2,
   X,
-  ChevronLeft
+  ChevronLeft,
+  Image as ImageIcon,
 } from 'lucide-react'
 import { extractData, createDataFromExtracted } from '../utils/aiDataExtraction'
 import { db } from '../firebase/config'
@@ -86,6 +87,7 @@ export default function AIAssistant() {
   const [currentModelIndex, setCurrentModelIndex] = useState(0)
   const [currentModel, setCurrentModel] = useState(AVAILABLE_MODELS[0])
   const [editingChatTitle, setEditingChatTitle] = useState(null)
+  const [attachedImage, setAttachedImage] = useState(null) // { dataUrl, mimeType, name }
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -271,6 +273,32 @@ export default function AIAssistant() {
         console.error('Error deleting chat:', error)
         setError('Gagal menghapus percakapan')
       }
+    }
+  }
+
+  const handleAttachImage = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Store basic metadata for all file types
+    const base = {
+      dataUrl: null,
+      mimeType: file.type || 'application/octet-stream',
+      name: file.name,
+    }
+
+    // For images, also read as data URL so Gemini can see the pixels
+    if (base.mimeType.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = () => {
+        setAttachedImage({
+          ...base,
+          dataUrl: reader.result,
+        })
+      }
+      reader.readAsDataURL(file)
+    } else {
+      setAttachedImage(base)
     }
   }
 
@@ -462,7 +490,14 @@ Pertanyaan user: ${userMessage.content}`
       if (mightBeDataCreation || mightBeForbidden) {
         try {
           const modelName = AVAILABLE_MODELS[currentModelIndex] || AVAILABLE_MODELS[0]
-          const extractedData = await extractData(userInput, apiKey, modelName, userRole)
+          const extractedData = await extractData(
+            userInput,
+            apiKey,
+            modelName,
+            userRole,
+            attachedImage?.dataUrl || null,
+            attachedImage?.mimeType || null
+          )
           
           // Refuse forbidden actions (approve, mark paid, change role, make admin)
           if (extractedData.intent === 'forbidden') {
@@ -477,6 +512,7 @@ Pertanyaan user: ${userMessage.content}`
             setMessages(prev => [...prev, assistantMessage])
             await saveMessage(assistantMessage)
             setLoading(false)
+            setAttachedImage(null)
             return
           }
 
@@ -492,6 +528,7 @@ Pertanyaan user: ${userMessage.content}`
             setMessages(prev => [...prev, assistantMessage])
             await saveMessage(assistantMessage)
             setLoading(false)
+            setAttachedImage(null)
             return
           }
           
@@ -547,6 +584,7 @@ Pertanyaan user: ${userMessage.content}`
             setMessages(prev => [...prev, assistantMessage])
             await saveMessage(assistantMessage)
             setLoading(false)
+            setAttachedImage(null)
             return
           }
         } catch (extractError) {
@@ -852,8 +890,23 @@ Pertanyaan user: ${userMessage.content}`
 
             {/* Input Area */}
             <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-6 py-4">
-              <div className="max-w-4xl mx-auto">
-                <div className="flex items-end gap-3">
+              <div className="max-w-4xl mx-auto space-y-2">
+                {attachedImage && (
+                  <div className="flex items-center justify-between px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-xs text-gray-700 dark:text-gray-200">
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4" />
+                      <span>Lampiran file: {attachedImage.name || 'file'}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAttachedImage(null)}
+                      className="text-gray-500 hover:text-gray-800 dark:hover:text-white"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
                   <div className="flex-1 relative">
                     <textarea
                       ref={inputRef}
@@ -864,7 +917,7 @@ Pertanyaan user: ${userMessage.content}`
                       rows={1}
                       className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white resize-none overflow-hidden"
                       style={{
-                        minHeight: '48px',
+                        minHeight: '44px',
                         maxHeight: '120px',
                       }}
                       onInput={(e) => {
@@ -873,20 +926,30 @@ Pertanyaan user: ${userMessage.content}`
                       }}
                     />
                   </div>
+                  <label className="h-11 w-11 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer flex-shrink-0">
+                    <ImageIcon className="h-5 w-5" />
+                    <input type="file" accept="*/*" onChange={handleAttachImage} className="hidden" />
+                  </label>
                   <button
                     onClick={handleSend}
                     disabled={!input.trim() || loading}
-                    className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                    className="h-11 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center"
                   >
-                    {loading ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Send className="h-5 w-5" />
-                    )}
+                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                   </button>
                 </div>
+                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-yellow-500" />
+                    <span>
+                      Anda bisa kirim teks biasa atau foto struk + instruksi singkat, misalnya:
+                      &quot;catat sebagai biaya bensin&quot;.
+                    </span>
+                  </div>
+                  <span>Model: {currentModel}</span>
+                </div>
                 {error && (
-                  <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                     {error}
                   </p>
                 )}

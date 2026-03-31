@@ -94,8 +94,15 @@ export function matchAccount(accountName, accounts) {
   return null
 }
 
-// Extract data from natural language using Gemini - supports all intents
-export async function extractData(userMessage, apiKey, modelName, userRole = 'employee') {
+// Extract data from natural language (and optional receipt image) using Gemini
+export async function extractData(
+  userMessage,
+  apiKey,
+  modelName,
+  userRole = 'employee',
+  imageBase64 = null,
+  imageMimeType = null
+) {
   try {
     // Fetch contacts and accounts for context
     const [contacts, accounts] = await Promise.all([
@@ -125,6 +132,7 @@ Ekstrak dan kembalikan HANYA objek JSON yang valid dengan struktur ini (gunakan 
   "vendor": "nama kontak" atau null,
   "customer": "nama kontak" atau null,
   "contact": "nama kontak" atau null,
+  "penanggungJawab": "nama kontak" atau null,
   "account": "nama akun" atau null,
   "total": number atau null,
   "reference": "string" atau null,
@@ -152,6 +160,24 @@ Aturan untuk menentukan intent:
 
 Ekstrak semua field yang relevan berdasarkan intent. Kembalikan HANYA objek JSON, tidak ada teks lain.`
 
+    const parts = [
+      {
+        text:
+          prompt +
+          '\n\nIMPORTANT: Return ONLY valid JSON, no markdown, no code blocks, just the JSON object.',
+      },
+    ]
+
+    if (imageBase64) {
+      const cleaned = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64
+      parts.push({
+        inlineData: {
+          mimeType: imageMimeType || 'image/png',
+          data: cleaned,
+        },
+      })
+    }
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
       {
@@ -162,18 +188,14 @@ Ekstrak semua field yang relevan berdasarkan intent. Kembalikan HANYA objek JSON
         body: JSON.stringify({
           contents: [
             {
-              parts: [
-                {
-                  text: prompt + '\n\nIMPORTANT: Return ONLY valid JSON, no markdown, no code blocks, just the JSON object.'
-                }
-              ]
-            }
+              parts,
+            },
           ],
           generationConfig: {
             response_mime_type: 'application/json',
             temperature: 0.1,
-          }
-        })
+          },
+        }),
       }
     )
 
@@ -206,6 +228,9 @@ Ekstrak semua field yang relevan berdasarkan intent. Kembalikan HANYA objek JSON
     if (extractedData.contact) {
       extractedData.contactId = matchContact(extractedData.contact, contacts)
     }
+    if (extractedData.penanggungJawab) {
+      extractedData.penanggungJawabId = matchContact(extractedData.penanggungJawab, contacts)
+    }
 
     // Match account name to ID
     if (extractedData.account) {
@@ -231,6 +256,8 @@ export async function createDataFromExtracted(extractedData) {
           dueDate: extractedData.dueDate || null,
           vendor: extractedData.vendor || '',
           vendorId: extractedData.vendorId || '',
+          penanggungJawab: extractedData.penanggungJawab || '',
+          penanggungJawabId: extractedData.penanggungJawabId || '',
           account: extractedData.account || '',
           accountId: extractedData.accountId || '',
           total: parseFloat(extractedData.total) || 0,
@@ -311,6 +338,8 @@ export async function createDataFromExtracted(extractedData) {
           date: extractedData.transactionDate || today,
           recipient: extractedData.contact || extractedData.vendor || '',
           recipientId: extractedData.contactId || extractedData.vendorId || '',
+          accountablePerson: extractedData.penanggungJawab || '',
+          accountableContactId: extractedData.penanggungJawabId || '',
           account: extractedData.account || '',
           accountId: extractedData.accountId || '',
           total: parseFloat(extractedData.total) || 0,

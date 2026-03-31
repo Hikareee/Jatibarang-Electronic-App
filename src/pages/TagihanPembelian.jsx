@@ -38,6 +38,7 @@ export default function TagihanPembelian() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [selectedInvoices, setSelectedInvoices] = useState([])
+  const [sortConfig, setSortConfig] = useState({ key: 'transactionDate', direction: 'desc' })
   const [paymentMenuOpen, setPaymentMenuOpen] = useState(null)
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
   const paymentMenuRef = useRef(null)
@@ -268,7 +269,58 @@ export default function TagihanPembelian() {
     { label: 'Sudah Lunas', percentage: 100 },
   ]
 
-  // Filter invoices based on payment status and search
+  const sortInvoices = (rows, config) => {
+    if (!config?.key) return rows
+    const dir = config.direction === 'asc' ? 1 : -1
+    const toLower = (v) => String(v || '').toLowerCase()
+    const toDate = (v) => {
+      if (!v) return 0
+      const d = new Date(v)
+      return Number.isNaN(d.getTime()) ? 0 : d.getTime()
+    }
+    const getSortable = (inv) => {
+      switch (config.key) {
+        case 'number':
+          return toLower(inv.number)
+        case 'vendor':
+          return toLower(inv.vendor)
+        case 'reference':
+          return toLower(inv.reference)
+        case 'transactionDate':
+          return toDate(inv.transactionDate || inv.createdAt)
+        case 'dueDate':
+          return toDate(inv.dueDate)
+        case 'createdByName':
+          return toLower(inv.createdByName)
+        case 'penanggungJawab':
+          return toLower(inv.penanggungJawab)
+        case 'total':
+          return Number(inv.total) || 0
+        case 'status':
+          return toLower(getPaymentStatusLabel(inv))
+        default:
+          return 0
+      }
+    }
+    return [...rows].sort((a, b) => {
+      const av = getSortable(a)
+      const bv = getSortable(b)
+      if (av < bv) return -1 * dir
+      if (av > bv) return 1 * dir
+      return 0
+    })
+  }
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+      }
+      return { key, direction: 'asc' }
+    })
+  }
+
+  // Filter invoices based on payment status, search, and filters
   const filteredInvoices = invoices.filter(invoice => {
     const status = getPaymentStatusLabel(invoice)
     const matchesStatus = selectedStatus === 'all' || 
@@ -302,6 +354,8 @@ export default function TagihanPembelian() {
 
     return matchesStatus && matchesSearch && matchesProject && matchesVendor && matchesPenanggung && fromOk && toOk
   })
+
+  const sortedInvoices = sortInvoices(filteredInvoices, sortConfig)
 
   const handleExportFilteredCsv = () => {
     const headers = [
@@ -410,27 +464,6 @@ export default function TagihanPembelian() {
           <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <MoreVertical className="h-5 w-5 text-gray-600 dark:text-gray-400" />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
-              />
-              <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
-            </div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">→</span>
-            <div className="relative">
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
-              />
-              <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
         </div>
       </div>
 
@@ -658,46 +691,72 @@ export default function TagihanPembelian() {
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Nomor
-                    <MoreVertical className="inline h-3 w-3 ml-1" />
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('number')}
+                  >
+                    Nomor <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('vendor')}
+                  >
                     Vendor
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('reference')}
+                  >
                     Referensi
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('transactionDate')}
+                  >
                     Tanggal
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('dueDate')}
+                  >
                     Tgl. Jatuh Tempo
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('createdByName')}
+                  >
                     {t('proposedBy')}
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('penanggungJawab')}
+                  >
                     Penanggung jawab
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('total')}
+                  >
                     TOTAL
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('status')}
+                  >
                     Status
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredInvoices.map((invoice) => {
+                {sortedInvoices.map((invoice) => {
                   const status = getPaymentStatusLabel(invoice)
                   return (
                     <tr 

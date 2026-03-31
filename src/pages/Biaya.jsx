@@ -43,6 +43,7 @@ export default function Biaya() {
   const [selectedExpenses, setSelectedExpenses] = useState([])
   const [paymentMenuOpen, setPaymentMenuOpen] = useState(null)
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' })
   const paymentMenuRef = useRef(null)
   const buttonRefs = useRef({})
   const filterMenuRef = useRef(null)
@@ -306,6 +307,59 @@ export default function Biaya() {
     }
   }
 
+  const sortExpenses = (rows, config) => {
+    if (!config?.key) return rows
+    const dir = config.direction === 'asc' ? 1 : -1
+    const toLower = (v) => String(v || '').toLowerCase()
+    const toDate = (v) => {
+      if (!v) return 0
+      const d = new Date(v)
+      return Number.isNaN(d.getTime()) ? 0 : d.getTime()
+    }
+    const getSortable = (exp) => {
+      switch (config.key) {
+        case 'date':
+          return toDate(exp.date || exp.transactionDate || exp.createdAt)
+        case 'number':
+          return toLower(exp.number)
+        case 'title':
+          return toLower(exp.title)
+        case 'project':
+          return toLower(exp.projectName)
+        case 'reference':
+          return toLower(exp.reference)
+        case 'vendor':
+          return toLower(exp.recipient || exp.vendorName)
+        case 'penanggung':
+          return toLower(exp.accountablePerson)
+        case 'status':
+          return toLower(getExpensePaymentStatusLabel(exp))
+        case 'remaining':
+          return Number(exp.remaining || 0)
+        case 'total':
+          return Number(exp.total || 0)
+        default:
+          return 0
+      }
+    }
+    return [...rows].sort((a, b) => {
+      const av = getSortable(a)
+      const bv = getSortable(b)
+      if (av < bv) return -1 * dir
+      if (av > bv) return 1 * dir
+      return 0
+    })
+  }
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+      }
+      return { key, direction: 'asc' }
+    })
+  }
+
   // Filter expenses based on status and search
   const filteredExpenses = expenses.filter(expense => {
     const status = getStatusLabel(expense)
@@ -340,6 +394,8 @@ export default function Biaya() {
     
     return matchesStatus && matchesSearch && matchesProject && matchesVendor && matchesPenanggung
   })
+
+  const sortedExpenses = sortExpenses(filteredExpenses, sortConfig)
 
   const toggleSelectExpense = (expenseId) => {
     setSelectedExpenses(prev => 
@@ -680,50 +736,80 @@ export default function Biaya() {
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('date')}
+                  >
                     Tanggal
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('number')}
+                  >
                     Nomor
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('title')}
+                  >
                     Title
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('project')}
+                  >
                     Proyek
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('reference')}
+                  >
                     Referensi
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('vendor')}
+                  >
                     Penerima (vendor)
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('penanggung')}
+                  >
                     Penanggung jawab
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('status')}
+                  >
                     Status
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('remaining')}
+                  >
                     Sisa Tagihan
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                    onClick={() => handleSort('total')}
+                  >
                     Total
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredExpenses.map((expense) => {
+                {sortedExpenses.map((expense) => {
                   const paymentLabel = getExpensePaymentStatusLabel(expense)
                   return (
                     <tr 
