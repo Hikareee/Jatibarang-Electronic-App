@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { useExpenses } from '../hooks/useExpensesData'
 import { useProjects } from '../hooks/useProjectsData'
+import { useContacts } from '../hooks/useContactsData'
 
 export default function Biaya() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -35,19 +36,39 @@ export default function Biaya() {
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState('all')
+  const [selectedVendorId, setSelectedVendorId] = useState('all')
+  const [selectedPenanggungId, setSelectedPenanggungId] = useState('all')
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false)
+  const [filterMenuPosition, setFilterMenuPosition] = useState({ top: 0, left: 0 })
   const [selectedExpenses, setSelectedExpenses] = useState([])
   const [paymentMenuOpen, setPaymentMenuOpen] = useState(null)
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
   const paymentMenuRef = useRef(null)
   const buttonRefs = useRef({})
+  const filterMenuRef = useRef(null)
+  const filterButtonRef = useRef(null)
   const { projects, loading: projectsLoading } = useProjects()
+  const { contacts, loading: contactsLoading } = useContacts()
   const selectedProjectName =
     selectedProjectId === 'all'
       ? ''
       : projects.find((p) => p.id === selectedProjectId)?.name || ''
+  const selectedVendorName =
+    selectedVendorId === 'all'
+      ? ''
+      : contacts.find((c) => c.id === selectedVendorId)?.name ||
+        contacts.find((c) => c.id === selectedVendorId)?.company ||
+        ''
+  const selectedPenanggungName =
+    selectedPenanggungId === 'all'
+      ? ''
+      : contacts.find((c) => c.id === selectedPenanggungId)?.name ||
+        contacts.find((c) => c.id === selectedPenanggungId)?.company ||
+        ''
 
   const paymentOptions = [
     { label: 'Belum Dibayar', percentage: 0 },
+    { label: 'Reimburse', percentage: 'reimburse' },
     { label: 'Sudah Dibayar 25%', percentage: 25 },
     { label: 'Sudah Dibayar 50%', percentage: 50 },
     { label: 'Sudah Dibayar 75%', percentage: 75 },
@@ -74,6 +95,24 @@ export default function Biaya() {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [paymentMenuOpen])
+
+  // Close filter menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (!filterMenuOpen) return
+      if (filterMenuRef.current && filterMenuRef.current.contains(event.target)) return
+      if (filterButtonRef.current && filterButtonRef.current.contains(event.target)) return
+      setFilterMenuOpen(false)
+    }
+
+    if (filterMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [filterMenuOpen])
 
   // Format number to Indonesian format
   const formatNumber = (num) => {
@@ -111,6 +150,7 @@ export default function Biaya() {
   }
 
   const getPaymentPercentage = (expense) => {
+    if (expense?.paymentStatus === 'reimburse') return 100
     const remaining = expense.remaining !== undefined ? expense.remaining : expense.total || 0
     const total = expense.total || 0
     if (total === 0) return 0
@@ -120,6 +160,7 @@ export default function Biaya() {
   }
 
   const getExpensePaymentStatusLabel = (expense) => {
+    if (expense?.paymentStatus === 'reimburse') return 'Reimburse'
     const percentage = getPaymentPercentage(expense)
     if (percentage === 100) return 'Sudah Lunas'
     if (percentage === 0) return 'Belum Dibayar'
@@ -127,6 +168,9 @@ export default function Biaya() {
   }
 
   const getPaymentStatusButtonClass = (label) => {
+    if (label === 'Reimburse') {
+      return 'text-blue-600 dark:text-blue-400'
+    }
     if (label === 'Sudah Lunas') {
       return 'text-green-600 dark:text-green-400'
     }
@@ -156,18 +200,22 @@ export default function Biaya() {
         rawRem !== undefined && rawRem !== null && !Number.isNaN(Number(rawRem))
           ? parseFloat(rawRem)
           : total
-      const newRemaining = total * (1 - newPercentage / 100)
+      const isReimburse = newPercentage === 'reimburse'
+      const newRemaining = isReimburse ? 0 : total * (1 - Number(newPercentage || 0) / 100)
       const paymentDifference = currentRemaining - newRemaining
+      const nextPaymentStatus = isReimburse ? 'reimburse' : ''
+      const paymentStatusChanged = (expenseData.paymentStatus || '') !== nextPaymentStatus
 
-      if (Math.abs(paymentDifference) < 0.01) {
+      if (Math.abs(paymentDifference) < 0.01 && !paymentStatusChanged) {
         setPaymentMenuOpen(null)
         return
       }
 
       await updateDoc(expenseRef, {
         remaining: newRemaining,
-        paidPercentage: newPercentage,
+        paidPercentage: isReimburse ? 100 : Number(newPercentage || 0),
         paid: newRemaining < 0.01,
+        paymentStatus: nextPaymentStatus,
         updatedAt: new Date().toISOString(),
       })
 
@@ -185,8 +233,11 @@ export default function Biaya() {
       setPaymentMenuOpen(null)
       refetch()
 
-      const statusText =
-        newPercentage === 100 ? 'Sudah Lunas' : `Sudah Dibayar ${newPercentage}%`
+      const statusText = isReimburse
+        ? 'Reimburse'
+        : newPercentage === 100
+          ? 'Sudah Lunas'
+          : `Sudah Dibayar ${newPercentage}%`
       alert(
         `Status pembayaran diperbarui menjadi ${newPercentage === 0 ? 'Belum Dibayar' : statusText}.` +
           (paymentDifference > 0
@@ -276,8 +327,18 @@ export default function Biaya() {
       selectedProjectId === 'all' ||
       expense.projectId === selectedProjectId ||
       (selectedProjectName && expense.projectName === selectedProjectName)
+
+    const matchesVendor =
+      selectedVendorId === 'all' ||
+      expense.recipientId === selectedVendorId ||
+      expense.recipient === selectedVendorName
+
+    const matchesPenanggung =
+      selectedPenanggungId === 'all' ||
+      expense.accountableContactId === selectedPenanggungId ||
+      expense.accountablePerson === selectedPenanggungName
     
-    return matchesStatus && matchesSearch && matchesProject
+    return matchesStatus && matchesSearch && matchesProject && matchesVendor && matchesPenanggung
   })
 
   const toggleSelectExpense = (expenseId) => {
@@ -417,7 +478,23 @@ export default function Biaya() {
       {/* Filters and Search */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4 mb-4">
         <div className="flex items-center gap-4 flex-wrap">
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+          <button
+            ref={filterButtonRef}
+            type="button"
+            onClick={(e) => {
+              if (filterMenuOpen) {
+                setFilterMenuOpen(false)
+                return
+              }
+              const rect = e.currentTarget.getBoundingClientRect()
+              setFilterMenuPosition({
+                top: rect.bottom + window.scrollY + 8,
+                left: rect.left + window.scrollX,
+              })
+              setFilterMenuOpen(true)
+            }}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
             <Filter className="h-5 w-5 text-gray-600 dark:text-gray-400" />
             <span className="text-gray-700 dark:text-gray-300">Filter</span>
           </button>
@@ -434,22 +511,6 @@ export default function Biaya() {
               className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             />
           </div>
-            <div className="relative">
-              <select
-                value={selectedProjectId}
-                onChange={(e) => setSelectedProjectId(e.target.value)}
-                disabled={projectsLoading}
-                className="w-56 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-60"
-              >
-                <option value="all">Semua Proyek</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.code ? `${p.code} — ` : ''}
-                    {p.name || p.id}
-                  </option>
-                ))}
-              </select>
-            </div>
           <div className="relative">
             <input
               type="text"
@@ -460,6 +521,93 @@ export default function Biaya() {
           </div>
         </div>
       </div>
+
+      {filterMenuOpen && (
+        <div
+          ref={filterMenuRef}
+          className="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-4"
+          style={{
+            zIndex: 9999,
+            minWidth: '320px',
+            top: `${filterMenuPosition.top}px`,
+            left: `${filterMenuPosition.left}px`,
+          }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-semibold text-gray-900 dark:text-white">Filter</div>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedProjectId('all')
+                setSelectedVendorId('all')
+                setSelectedPenanggungId('all')
+                setFilterMenuOpen(false)
+              }}
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Reset
+            </button>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">
+              Proyek
+            </label>
+            <select
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              disabled={projectsLoading}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-60"
+            >
+              <option value="all">Semua Proyek</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.code ? `${p.code} — ` : ''}
+                  {p.name || p.id}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mt-3">
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">
+              Vendor
+            </label>
+            <select
+              value={selectedVendorId}
+              onChange={(e) => setSelectedVendorId(e.target.value)}
+              disabled={contactsLoading}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-60"
+            >
+              <option value="all">Semua Vendor</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name || c.company || c.email || c.id}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mt-3">
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">
+              Penanggung jawab
+            </label>
+            <select
+              value={selectedPenanggungId}
+              onChange={(e) => setSelectedPenanggungId(e.target.value)}
+              disabled={contactsLoading}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-60"
+            >
+              <option value="all">Semua Penanggung jawab</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name || c.company || c.email || c.id}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Status Tabs */}
       <div className="flex items-center gap-2 mb-4 border-b border-gray-200 dark:border-gray-700">
@@ -654,7 +802,11 @@ export default function Biaya() {
                               <div className="py-1">
                                 {paymentOptions.map((option) => {
                                   const currentPercentage = getPaymentPercentage(expense)
-                                  const isSelected = currentPercentage === option.percentage
+                                  const isReimburse = expense?.paymentStatus === 'reimburse'
+                                  const isSelected =
+                                    option.percentage === 'reimburse'
+                                      ? isReimburse
+                                      : !isReimburse && currentPercentage === option.percentage
                                   return (
                                     <button
                                       key={option.percentage}

@@ -52,6 +52,7 @@ export function usePurchaseInvoices() {
           return {
             id: invoiceDoc.id,
             ...data,
+            vendorId: data.vendor || '',
             vendor: vendorName,
             createdByName: createdByName,
             penanggungJawab: data.penanggungJawab || data.responsibleContactName || '',
