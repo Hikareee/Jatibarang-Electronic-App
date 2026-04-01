@@ -31,6 +31,26 @@ const COLORS = {
   red: '#EF4444',
 }
 
+/** BIAYA BULAN LALU: one color per slice / legend row */
+const EXPENSE_PIE_PALETTE = [
+  COLORS.blue,
+  COLORS.teal,
+  COLORS.purple,
+  COLORS.yellow,
+  COLORS.pink,
+  COLORS.red,
+  '#6366F1',
+  '#22C55E',
+]
+
+function pickExpenseSliceColor(name, index) {
+  const n = String(name || '').toLowerCase()
+  if (n.includes('bank')) return COLORS.blue
+  if (n.includes('kas') || n.includes('cash')) return COLORS.teal
+  if (n.includes('biaya') || n.includes('expense')) return COLORS.purple
+  return EXPENSE_PIE_PALETTE[index % EXPENSE_PIE_PALETTE.length]
+}
+
 // Format number to Indonesian format
 function formatNumber(num) {
   if (num === null || num === undefined) return '0'
@@ -93,12 +113,14 @@ export default function DashboardContent() {
         { month: 'Des', value: 0 },
       ]
 
-  // Expenses for donut chart
+  // Expenses for donut chart (distinct color per account / category)
   const expensesData = (data?.expenses && Array.isArray(data.expenses) && data.expenses.length > 0)
-    ? data.expenses.map(expense => ({
+    ? data.expenses.map((expense, index) => ({
         name: expense.name,
         value: expense.value || 0,
-        color: expense.color || COLORS.pink
+        color:
+          expense.color ||
+          pickExpenseSliceColor(expense.name, index),
       }))
     : []
 

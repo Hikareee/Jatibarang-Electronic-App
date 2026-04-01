@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, addDoc, getDocs, query, orderBy, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { collection, addDoc, getDocs, query, orderBy, where, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -21,15 +21,23 @@ export function useAIChatHistory() {
       setError(null)
       
       const chatsRef = collection(db, 'aiChats')
-      const q = query(chatsRef, orderBy('updatedAt', 'desc'))
-      const snapshot = await getDocs(q)
-      
-      const chatsData = snapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-        .filter(chat => chat.userId === currentUser.uid)
+      // Query server-side for only this user's chats (prevents missing items due to rules)
+      let snapshot
+      try {
+        const q = query(chatsRef, where('userId', '==', currentUser.uid), orderBy('updatedAt', 'desc'))
+        snapshot = await getDocs(q)
+      } catch (err) {
+        // Fallback if composite index/orderBy isn't available yet
+        const q = query(chatsRef, where('userId', '==', currentUser.uid))
+        snapshot = await getDocs(q)
+      }
+
+      const chatsData = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }))
+      // If we fell back without ordering, sort client-side
+      chatsData.sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
       
       setChats(chatsData)
     } catch (err) {
