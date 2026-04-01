@@ -19,6 +19,7 @@ import { useUserApproval } from '../hooks/useUserApproval'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 import OptionalFieldPopup from '../components/OptionalFieldPopup'
 import { useProducts } from '../hooks/useProductsData'
+import { useProjects } from '../hooks/useProjectsData'
 import { uploadToBucket } from '../firebase/supabaseClient'
 
 export default function PurchaseInvoiceEdit() {
@@ -31,6 +32,7 @@ export default function PurchaseInvoiceEdit() {
   const { currentUser } = useAuth()
   const { canEditApproved, role } = useUserApproval()
   const { products = [], loading: productsLoading } = useProducts()
+  const { projects = [], loading: projectsLoading } = useProjects()
   const { invoice, loading, error, updateInvoice } = usePurchaseInvoiceDetail(id)
   const [saving, setSaving] = useState(false)
   const [showShippingInfo, setShowShippingInfo] = useState(false)
@@ -54,6 +56,8 @@ export default function PurchaseInvoiceEdit() {
     dueDate: '',
     term: 'Net 30',
     warehouse: 'Unassigned',
+    projectId: '',
+    projectName: '',
     reference: '',
     tag: '',
     shippingInfo: {},
@@ -137,6 +141,8 @@ export default function PurchaseInvoiceEdit() {
         dueDate: invoice.dueDate || '',
         term: invoice.term || 'Net 30',
         warehouse: invoice.warehouse || 'Unassigned',
+        projectId: invoice.projectId || '',
+        projectName: invoice.projectName || '',
         reference: invoice.reference || '',
         tag: invoice.tag || '',
         shippingInfo: invoice.shippingInfo || {},
@@ -255,11 +261,16 @@ export default function PurchaseInvoiceEdit() {
       if (invoice) {
         if (invoice.vendor !== formData.vendor) changes.vendor = { from: invoice.vendor, to: formData.vendor }
         if (invoice.total !== calculateTotal()) changes.total = { from: invoice.total, to: calculateTotal() }
+        if ((invoice.projectId || '') !== (formData.projectId || '')) {
+          changes.projectId = { from: invoice.projectId || '', to: formData.projectId || '' }
+        }
         // Add more change tracking as needed
       }
 
       const invoiceData = {
         ...formData,
+        projectName:
+          projects.find((p) => p.id === formData.projectId)?.name || formData.projectName || '',
         subTotal: calculateSubTotal(),
         total: calculateTotal(),
         remaining: calculateRemaining(),
@@ -321,6 +332,30 @@ export default function PurchaseInvoiceEdit() {
             <ChevronLeft className="h-5 w-5" />
             <span>Kembali</span>
           </button>
+        </div>
+      </div>
+
+      {/* Proyek selector (keep consistent with "Tambah Tagihan Pembelian") */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Proyek
+            </label>
+            <select
+              value={formData.projectId}
+              onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+              disabled={projectsLoading}
+            >
+              <option value="">Tidak dipilih</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}{project.code ? ` (${project.code})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

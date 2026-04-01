@@ -105,6 +105,27 @@ export async function saveContact(contactData) {
     if (contactData.company) cleanedData.company = contactData.company
     if (contactData.phone) cleanedData.phone = contactData.phone
     if (contactData.email) cleanedData.email = contactData.email
+
+    // Payroll fields (for Pegawai). Stored under cleanedData.payroll.
+    if (contactData.payroll && typeof contactData.payroll === 'object') {
+      const p = contactData.payroll
+      cleanedData.payroll = {
+        baseSalary: Number(p.baseSalary || 0) || 0,
+        allowances: Array.isArray(p.allowances) ? p.allowances : [],
+        deductions: Array.isArray(p.deductions) ? p.deductions : [],
+        ptkp: p.ptkp || 'TK/0',
+        npwp: p.npwp || '',
+        bpjsEnabled: !!p.bpjsEnabled,
+        bank: p.bank && typeof p.bank === 'object'
+          ? {
+              bankName: p.bank.bankName || '',
+              bankCode: p.bank.bankCode || '',
+              accountNumber: p.bank.accountNumber || '',
+              accountName: p.bank.accountName || '',
+            }
+          : { bankName: '', bankCode: '', accountNumber: '', accountName: '' },
+      }
+    }
     
     // Financial fields - always include with default 0
     cleanedData.andaHutang = contactData.andaHutang || 0
@@ -155,6 +176,27 @@ export async function updateContact(contactId, contactData) {
     if (contactData.company) cleanedData.company = contactData.company
     if (contactData.phone) cleanedData.phone = contactData.phone
     if (contactData.email) cleanedData.email = contactData.email
+
+    // Payroll fields (optional)
+    if (contactData.payroll && typeof contactData.payroll === 'object') {
+      const p = contactData.payroll
+      cleanedData.payroll = {
+        baseSalary: Number(p.baseSalary || 0) || 0,
+        allowances: Array.isArray(p.allowances) ? p.allowances : [],
+        deductions: Array.isArray(p.deductions) ? p.deductions : [],
+        ptkp: p.ptkp || 'TK/0',
+        npwp: p.npwp || '',
+        bpjsEnabled: !!p.bpjsEnabled,
+        bank: p.bank && typeof p.bank === 'object'
+          ? {
+              bankName: p.bank.bankName || '',
+              bankCode: p.bank.bankCode || '',
+              accountNumber: p.bank.accountNumber || '',
+              accountName: p.bank.accountName || '',
+            }
+          : { bankName: '', bankCode: '', accountNumber: '', accountName: '' },
+      }
+    }
     
     // Update timestamp
     cleanedData.updatedAt = new Date().toISOString()

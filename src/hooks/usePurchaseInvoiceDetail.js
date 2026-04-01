@@ -163,6 +163,8 @@ export function usePurchaseInvoiceDetail(invoiceId) {
           dataToSave.penanggungJawabId || dataToSave.responsibleContactId || ''
         const penanggungJawab =
           dataToSave.penanggungJawab || dataToSave.responsibleContactName || ''
+        const projectId = dataToSave.projectId || ''
+        const projectName = dataToSave.projectName || ''
 
         const txQ = query(
           collection(db, 'transactions'),
@@ -174,7 +176,9 @@ export function usePurchaseInvoiceDetail(invoiceId) {
           txSnap.docs.map((txDoc) =>
             updateDoc(txDoc.ref, {
               penanggungJawabId,
-              penanggungJawab
+              penanggungJawab,
+              projectId,
+              projectName,
             })
           )
         )

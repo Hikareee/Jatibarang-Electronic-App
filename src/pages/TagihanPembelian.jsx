@@ -292,8 +292,8 @@ export default function TagihanPembelian() {
           return toDate(inv.dueDate)
         case 'createdByName':
           return toLower(inv.createdByName)
-        case 'penanggungJawab':
-          return toLower(inv.penanggungJawab)
+        case 'projectName':
+          return toLower(inv.projectName)
         case 'total':
           return Number(inv.total) || 0
         case 'status':
@@ -366,7 +366,7 @@ export default function TagihanPembelian() {
       'Tanggal',
       'Tgl Jatuh Tempo',
       'Diusulkan Oleh',
-      'Penanggung jawab',
+      'Proyek',
       'Total',
       'Remaining',
       'Status Pembayaran',
@@ -381,7 +381,7 @@ export default function TagihanPembelian() {
         formatDate(inv.transactionDate || inv.createdAt) || '',
         formatDate(inv.dueDate) || '',
         inv.createdByName || '',
-        inv.penanggungJawab || '',
+        inv.projectName || '',
         Number(inv.total || 0),
         Number(inv.remaining !== undefined ? inv.remaining : (inv.total || 0)),
         status,
@@ -734,9 +734,9 @@ export default function TagihanPembelian() {
                   </th>
                   <th
                     className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
-                    onClick={() => handleSort('penanggungJawab')}
+                    onClick={() => handleSort('projectName')}
                   >
-                    Penanggung jawab
+                    Proyek
                     <MoreVertical className="inline h-3 w-3 ml-1" />
                   </th>
                   <th
@@ -791,7 +791,7 @@ export default function TagihanPembelian() {
                         {invoice.createdByName || 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                        {invoice.penanggungJawab || 'N/A'}
+                        {invoice.projectName || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white text-right font-medium">
                         {formatNumber(invoice.total || 0)}

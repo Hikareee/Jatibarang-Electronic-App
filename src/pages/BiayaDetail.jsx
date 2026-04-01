@@ -241,7 +241,7 @@ export default function BiayaDetail() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-7xl mx-auto">
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Beranda &gt; Biaya &gt; Detail
             </div>
@@ -289,276 +289,391 @@ export default function BiayaDetail() {
               <p className="text-red-600 dark:text-red-400">{error}</p>
             ) : (
               <>
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Tanggal *
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="date"
-                          value={formData.date}
-                          onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                          disabled={!isEditing}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                        />
-                        <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Left: form sections */}
+                  <div className="lg:col-span-2 space-y-6">
+                    {/* Info utama */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                      <div className="flex items-center justify-between mb-5">
+                        <div>
+                          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Info utama</h2>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Data dasar biaya dan pihak terkait.
+                          </p>
+                        </div>
+                        {!isEditing && (
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                            Mode lihat
+                          </span>
+                        )}
+                        {isEditing && (
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
+                            Mode edit
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Tanggal *
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="date"
+                              value={formData.date}
+                              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                              disabled={!isEditing}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            <Calendar className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            No. Biaya
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.number}
+                            onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+                            disabled={!isEditing}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Penerima (vendor / PT) *
+                          </label>
+                          <select
+                            value={formData.recipient}
+                            onChange={(e) => setFormData({ ...formData, recipient: e.target.value })}
+                            disabled={!isEditing || contactsLoading}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">Pilih kontak</option>
+                            {contacts.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name || c.company || 'Unnamed Contact'}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Pihak yang menerima pembayaran atas jasa atau barang.
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Penanggung jawab internal
+                          </label>
+                          <select
+                            value={formData.accountableContactId}
+                            onChange={(e) => setFormData({ ...formData, accountableContactId: e.target.value })}
+                            disabled={!isEditing || contactsLoading}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">Tanpa penanggung jawab (opsional)</option>
+                            {contacts.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name || c.company || 'Unnamed Contact'}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Orang di perusahaan Anda yang bertanggung jawab atas penggunaan dana.
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        No. Biaya
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.number}
-                        onChange={(e) => setFormData({ ...formData, number: e.target.value })}
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Penerima (vendor / PT) *
-                      </label>
-                      <select
-                        value={formData.recipient}
-                        onChange={(e) => setFormData({ ...formData, recipient: e.target.value })}
-                        disabled={!isEditing || contactsLoading}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                      >
-                        <option value="">Pilih kontak</option>
-                        {contacts.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name || c.company || 'Unnamed Contact'}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Pihak yang menerima pembayaran atas jasa atau barang.
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Penanggung jawab internal
-                      </label>
-                      <select
-                        value={formData.accountableContactId}
-                        onChange={(e) => setFormData({ ...formData, accountableContactId: e.target.value })}
-                        disabled={!isEditing || contactsLoading}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                      >
-                        <option value="">Tanpa penanggung jawab (opsional)</option>
-                        {contacts.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name || c.company || 'Unnamed Contact'}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Orang di perusahaan Anda yang bertanggung jawab atas penggunaan dana.
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Akun *
-                      </label>
-                      <select
-                        value={formData.account}
-                        onChange={(e) => setFormData({ ...formData, account: e.target.value })}
-                        disabled={!isEditing || accountsLoading}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                      >
-                        <option value="">Pilih akun</option>
-                        {accounts.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.code} - {a.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Proyek
-                      </label>
-                      <select
-                        value={formData.projectId}
-                        onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
-                        disabled={!isEditing || projectsLoading}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                      >
-                        <option value="">Tanpa proyek</option>
-                        {projects.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.code ? `${p.code} — ` : ''}
-                            {p.name || p.id}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Referensi
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.reference}
-                        onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Total *
-                      </label>
-                      <FormattedNumberInput
-                        value={formData.total}
-                        onChange={(value) => setFormData({ ...formData, total: value })}
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white bg-white text-gray-900"
-                      />
-                    </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Alur pertanggungjawaban (opsional)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.accountabilityChain}
-                      onChange={(e) => setFormData({ ...formData, accountabilityChain: e.target.value })}
-                      disabled={!isEditing}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                      placeholder="Contoh: Perusahaan → saya → PT Victory"
-                    />
-                  </div>
+                    {/* Detail transaksi */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                      <div className="mb-5">
+                        <h2 className="text-base font-semibold text-gray-900 dark:text-white">Detail transaksi</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          Akun, proyek, dan referensi.
+                        </p>
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Title *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      disabled={!isEditing}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Description *
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      disabled={!isEditing}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Lampiran (opsional: gambar atau PDF)
-                    </label>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                      Diunggah ke Supabase. Unggah atau hapus langsung tersimpan; field lain tetap memakai tombol Simpan
-                      Perubahan.
-                    </p>
-                    {imageError && (
-                      <p className="text-sm text-red-600 dark:text-red-400 mb-2">{imageError}</p>
-                    )}
-                    <div className="flex flex-wrap items-start gap-4">
-                      {formData.attachment?.url && (
-                        <div className="relative inline-block rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
-                          {formData.attachment.type?.startsWith('image/') ? (
-                            <a href={formData.attachment.url} target="_blank" rel="noreferrer">
-                              <img
-                                src={formData.attachment.url}
-                                alt={formData.attachment.name || 'Lampiran'}
-                                className="max-h-40 max-w-full object-contain bg-gray-50 dark:bg-gray-900"
-                              />
-                            </a>
-                          ) : (formData.attachment.type === 'application/pdf' ||
-                            formData.attachment.name?.toLowerCase().endsWith('.pdf')) ? (
-                            <div className="p-4 bg-gray-50 dark:bg-gray-900 h-full flex flex-col items-start gap-2">
-                              <FileText className="h-8 w-8 text-gray-700 dark:text-gray-200" />
-                              <a
-                                href={formData.attachment.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-blue-600 dark:text-blue-400 hover:underline break-all"
-                              >
-                                {formData.attachment.name || 'Lihat PDF'}
-                              </a>
-                            </div>
-                          ) : (
-                            <div className="p-4 bg-gray-50 dark:bg-gray-900 h-full flex flex-col items-start gap-2">
-                              <FileText className="h-8 w-8 text-gray-700 dark:text-gray-200" />
-                              <a
-                                href={formData.attachment.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-blue-600 dark:text-blue-400 hover:underline break-all"
-                              >
-                                {formData.attachment.name || 'Lihat Lampiran'}
-                              </a>
-                            </div>
-                          )}
-                          {isEditing && (
-                            <button
-                              type="button"
-                              onClick={handleRemoveAttachment}
-                              className="absolute top-1 right-1 p-1 rounded bg-black/60 text-white hover:bg-black/80"
-                              aria-label="Hapus lampiran"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Akun *
+                          </label>
+                          <select
+                            value={formData.account}
+                            onChange={(e) => setFormData({ ...formData, account: e.target.value })}
+                            disabled={!isEditing || accountsLoading}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">Pilih akun</option>
+                            {accounts.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.code} - {a.name}
+                              </option>
+                            ))}
+                          </select>
                         </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Proyek
+                          </label>
+                          <select
+                            value={formData.projectId}
+                            onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+                            disabled={!isEditing || projectsLoading}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">Tanpa proyek</option>
+                            {projects.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.code ? `${p.code} — ` : ''}
+                                {p.name || p.id}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Referensi
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.reference}
+                            onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+                            disabled={!isEditing}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Total *
+                          </label>
+                          <FormattedNumberInput
+                            value={formData.total}
+                            onChange={(value) => setFormData({ ...formData, total: value })}
+                            disabled={!isEditing}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rincian & catatan */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                      <div className="mb-5">
+                        <h2 className="text-base font-semibold text-gray-900 dark:text-white">Rincian & catatan</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          Judul, deskripsi, dan alur pertanggungjawaban.
+                        </p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Title *
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.title}
+                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                            disabled={!isEditing}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Description *
+                          </label>
+                          <textarea
+                            rows={4}
+                            value={formData.description}
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            disabled={!isEditing}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Alur pertanggungjawaban (opsional)
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.accountabilityChain}
+                            onChange={(e) => setFormData({ ...formData, accountabilityChain: e.target.value })}
+                            disabled={!isEditing}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Contoh: Perusahaan → saya → PT Victory"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {isEditing && (
+                      <div className="flex justify-end gap-3">
+                        <button
+                          onClick={handleSave}
+                          disabled={saving}
+                          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          <Save className="h-5 w-5" />
+                          <span>Simpan Perubahan</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: summary + attachment */}
+                  <div className="space-y-6">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                      <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Ringkasan</h2>
+
+                      <div className="flex items-end justify-between">
+                        <div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Total</p>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {new Intl.NumberFormat('id-ID').format(Number(formData.total || 0))}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 space-y-3 text-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-gray-500 dark:text-gray-400">Akun</span>
+                          <span className="text-gray-900 dark:text-white text-right">
+                            {accounts.find((a) => a.id === formData.account)?.name || '-'}
+                          </span>
+                        </div>
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-gray-500 dark:text-gray-400">Proyek</span>
+                          <span className="text-gray-900 dark:text-white text-right">
+                            {projects.find((p) => p.id === formData.projectId)?.name || '-'}
+                          </span>
+                        </div>
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-gray-500 dark:text-gray-400">Penerima</span>
+                          <span className="text-gray-900 dark:text-white text-right">
+                            {contacts.find((c) => c.id === formData.recipient)?.name ||
+                              contacts.find((c) => c.id === formData.recipient)?.company ||
+                              '-'}
+                          </span>
+                        </div>
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-gray-500 dark:text-gray-400">PJ internal</span>
+                          <span className="text-gray-900 dark:text-white text-right">
+                            {contacts.find((c) => c.id === formData.accountableContactId)?.name ||
+                              contacts.find((c) => c.id === formData.accountableContactId)?.company ||
+                              '-'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                      <div className="flex items-start justify-between gap-4 mb-2">
+                        <div>
+                          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Lampiran</h2>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Gambar atau PDF (opsional).
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                        Diunggah ke Supabase. Unggah/hapus langsung tersimpan; field lain tetap memakai tombol Simpan Perubahan.
+                      </p>
+
+                      {imageError && (
+                        <p className="text-sm text-red-600 dark:text-red-400 mb-3">{imageError}</p>
                       )}
-                      <label className="inline-flex items-center gap-2 px-4 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        {uploadingImage ? (
-                          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+
+                      <div className="space-y-4">
+                        {formData.attachment?.url ? (
+                          <div className="relative rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+                            {formData.attachment.type?.startsWith('image/') ? (
+                              <a href={formData.attachment.url} target="_blank" rel="noreferrer">
+                                <img
+                                  src={formData.attachment.url}
+                                  alt={formData.attachment.name || 'Lampiran'}
+                                  className="max-h-56 w-full object-contain bg-gray-50 dark:bg-gray-900"
+                                />
+                              </a>
+                            ) : (formData.attachment.type === 'application/pdf' ||
+                              formData.attachment.name?.toLowerCase().endsWith('.pdf')) ? (
+                              <div className="p-4 bg-gray-50 dark:bg-gray-900 flex flex-col items-start gap-2">
+                                <FileText className="h-8 w-8 text-gray-700 dark:text-gray-200" />
+                                <a
+                                  href={formData.attachment.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-blue-600 dark:text-blue-400 hover:underline break-all"
+                                >
+                                  {formData.attachment.name || 'Lihat PDF'}
+                                </a>
+                              </div>
+                            ) : (
+                              <div className="p-4 bg-gray-50 dark:bg-gray-900 flex flex-col items-start gap-2">
+                                <FileText className="h-8 w-8 text-gray-700 dark:text-gray-200" />
+                                <a
+                                  href={formData.attachment.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-blue-600 dark:text-blue-400 hover:underline break-all"
+                                >
+                                  {formData.attachment.name || 'Lihat Lampiran'}
+                                </a>
+                              </div>
+                            )}
+                            {isEditing && (
+                              <button
+                                type="button"
+                                onClick={handleRemoveAttachment}
+                                className="absolute top-2 right-2 p-1.5 rounded bg-black/60 text-white hover:bg-black/80"
+                                aria-label="Hapus lampiran"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
                         ) : (
-                          <ImagePlus className="h-5 w-5 text-gray-500" />
+                          <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 p-4 text-sm text-gray-600 dark:text-gray-300">
+                            Belum ada lampiran.
+                          </div>
                         )}
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
-                          {uploadingImage
-                            ? 'Mengunggah...'
-                            : formData.attachment
-                              ? 'Ganti lampiran'
-                              : 'Pilih lampiran'}
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/*,application/pdf"
-                          className="hidden"
-                          disabled={!isEditing || uploadingImage}
-                          onChange={handleExpenseImageChange}
-                        />
-                      </label>
+
+                        <label className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                          {uploadingImage ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                          ) : (
+                            <ImagePlus className="h-5 w-5 text-gray-500" />
+                          )}
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            {uploadingImage
+                              ? 'Mengunggah...'
+                              : formData.attachment
+                                ? 'Ganti lampiran'
+                                : 'Pilih lampiran'}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            className="hidden"
+                            disabled={!isEditing || uploadingImage}
+                            onChange={handleExpenseImageChange}
+                          />
+                        </label>
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                {isEditing && (
-                  <div className="mt-6 flex justify-end gap-3">
-                    <button
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      <Save className="h-5 w-5" />
-                      <span>Simpan Perubahan</span>
-                    </button>
-                  </div>
-                )}
               </>
             )}
           </div>

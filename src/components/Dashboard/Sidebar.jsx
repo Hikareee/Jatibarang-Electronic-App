@@ -30,6 +30,7 @@ export default function Sidebar({ isOpen, onToggle }) {
   const { t } = useLanguage()
   const { role } = useUserApproval()
   const isEmployee = role === 'employee'
+  const isAdmin = role === 'admin'
   const [expandedMenus, setExpandedMenus] = useState({
     penjualan: location.pathname.startsWith('/penjualan'),
     pembelian: location.pathname.startsWith('/pembelian')
@@ -81,15 +82,17 @@ export default function Sidebar({ isOpen, onToggle }) {
     { icon: BookOpen, label: t('accounts'), path: '/akun', managerOnly: true },
     { icon: Building2, label: t('fixedAssets'), path: '/aset-tetap', managerOnly: true },
     { icon: Users, label: t('contacts'), path: '/kontak', managerOnly: true },
-    { icon: Briefcase, label: t('payroll'), path: '/payroll', managerOnly: true },
+    // Payroll is owner-only (admin cannot see salary data)
+    { icon: Briefcase, label: t('payroll'), path: '/payroll', managerOnly: true, ownerOnly: true },
     { icon: Shield, label: t('users'), path: '/users', managerOnly: true },
     { icon: Sparkles, label: t('aiAssistant'), path: '/ai-assistant' },
   ]
 
-  const menuItems = useMemo(() => 
-    isEmployee ? allMenuItems.filter(item => !item.managerOnly) : allMenuItems,
-    [isEmployee]
-  )
+  const menuItems = useMemo(() => {
+    const base = isEmployee ? allMenuItems.filter((item) => !item.managerOnly) : allMenuItems
+    // Hide owner-only items from non-owner roles (including admin)
+    return base.filter((item) => !item.ownerOnly || role === 'owner')
+  }, [isEmployee, role])
 
   return (
     <aside className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col ${

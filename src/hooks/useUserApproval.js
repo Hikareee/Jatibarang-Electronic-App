@@ -111,7 +111,8 @@ export function useUserApproval() {
   }
 
   const canEditApproved = () => {
-    return userData?.role === 'owner'
+    // Admin should behave like owner for editing privileges (except Payroll visibility handled separately)
+    return userData?.role === 'owner' || userData?.role === 'admin'
   }
 
   return { 

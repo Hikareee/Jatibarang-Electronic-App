@@ -217,7 +217,7 @@ export default function ProductEdit() {
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
 
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-7xl mx-auto">
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Beranda &gt; Produk &gt; Edit
             </div>
@@ -275,255 +275,347 @@ export default function ProductEdit() {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 space-y-6">
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setShowImage(!showImage)}
-                  className="text-blue-600 dark:text-blue-400 hover:underline text-sm flex items-center gap-1"
-                >
-                  {showImage ? <ChevronDown className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                  Tampilkan Gambar Produk
-                </button>
-                {showImage && (
-                  <div className="mt-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                    <div className="flex items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-                      <div className="text-center">
-                        <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Upload gambar produk</p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left: form */}
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-semibold text-gray-900 dark:text-white">Info produk</h2>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        Data utama dan stok.
+                      </p>
+                    </div>
+                    {!editMode && (
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                        Mode lihat
+                      </span>
+                    )}
+                    {editMode && (
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
+                        Mode edit
+                      </span>
+                    )}
+                  </div>
+
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowImage(!showImage)}
+                      className="text-blue-600 dark:text-blue-400 hover:underline text-sm flex items-center gap-1"
+                    >
+                      {showImage ? <ChevronDown className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                      Tampilkan Gambar Produk
+                    </button>
+                    {showImage && (
+                      <div className="mt-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <div className="flex items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+                          <div className="text-center">
+                            <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Upload gambar produk</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Nama Produk <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.nama}
+                        onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
+                        disabled={fieldsLocked}
+                        placeholder="Nama Produk"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Kategori <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.kategori}
+                        onChange={(e) => setFormData({ ...formData, kategori: e.target.value })}
+                        disabled={fieldsLocked}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                      >
+                        <option value="">Pilih Kategori</option>
+                        <option value="Shoes">Shoes</option>
+                        <option value="Office Asset">Office Asset</option>
+                        <option value="Dress">Dress</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                        Kode/SKU
+                        <HelpCircle className="h-4 w-4 text-gray-400" />
+                      </label>
+                      <textarea
+                        ref={skuRef}
+                        value={formData.kode}
+                        onChange={(e) => setFormData({ ...formData, kode: e.target.value })}
+                        onInput={autosizeSku}
+                        rows={1}
+                        disabled={fieldsLocked}
+                        placeholder="SKU/00001"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none overflow-hidden disabled:opacity-60"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Satuan <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.satuan}
+                        onChange={(e) => setFormData({ ...formData, satuan: e.target.value })}
+                        disabled={fieldsLocked}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                      >
+                        <option value="Pcs">Pcs</option>
+                        <option value="Kg">Kg</option>
+                        <option value="Liter">Liter</option>
+                        <option value="Meter">Meter</option>
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Qty stok
+                        </label>
+                        <FormattedNumberInput
+                          value={formData.qty}
+                          onChange={(value) => setFormData({ ...formData, qty: value })}
+                          disabled={fieldsLocked}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          HPP
+                        </label>
+                        <FormattedNumberInput
+                          value={formData.hpp}
+                          onChange={(value) => setFormData({ ...formData, hpp: value })}
+                          disabled={fieldsLocked}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Deskripsi
+                      </label>
+                      <textarea
+                        value={formData.deskripsi}
+                        onChange={(e) => setFormData({ ...formData, deskripsi: e.target.value })}
+                        rows={4}
+                        disabled={fieldsLocked}
+                        placeholder="Deskripsi"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-white">Harga</h2>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Saya membeli item ini
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => !fieldsLocked && setFormData({ ...formData, sayaBeli: !formData.sayaBeli })}
+                          disabled={fieldsLocked}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${
+                            formData.sayaBeli ? 'bg-blue-600' : 'bg-gray-300'
+                          } disabled:opacity-60`}
+                        >
+                          <div
+                            className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                              formData.sayaBeli ? 'translate-x-6' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      {formData.sayaBeli && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Harga beli
+                          </label>
+                          <FormattedNumberInput
+                            value={formData.hargaBeli}
+                            onChange={(value) => setFormData({ ...formData, hargaBeli: value })}
+                            disabled={fieldsLocked}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Saya menjual item ini
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => !fieldsLocked && setFormData({ ...formData, sayaJual: !formData.sayaJual })}
+                          disabled={fieldsLocked}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${
+                            formData.sayaJual ? 'bg-blue-600' : 'bg-gray-300'
+                          } disabled:opacity-60`}
+                        >
+                          <div
+                            className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                              formData.sayaJual ? 'translate-x-6' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      {formData.sayaJual && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Harga jual
+                          </label>
+                          <FormattedNumberInput
+                            value={formData.hargaJual}
+                            onChange={(value) => setFormData({ ...formData, hargaJual: value })}
+                            disabled={fieldsLocked}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAccountTax(!showAccountTax)}
+                      className="text-blue-600 dark:text-blue-400 hover:underline text-sm flex items-center gap-1"
+                    >
+                      {showAccountTax ? <ChevronDown className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                      Tampilkan pengaturan akun dan pajak
+                    </button>
+                    {showAccountTax && (
+                      <div className="mt-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Account and tax settings fields will go here
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowWholesalePrice(!showWholesalePrice)}
+                      className="text-blue-600 dark:text-blue-400 hover:underline text-sm flex items-center gap-1"
+                    >
+                      {showWholesalePrice ? <ChevronDown className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                      Tampilkan Harga Grosir
+                    </button>
+                    {showWholesalePrice && (
+                      <div className="mt-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Wholesale price settings will go here
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {canEdit && editMode && (
+                    <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                      >
+                        <Save className="h-5 w-5" />
+                        <span>{saving ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right: summary */}
+              <div className="space-y-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Ringkasan</h2>
+
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-gray-500 dark:text-gray-400">Nama</span>
+                      <span className="text-gray-900 dark:text-white text-right font-medium">
+                        {formData.nama || '-'}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-gray-500 dark:text-gray-400">Kategori</span>
+                      <span className="text-gray-900 dark:text-white text-right">
+                        {formData.kategori || '-'}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-gray-500 dark:text-gray-400">SKU</span>
+                      <span className="text-gray-900 dark:text-white text-right">
+                        {formData.kode || '-'}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-gray-500 dark:text-gray-400">Satuan</span>
+                      <span className="text-gray-900 dark:text-white text-right">
+                        {formData.satuan || '-'}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-gray-500 dark:text-gray-400">Qty</span>
+                      <span className="text-gray-900 dark:text-white text-right">
+                        {new Intl.NumberFormat('id-ID').format(Number(formData.qty || 0))}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-gray-500 dark:text-gray-400">HPP</span>
+                      <span className="text-gray-900 dark:text-white text-right">
+                        {new Intl.NumberFormat('id-ID').format(Number(formData.hpp || 0))}
+                      </span>
+                    </div>
+                    <div className="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-gray-500 dark:text-gray-400">Harga beli</span>
+                        <span className="text-gray-900 dark:text-white text-right">
+                          {formData.sayaBeli
+                            ? new Intl.NumberFormat('id-ID').format(Number(formData.hargaBeli || 0))
+                            : '-'}
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-gray-500 dark:text-gray-400">Harga jual</span>
+                        <span className="text-gray-900 dark:text-white text-right">
+                          {formData.sayaJual
+                            ? new Intl.NumberFormat('id-ID').format(Number(formData.hargaJual || 0))
+                            : '-'}
+                        </span>
                       </div>
                     </div>
                   </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Nama Produk <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.nama}
-                    onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
-                    disabled={fieldsLocked}
-                    placeholder="Nama Produk"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Kategori <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.kategori}
-                    onChange={(e) => setFormData({ ...formData, kategori: e.target.value })}
-                    disabled={fieldsLocked}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
-                  >
-                    <option value="">Pilih Kategori</option>
-                    <option value="Shoes">Shoes</option>
-                    <option value="Office Asset">Office Asset</option>
-                    <option value="Dress">Dress</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
-                    Kode/SKU
-                    <HelpCircle className="h-4 w-4 text-gray-400" />
-                  </label>
-                  <textarea
-                    ref={skuRef}
-                    value={formData.kode}
-                    onChange={(e) => setFormData({ ...formData, kode: e.target.value })}
-                    onInput={autosizeSku}
-                    rows={1}
-                    disabled={fieldsLocked}
-                    placeholder="SKU/00001"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none overflow-hidden disabled:opacity-60"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Satuan <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.satuan}
-                    onChange={(e) => setFormData({ ...formData, satuan: e.target.value })}
-                    disabled={fieldsLocked}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
-                  >
-                    <option value="Pcs">Pcs</option>
-                    <option value="Kg">Kg</option>
-                    <option value="Liter">Liter</option>
-                    <option value="Meter">Meter</option>
-                  </select>
-                </div>
-
-                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Qty stok
-                    </label>
-                    <FormattedNumberInput
-                      value={formData.qty}
-                      onChange={(value) => setFormData({ ...formData, qty: value })}
-                      disabled={fieldsLocked}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      HPP
-                    </label>
-                    <FormattedNumberInput
-                      value={formData.hpp}
-                      onChange={(value) => setFormData({ ...formData, hpp: value })}
-                      disabled={fieldsLocked}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
-                    />
-                  </div>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Deskripsi
-                  </label>
-                  <textarea
-                    value={formData.deskripsi}
-                    onChange={(e) => setFormData({ ...formData, deskripsi: e.target.value })}
-                    rows={4}
-                    disabled={fieldsLocked}
-                    placeholder="Deskripsi"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
-                  />
                 </div>
               </div>
-
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setShowAccountTax(!showAccountTax)}
-                  className="text-blue-600 dark:text-blue-400 hover:underline text-sm flex items-center gap-1"
-                >
-                  {showAccountTax ? <ChevronDown className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                  Tampilkan pengaturan akun dan pajak
-                </button>
-                {showAccountTax && (
-                  <div className="mt-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Account and tax settings fields will go here
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Saya membeli item ini
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => !fieldsLocked && setFormData({ ...formData, sayaBeli: !formData.sayaBeli })}
-                      disabled={fieldsLocked}
-                      className={`relative w-12 h-6 rounded-full transition-colors ${
-                        formData.sayaBeli ? 'bg-blue-600' : 'bg-gray-300'
-                      } disabled:opacity-60`}
-                    >
-                      <div
-                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                          formData.sayaBeli ? 'translate-x-6' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  {formData.sayaBeli && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Harga
-                      </label>
-                      <FormattedNumberInput
-                        value={formData.hargaBeli}
-                        onChange={(value) => setFormData({ ...formData, hargaBeli: value })}
-                        disabled={fieldsLocked}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Saya menjual item ini
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => !fieldsLocked && setFormData({ ...formData, sayaJual: !formData.sayaJual })}
-                      disabled={fieldsLocked}
-                      className={`relative w-12 h-6 rounded-full transition-colors ${
-                        formData.sayaJual ? 'bg-blue-600' : 'bg-gray-300'
-                      } disabled:opacity-60`}
-                    >
-                      <div
-                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                          formData.sayaJual ? 'translate-x-6' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  {formData.sayaJual && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Harga
-                      </label>
-                      <FormattedNumberInput
-                        value={formData.hargaJual}
-                        onChange={(value) => setFormData({ ...formData, hargaJual: value })}
-                        disabled={fieldsLocked}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setShowWholesalePrice(!showWholesalePrice)}
-                    className="text-blue-600 dark:text-blue-400 hover:underline text-sm flex items-center gap-1"
-                  >
-                    {showWholesalePrice ? <ChevronDown className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                    Tampilkan Harga Grosir
-                  </button>
-                  {showWholesalePrice && (
-                    <div className="mt-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Wholesale price settings will go here
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {canEdit && editMode && (
-                <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                  >
-                    <Save className="h-5 w-5" />
-                    <span>{saving ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </main>

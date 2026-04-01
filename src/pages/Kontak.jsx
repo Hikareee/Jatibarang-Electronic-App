@@ -26,11 +26,14 @@ import {
 } from 'lucide-react'
 import { useContacts, saveContact, updateContact } from '../hooks/useContactsData'
 import { useContactGroups, saveContactGroup, deleteContactGroup } from '../hooks/useContactGroupsData'
+import { useUserApproval } from '../hooks/useUserApproval'
 
 export default function Kontak() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { t } = useLanguage()
   const navigate = useNavigate()
+  const { role } = useUserApproval()
+  const canSeePayroll = role === 'owner'
   const { contacts, loading, error, refetch } = useContacts()
   const { groups, loading: groupsLoading, refetch: refetchGroups } = useContactGroups()
   const [selectedTab, setSelectedTab] = useState('all')
@@ -60,6 +63,13 @@ export default function Kontak() {
     phone: '',
     email: '',
     photo: null,
+    payroll: {
+      baseSalary: 0,
+      ptkp: 'TK/0',
+      npwp: '',
+      bpjsEnabled: false,
+      bank: { bankName: '', bankCode: '', accountNumber: '', accountName: '' },
+    },
   })
 
   // Format number to Indonesian format
@@ -893,6 +903,179 @@ export default function Kontak() {
                       placeholder="Catatan"
                     />
                   </div>
+
+                  {/* Payroll fields for Pegawai (owner-only) */}
+                  {canSeePayroll && formData.types?.includes('Pegawai') && (
+                    <div className="md:col-span-2">
+                      <div className="mt-2 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Payroll</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Isi data payroll & bank transfer untuk pembayaran massal.
+                        </p>
+
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Gaji pokok (bulanan)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.payroll?.baseSalary ?? 0}
+                              onChange={(e) =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  payroll: { ...(prev.payroll || {}), baseSalary: e.target.value },
+                                }))
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">PTKP</label>
+                            <select
+                              value={formData.payroll?.ptkp || 'TK/0'}
+                              onChange={(e) =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  payroll: { ...(prev.payroll || {}), ptkp: e.target.value },
+                                }))
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                            >
+                              <option value="TK/0">TK/0</option>
+                              <option value="TK/1">TK/1</option>
+                              <option value="TK/2">TK/2</option>
+                              <option value="TK/3">TK/3</option>
+                              <option value="K/0">K/0</option>
+                              <option value="K/1">K/1</option>
+                              <option value="K/2">K/2</option>
+                              <option value="K/3">K/3</option>
+                            </select>
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">NPWP</label>
+                            <input
+                              value={formData.payroll?.npwp || ''}
+                              onChange={(e) =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  payroll: { ...(prev.payroll || {}), npwp: e.target.value },
+                                }))
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                            />
+                          </div>
+
+                          <div className="md:col-span-2 flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/30">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">BPJS</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Aktifkan placeholder iuran (MVP).</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  payroll: { ...(prev.payroll || {}), bpjsEnabled: !(prev.payroll || {}).bpjsEnabled },
+                                }))
+                              }
+                              className={`relative w-12 h-6 rounded-full transition-colors ${
+                                formData.payroll?.bpjsEnabled ? 'bg-blue-600' : 'bg-gray-300'
+                              }`}
+                            >
+                              <div
+                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                                  formData.payroll?.bpjsEnabled ? 'translate-x-6' : 'translate-x-0'
+                                }`}
+                              />
+                            </button>
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white mt-2">Bank transfer</p>
+                            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Bank (nama)
+                                </label>
+                                <input
+                                  value={formData.payroll?.bank?.bankName || ''}
+                                  onChange={(e) =>
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      payroll: {
+                                        ...(prev.payroll || {}),
+                                        bank: { ...((prev.payroll || {}).bank || {}), bankName: e.target.value },
+                                      },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                  placeholder="BCA / BRI / Mandiri / BNI / ..."
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Kode bank (opsional)
+                                </label>
+                                <input
+                                  value={formData.payroll?.bank?.bankCode || ''}
+                                  onChange={(e) =>
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      payroll: {
+                                        ...(prev.payroll || {}),
+                                        bank: { ...((prev.payroll || {}).bank || {}), bankCode: e.target.value },
+                                      },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                  placeholder="014 (BCA), 002 (BRI), 008 (Mandiri)..."
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  No. rekening
+                                </label>
+                                <input
+                                  value={formData.payroll?.bank?.accountNumber || ''}
+                                  onChange={(e) =>
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      payroll: {
+                                        ...(prev.payroll || {}),
+                                        bank: { ...((prev.payroll || {}).bank || {}), accountNumber: e.target.value },
+                                      },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Nama pemilik rekening
+                                </label>
+                                <input
+                                  value={formData.payroll?.bank?.accountName || ''}
+                                  onChange={(e) =>
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      payroll: {
+                                        ...(prev.payroll || {}),
+                                        bank: { ...((prev.payroll || {}).bank || {}), accountName: e.target.value },
+                                      },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -912,6 +1095,13 @@ export default function Kontak() {
                     phone: '',
                     email: '',
                     photo: null,
+                    payroll: {
+                      baseSalary: 0,
+                      ptkp: 'TK/0',
+                      npwp: '',
+                      bpjsEnabled: false,
+                      bank: { bankName: '', bankCode: '', accountNumber: '', accountName: '' },
+                    },
                   })
                   setShowMoreFields(false)
                 }}
@@ -950,6 +1140,13 @@ export default function Kontak() {
                       phone: '',
                       email: '',
                       photo: null,
+                      payroll: {
+                        baseSalary: 0,
+                        ptkp: 'TK/0',
+                        npwp: '',
+                        bpjsEnabled: false,
+                        bank: { bankName: '', bankCode: '', accountNumber: '', accountName: '' },
+                      },
                     })
                     setShowMoreFields(false)
                     // Refresh contacts list

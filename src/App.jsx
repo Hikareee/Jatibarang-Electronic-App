@@ -46,8 +46,11 @@ import Laporan from './pages/Laporan'
 import Proyek from './pages/Proyek'
 import ProyekDetail from './pages/ProyekDetail'
 import RABCalculator from './pages/RABCalculator'
+import Payroll from './pages/Payroll'
+import PayrollEmployeeDetail from './pages/PayrollEmployeeDetail'
 import ApprovedRoute from './components/ApprovedRoute'
 import ManagerRoute from './components/ManagerRoute'
+import OwnerRoute from './components/OwnerRoute'
 
 function PrivateRoute({ children }) {
   const { currentUser } = useAuth()
@@ -389,6 +392,30 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <AIAssistant />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/payroll"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <OwnerRoute>
+                <Payroll />
+              </OwnerRoute>
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/payroll/pegawai/:id"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <OwnerRoute>
+                <PayrollEmployeeDetail />
+              </OwnerRoute>
+            </ApprovedRoute>
           </PrivateRoute>
         }
       />
