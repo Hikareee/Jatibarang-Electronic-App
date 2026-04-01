@@ -31,7 +31,7 @@ const COLORS = {
   red: '#EF4444',
 }
 
-/** BIAYA BULAN LALU: one color per slice / legend row */
+/** Shared palette for BIAYA BULAN LALU + KAS chart when name has no Bank/Kas/Biaya match */
 const EXPENSE_PIE_PALETTE = [
   COLORS.blue,
   COLORS.teal,
@@ -43,6 +43,7 @@ const EXPENSE_PIE_PALETTE = [
   '#22C55E',
 ]
 
+/** Same rules for expense donut and cash account bars: Bank=blue, Kas=teal, Biaya=purple */
 function pickExpenseSliceColor(name, index) {
   const n = String(name || '').toLowerCase()
   if (n.includes('bank')) return COLORS.blue
@@ -71,14 +72,18 @@ export default function DashboardContent() {
   // State for expanding/collapsing accounts list
   const [accountsExpanded, setAccountsExpanded] = useState(false)
 
-  // Prepare account balances chart data - show all accounts
+  // Prepare account balances chart data — colors match BIAYA BULAN LALU (pickExpenseSliceColor)
   const accountChartData = cashAccounts.length > 0
     ? cashAccounts
-        .map(acc => ({
-          name: acc.name || acc.code || 'Akun',
-          balance: parseFloat(acc.saldo) || 0,
-        }))
-        .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance)) // Sort by absolute balance descending
+        .map((acc, idx) => {
+          const name = acc.name || acc.code || 'Akun'
+          return {
+            name,
+            balance: parseFloat(acc.saldo) || 0,
+            color: pickExpenseSliceColor(name, idx),
+          }
+        })
+        .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))
     : []
 
   const billsInfo = (data?.bills?.info && typeof data.bills.info === 'object')
@@ -291,7 +296,6 @@ export default function DashboardContent() {
                     />
                     <Bar 
                       dataKey="balance" 
-                      fill={COLORS.pink}
                       radius={[0, 8, 8, 0]}
                       onClick={(data) => {
                         if (data && data.name) {
@@ -304,7 +308,11 @@ export default function DashboardContent() {
                         }
                       }}
                       style={{ cursor: 'pointer' }}
-                    />
+                    >
+                      {accountChartData.map((entry, index) => (
+                        <Cell key={`cash-bar-${entry.name}-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
@@ -420,7 +428,7 @@ export default function DashboardContent() {
                     {billsChartData.map((entry, index) => (
                       <Cell 
                         key={`cell-${index}`} 
-                        fill={index === 0 ? COLORS.pink : index === 1 ? COLORS.yellow : '#E5E7EB'} 
+                        fill={index === 0 ? COLORS.blue : index === 1 ? COLORS.yellow : '#E5E7EB'} 
                       />
                     ))}
                   </Bar>
