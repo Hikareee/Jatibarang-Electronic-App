@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { usePayrollEmployeesFromContacts, usePayrollRuns } from '../hooks/usePayrollData'
 import { useNavigate } from 'react-router-dom'
 import { Plus, X, Loader2, Settings2 } from 'lucide-react'
+import { useSidebarOpen } from '../hooks/useSidebarOpen'
 
 function formatNumber(num) {
   if (num === null || num === undefined) return '0'
@@ -68,7 +69,7 @@ function saveKopraTemplate(tpl) {
 }
 
 export default function Payroll() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { sidebarOpen, toggleSidebar } = useSidebarOpen(true)
   const navigate = useNavigate()
   const { currentUser } = useAuth()
 
@@ -257,9 +258,9 @@ export default function Payroll() {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <Header onMenuClick={toggleSidebar} />
 
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">

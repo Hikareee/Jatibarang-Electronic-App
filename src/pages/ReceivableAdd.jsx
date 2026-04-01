@@ -4,6 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import Sidebar from '../components/Dashboard/Sidebar'
 import Header from '../components/Dashboard/Header'
 import Footer from '../components/Dashboard/Footer'
+import { useSidebarOpen } from '../hooks/useSidebarOpen'
 import { 
   ChevronLeft, 
   HelpCircle, 
@@ -20,7 +21,7 @@ import { useAccounts } from '../hooks/useAccountsData'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 
 export default function ReceivableAdd() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { sidebarOpen, toggleSidebar } = useSidebarOpen(true)
   const { t } = useLanguage()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -165,10 +166,10 @@ export default function ReceivableAdd() {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <Header onMenuClick={toggleSidebar} />
         
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { useState, useEffect, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useUserApproval } from '../../hooks/useUserApproval'
 import { 
@@ -20,7 +20,6 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronUp,
-  AlertCircle,
   Sparkles,
   Calculator
 } from 'lucide-react'
@@ -30,11 +29,50 @@ export default function Sidebar({ isOpen, onToggle }) {
   const { t } = useLanguage()
   const { role } = useUserApproval()
   const isEmployee = role === 'employee'
-  const isAdmin = role === 'admin'
+  const navRef = useRef(null)
   const [expandedMenus, setExpandedMenus] = useState({
     penjualan: location.pathname.startsWith('/penjualan'),
     pembelian: location.pathname.startsWith('/pembelian')
   })
+
+  const scrollStorageKey = 'ui.sidebarScrollTop'
+
+  // Restore scroll *before paint* to avoid visible "jump to top".
+  useLayoutEffect(() => {
+    const el = navRef.current
+    if (!el) return
+    const saved = sessionStorage.getItem(scrollStorageKey)
+    if (saved !== null) {
+      const top = Number(saved)
+      if (!Number.isNaN(top)) {
+        // Avoid smooth scrolling during restore (can look like a snap/jump).
+        const prev = el.style.scrollBehavior
+        el.style.scrollBehavior = 'auto'
+        el.scrollTop = top
+        el.style.scrollBehavior = prev
+      }
+    }
+  }, [location.pathname, scrollStorageKey])
+
+  useEffect(() => {
+    const el = navRef.current
+    if (!el) return
+    const onScroll = () => {
+      sessionStorage.setItem(scrollStorageKey, String(el.scrollTop || 0))
+    }
+    // Save immediately on mount too, so the stored value never regresses to 0.
+    onScroll()
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      // Save once more on unmount/navigation
+      try {
+        sessionStorage.setItem(scrollStorageKey, String(el.scrollTop || 0))
+      } catch {
+        // ignore
+      }
+      el.removeEventListener('scroll', onScroll)
+    }
+  }, [scrollStorageKey])
 
   // Auto-expand menu when on sub-route
   useEffect(() => {
@@ -95,7 +133,7 @@ export default function Sidebar({ isOpen, onToggle }) {
   }, [isEmployee, role])
 
   return (
-    <aside className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col ${
+    <aside className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-[width] duration-200 ease-in-out flex flex-col ${
       isOpen ? 'w-64' : 'w-20'
     }`}>
       {/* Logo */}
@@ -127,7 +165,7 @@ export default function Sidebar({ isOpen, onToggle }) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav ref={navRef} className="flex-1 p-4 space-y-1 overflow-y-auto overscroll-contain">
         {menuItems.map((item) => {
           const Icon = item.icon
           const isActive = location.pathname === item.path || (item.subItems && item.subItems.some(sub => location.pathname === sub.path))

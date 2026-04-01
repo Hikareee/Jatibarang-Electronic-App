@@ -4,6 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import Sidebar from '../components/Dashboard/Sidebar'
 import Header from '../components/Dashboard/Header'
 import Footer from '../components/Dashboard/Footer'
+import { useSidebarOpen } from '../hooks/useSidebarOpen'
 import { 
   Filter,
   Search,
@@ -26,7 +27,7 @@ import { useProducts } from '../hooks/useProductsData'
 import { useUserApproval } from '../hooks/useUserApproval'
 
 export default function Produk() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { sidebarOpen, toggleSidebar } = useSidebarOpen(true)
   const { t } = useLanguage()
   const navigate = useNavigate()
   const { products, loading, error } = useProducts()
@@ -115,9 +116,9 @@ export default function Produk() {
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+        <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+          <Header onMenuClick={toggleSidebar} />
           <main className="flex-1 overflow-y-auto p-6 flex items-center justify-center">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
@@ -131,10 +132,10 @@ export default function Produk() {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <Header onMenuClick={toggleSidebar} />
         
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">

@@ -4,6 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import Sidebar from '../components/Dashboard/Sidebar'
 import Header from '../components/Dashboard/Header'
 import Footer from '../components/Dashboard/Footer'
+import { useSidebarOpen } from '../hooks/useSidebarOpen'
 import { 
   Users as UsersIcon,
   CheckCircle,
@@ -21,7 +22,7 @@ import { useUserApproval } from '../hooks/useUserApproval'
 export default function Users() {
   const { t } = useLanguage()
   const navigate = useNavigate()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { sidebarOpen, toggleSidebar } = useSidebarOpen(true)
   const { users, loading, error, updateUserRole, approveUser } = useUsers()
   const { canApprove: userCanApprove } = useUserApproval()
   const [selectedUsers, setSelectedUsers] = useState([])
@@ -117,9 +118,9 @@ export default function Users() {
   if (!userCanApprove) {
     return (
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+        <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+          <Header onMenuClick={toggleSidebar} />
           <main className="flex-1 overflow-y-auto p-6">
             <div className="text-center py-12">
               <p className="text-red-600 dark:text-red-400">Anda tidak memiliki akses ke halaman ini.</p>
@@ -140,9 +141,9 @@ export default function Users() {
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+        <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+          <Header onMenuClick={toggleSidebar} />
           <main className="flex-1 overflow-y-auto p-6">
             <div className="flex items-center justify-center h-96">
               <div className="text-center">
@@ -159,10 +160,10 @@ export default function Users() {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <Header onMenuClick={toggleSidebar} />
         
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">

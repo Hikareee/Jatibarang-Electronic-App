@@ -7,6 +7,7 @@ import { db } from '../firebase/config'
 import { doc, getDoc } from 'firebase/firestore'
 import { updateContact } from '../hooks/useContactsData'
 import { ChevronLeft, Loader2, Pencil, Save } from 'lucide-react'
+import { useSidebarOpen } from '../hooks/useSidebarOpen'
 
 function formatNumber(num) {
   if (num === null || num === undefined) return '0'
@@ -31,7 +32,7 @@ function normalizePayroll(contact) {
 export default function PayrollEmployeeDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { sidebarOpen, toggleSidebar } = useSidebarOpen(true)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -140,9 +141,9 @@ export default function PayrollEmployeeDetail() {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <Header onMenuClick={toggleSidebar} />
 
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Dashboard/Sidebar'
 import Header from '../components/Dashboard/Header'
 import Footer from '../components/Dashboard/Footer'
+import { useSidebarOpen } from '../hooks/useSidebarOpen'
 import { db } from '../firebase/config'
 import { doc, getDoc, updateDoc } from 'firebase/firestore'
 import { useContacts } from '../hooks/useContactsData'
@@ -16,7 +17,7 @@ import FormattedNumberInput from '../components/FormattedNumberInput'
 export default function BiayaDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { sidebarOpen, toggleSidebar } = useSidebarOpen(true)
   const { contacts, loading: contactsLoading } = useContacts()
   const { accounts, loading: accountsLoading } = useAccounts()
   const { projects, loading: projectsLoading } = useProjects()
@@ -237,9 +238,9 @@ export default function BiayaDetail() {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <Header onMenuClick={toggleSidebar} />
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">

@@ -6,6 +6,7 @@ import Footer from '../components/Dashboard/Footer'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useUserApproval } from '../hooks/useUserApproval'
+import { useSidebarOpen } from '../hooks/useSidebarOpen'
 import {
   Send,
   Bot,
@@ -73,7 +74,7 @@ const INITIAL_MESSAGE_EMPLOYEE = {
 }
 
 export default function AIAssistant() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { sidebarOpen, toggleSidebar } = useSidebarOpen(true)
   const [chatSidebarOpen, setChatSidebarOpen] = useState(true)
   const { t } = useLanguage()
   const { currentUser } = useAuth()
@@ -690,10 +691,10 @@ Pertanyaan user: ${userMessage.content}`
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <Header onMenuClick={toggleSidebar} />
         
         <div className="flex-1 flex overflow-hidden">
           {/* Chat History Sidebar */}
