@@ -347,6 +347,7 @@ export default function ProductEdit() {
                         <option value="">Pilih Kategori</option>
                         <option value="Shoes">Shoes</option>
                         <option value="Office Asset">Office Asset</option>
+                        <option value="Bahan Bangunan">Bahan Bangunan</option>
                         <option value="Dress">Dress</option>
                       </select>
                     </div>

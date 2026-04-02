@@ -30,10 +30,19 @@ export default function Sidebar({ isOpen, onToggle }) {
   const { role } = useUserApproval()
   const isEmployee = role === 'employee'
   const navRef = useRef(null)
+  const [isLgUp, setIsLgUp] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState({
     penjualan: location.pathname.startsWith('/penjualan'),
     pembelian: location.pathname.startsWith('/pembelian')
   })
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const apply = () => setIsLgUp(mq.matches)
+    apply()
+    mq.addEventListener?.('change', apply)
+    return () => mq.removeEventListener?.('change', apply)
+  }, [])
 
   const scrollStorageKey = 'ui.sidebarScrollTop'
 
@@ -133,9 +142,23 @@ export default function Sidebar({ isOpen, onToggle }) {
   }, [isEmployee, role])
 
   return (
-    <aside className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-[width] duration-200 ease-in-out flex flex-col ${
-      isOpen ? 'w-64' : 'w-20'
-    }`}>
+    <>
+      {/* Mobile drawer backdrop */}
+      {!isLgUp && isOpen && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label="Close sidebar"
+          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+        />
+      )}
+
+      <aside
+        className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-[width] duration-200 ease-in-out flex flex-col ${
+          isOpen ? 'w-64' : 'w-20'
+        } fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-in-out ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        } lg:static lg:translate-x-0 lg:z-auto`}>
       {/* Logo */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
         {isOpen && (
@@ -211,6 +234,9 @@ export default function Sidebar({ isOpen, onToggle }) {
                           <Link
                             key={subItem.path}
                             to={subItem.path}
+                            onClick={() => {
+                              if (!isLgUp) onToggle()
+                            }}
                             className={`block p-2 rounded-lg transition-colors text-sm ${
                               isSubActive
                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
@@ -227,6 +253,9 @@ export default function Sidebar({ isOpen, onToggle }) {
               ) : (
                 <Link
                   to={item.path}
+                  onClick={() => {
+                    if (!isLgUp) onToggle()
+                  }}
                   className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
                     isActive
                       ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
@@ -255,6 +284,7 @@ export default function Sidebar({ isOpen, onToggle }) {
         </button>
       </div>
     </aside>
+    </>
   )
 }
 
