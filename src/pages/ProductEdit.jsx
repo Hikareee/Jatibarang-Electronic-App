@@ -15,6 +15,7 @@ import {
   Pencil,
 } from 'lucide-react'
 import { getProductById, updateProduct } from '../hooks/useProductsData'
+import { useContacts } from '../hooks/useContactsData'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 
 const defaultForm = {
@@ -25,6 +26,8 @@ const defaultForm = {
   deskripsi: '',
   sayaBeli: true,
   hargaBeli: 0,
+  pemasokContactId: '',
+  pemasokNama: '',
   sayaJual: true,
   hargaJual: 0,
   qty: 0,
@@ -50,6 +53,7 @@ export default function ProductEdit() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { t } = useLanguage()
   const navigate = useNavigate()
+  const { contacts, loading: contactsLoading } = useContacts()
   const { canEditApproved, loading: approvalLoading } = useUserApproval()
   const canEdit = canEditApproved && !approvalLoading
 
@@ -99,6 +103,8 @@ export default function ProductEdit() {
           deskripsi: p.deskripsi || '',
           sayaBeli: p.sayaBeli !== false,
           hargaBeli: p.hargaBeli ?? 0,
+          pemasokContactId: p.pemasokContactId || '',
+          pemasokNama: p.pemasokNama || '',
           sayaJual: p.sayaJual !== false,
           hargaJual: p.hargaJual ?? 0,
           qty: p.qty ?? 0,
@@ -148,6 +154,8 @@ export default function ProductEdit() {
         deskripsi: formData.deskripsi,
         sayaBeli: formData.sayaBeli,
         hargaBeli: Number(formData.hargaBeli) || 0,
+        pemasokContactId: formData.pemasokContactId || '',
+        pemasokNama: formData.pemasokNama || '',
         sayaJual: formData.sayaJual,
         hargaJual: Number(formData.hargaJual) || 0,
         qty: Number(formData.qty) || 0,
@@ -438,7 +446,16 @@ export default function ProductEdit() {
                         </label>
                         <button
                           type="button"
-                          onClick={() => !fieldsLocked && setFormData({ ...formData, sayaBeli: !formData.sayaBeli })}
+                          onClick={() => {
+                            if (fieldsLocked) return
+                            setFormData({
+                              ...formData,
+                              sayaBeli: !formData.sayaBeli,
+                              ...(formData.sayaBeli
+                                ? { pemasokContactId: '', pemasokNama: '' }
+                                : {}),
+                            })
+                          }}
                           disabled={fieldsLocked}
                           className={`relative w-12 h-6 rounded-full transition-colors ${
                             formData.sayaBeli ? 'bg-blue-600' : 'bg-gray-300'
@@ -603,6 +620,12 @@ export default function ProductEdit() {
                           {formData.sayaBeli
                             ? new Intl.NumberFormat('id-ID').format(Number(formData.hargaBeli || 0))
                             : '-'}
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-gray-500 dark:text-gray-400">Pemasok</span>
+                        <span className="text-gray-900 dark:text-white text-right">
+                          {formData.sayaBeli ? formData.pemasokNama || '-' : '-'}
                         </span>
                       </div>
                       <div className="flex items-start justify-between gap-3">

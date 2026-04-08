@@ -117,7 +117,12 @@ export default function PurchaseInvoiceEdit() {
       // Check if user can edit
       const canEdit = () => {
         if (invoice.status === 'draft') {
-          return role === 'owner' || role === 'manager' || (role === 'employee' && invoice.createdBy === currentUser?.uid)
+          return (
+            role === 'owner' ||
+            role === 'manager' ||
+            role === 'admin' ||
+            (role === 'employee' && invoice.createdBy === currentUser?.uid)
+          )
         }
         if (invoice.status === 'approved') {
           return canEditApproved

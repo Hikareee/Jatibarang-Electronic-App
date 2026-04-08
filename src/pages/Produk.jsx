@@ -79,7 +79,8 @@ export default function Produk() {
       product.nama?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.kode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.kategori?.toLowerCase().includes(searchQuery.toLowerCase())
+      product.kategori?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.pemasokNama?.toLowerCase().includes(searchQuery.toLowerCase())
     
     return matchesSearch
   })
@@ -373,6 +374,10 @@ export default function Produk() {
                         <MoreVertical className="inline h-3 w-3 ml-1" />
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Pemasok
+                        <MoreVertical className="inline h-3 w-3 ml-1" />
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Harga Jual
                         <MoreVertical className="inline h-3 w-3 ml-1" />
                       </th>
@@ -389,7 +394,7 @@ export default function Produk() {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredProducts.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                        <td colSpan={10} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                           {error ? 'Error loading products' : 'No products found'}
                         </td>
                       </tr>
@@ -431,6 +436,9 @@ export default function Produk() {
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                             {formatNumber(product.hargaBeli || 0)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 max-w-[10rem] truncate" title={product.pemasokNama || ''}>
+                            {product.pemasokNama || '—'}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                             {formatNumber(product.hargaJual || 0)}

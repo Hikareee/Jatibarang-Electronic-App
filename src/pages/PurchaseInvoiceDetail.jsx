@@ -152,8 +152,13 @@ export default function PurchaseInvoiceDetail() {
   const canEdit = () => {
     if (!invoice) return false
     if (invoice.status === 'draft') {
-      // Employees can edit their own drafts, managers/owners can edit any draft
-      return role === 'owner' || role === 'manager' || (role === 'employee' && invoice.createdBy === currentUser?.uid)
+      // Employees can edit their own drafts; owner, manager, and admin can edit any draft
+      return (
+        role === 'owner' ||
+        role === 'manager' ||
+        role === 'admin' ||
+        (role === 'employee' && invoice.createdBy === currentUser?.uid)
+      )
     }
     if (invoice.status === 'approved') {
       // Only owner can edit approved invoices

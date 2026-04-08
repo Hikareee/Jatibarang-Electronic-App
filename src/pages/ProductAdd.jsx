@@ -15,12 +15,14 @@ import {
   Image as ImageIcon
 } from 'lucide-react'
 import { getNextProductCode, saveProduct } from '../hooks/useProductsData'
+import { useContacts } from '../hooks/useContactsData'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 
 export default function ProductAdd() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { t } = useLanguage()
   const navigate = useNavigate()
+  const { contacts, loading: contactsLoading } = useContacts()
   const [saving, setSaving] = useState(false)
   const skuUserEditedRef = useRef(false)
   const skuRef = useRef(null)
@@ -33,6 +35,8 @@ export default function ProductAdd() {
     deskripsi: '',
     sayaBeli: true,
     hargaBeli: 0,
+    pemasokContactId: '',
+    pemasokNama: '',
     sayaJual: true,
     hargaJual: 0,
     accountSettings: {},
@@ -264,7 +268,15 @@ export default function ProductAdd() {
                       Saya membeli item ini
                     </label>
                     <button
-                      onClick={() => setFormData({ ...formData, sayaBeli: !formData.sayaBeli })}
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          sayaBeli: !formData.sayaBeli,
+                          ...(!formData.sayaBeli
+                            ? {}
+                            : { pemasokContactId: '', pemasokNama: '' }),
+                        })
+                      }
                       className={`relative w-12 h-6 rounded-full transition-colors ${
                         formData.sayaBeli ? 'bg-blue-600' : 'bg-gray-300'
                       }`}
@@ -275,15 +287,46 @@ export default function ProductAdd() {
                     </button>
                   </div>
                   {formData.sayaBeli && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Harga
-                      </label>
-                      <FormattedNumberInput
-                        value={formData.hargaBeli}
-                        onChange={(value) => setFormData({ ...formData, hargaBeli: value })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      />
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Harga
+                        </label>
+                        <FormattedNumberInput
+                          value={formData.hargaBeli}
+                          onChange={(value) => setFormData({ ...formData, hargaBeli: value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Dibeli dari (kontak / pemasok)
+                        </label>
+                        <select
+                          value={formData.pemasokContactId}
+                          disabled={contactsLoading}
+                          onChange={(e) => {
+                            const nextId = e.target.value
+                            const c = contacts.find((x) => x.id === nextId)
+                            setFormData({
+                              ...formData,
+                              pemasokContactId: nextId,
+                              pemasokNama: c ? (c.name || '') : '',
+                            })
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                        >
+                          <option value="">— Pilih kontak —</option>
+                          {contacts.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name || c.id}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Kontak diatur di menu Kontak (vendor / supplier).
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
