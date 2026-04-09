@@ -96,6 +96,8 @@ function ExpenseRequestWorkflowPanel() {
   }
 
   if (!canApprove && role !== 'owner') return null
+  // Only show panel when there is a proposal to review.
+  if (!loading && pending.length === 0) return null
 
   return (
     <div className="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/90 dark:bg-amber-950/30 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

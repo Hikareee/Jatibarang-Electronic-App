@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:mobile": "VITE_APP_BASE=./ vite build",
+    "mobile:sync": "npm run build:mobile && cd \"mobil version\" && npx cap sync android",
+    "mobile:open": "cd \"mobil version\" && npx cap open android",
     "preview": "vite preview",
   "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
   "fix:skus": "node scripts/fix-product-skus.mjs",

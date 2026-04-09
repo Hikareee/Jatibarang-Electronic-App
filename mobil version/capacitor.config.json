@@ -1,0 +1,14 @@
+{
+  "appId": "com.ibasa.mobile",
+  "appName": "IBASA",
+  "webDir": "../dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}

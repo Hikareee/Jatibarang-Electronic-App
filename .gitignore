@@ -28,3 +28,10 @@ dist-ssr
 .env.local
 .env.production
 
+# Capacitor Android (mobil version) — local build outputs
+mobil version/android/.gradle/
+mobil version/android/**/build/
+mobil version/android/local.properties
+mobil version/android/*.iml
+mobil version/android/.idea/
+

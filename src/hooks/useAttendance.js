@@ -20,18 +20,19 @@ export const ATTENDANCE_STATUS = {
   SAKIT: 'sakit',
 }
 
-export function attendanceDocId(dateKey, userId) {
-  return `${dateKey}_${userId}`
+/** Document id: date + contact id (or legacy Firebase user id). */
+export function attendanceDocId(dateKey, entityId) {
+  return `${dateKey}_${entityId}`
 }
 
-export function displayNameForUser(user) {
-  if (!user) return ''
+export function displayNameForContact(contact) {
+  if (!contact) return ''
   return (
-    user.displayName ||
-    user.name ||
-    user.fullName ||
-    user.email ||
-    user.id ||
+    contact.name ||
+    contact.company ||
+    contact.fullName ||
+    contact.email ||
+    contact.id ||
     ''
   )
 }
@@ -40,13 +41,13 @@ export function displayNameForUser(user) {
  * @param {string} dateKey - YYYY-MM-DD (local calendar date)
  */
 export function useAttendance(dateKey) {
-  const [byUserId, setByUserId] = useState({})
+  const [byContactId, setByContactId] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   const load = useCallback(async () => {
     if (!dateKey) {
-      setByUserId({})
+      setByContactId({})
       setLoading(false)
       return
     }
@@ -58,15 +59,16 @@ export function useAttendance(dateKey) {
       const next = {}
       snap.forEach((d) => {
         const data = d.data()
-        if (data.userId) {
-          next[data.userId] = { id: d.id, ...data }
+        const key = data.contactId || data.userId
+        if (key) {
+          next[key] = { id: d.id, ...data }
         }
       })
-      setByUserId(next)
+      setByContactId(next)
     } catch (err) {
       console.error('useAttendance load:', err)
       setError(err?.message || String(err))
-      setByUserId({})
+      setByContactId({})
     } finally {
       setLoading(false)
     }
@@ -77,48 +79,48 @@ export function useAttendance(dateKey) {
   }, [load])
 
   const setStatus = useCallback(
-    async (userId, displayName, status, markedByUid) => {
-      if (!dateKey || !userId) return
-      const id = attendanceDocId(dateKey, userId)
+    async (contactId, kontakNama, status, markedByUid) => {
+      if (!dateKey || !contactId) return
+      const id = attendanceDocId(dateKey, contactId)
       if (!status) {
         await deleteDoc(doc(db, COLLECTION, id))
-        setByUserId((prev) => {
-          const { [userId]: _, ...rest } = prev
+        setByContactId((prev) => {
+          const { [contactId]: _, ...rest } = prev
           return rest
         })
         return
       }
       const payload = {
         date: dateKey,
-        userId,
-        displayName: displayName || '',
+        contactId,
+        kontakNama: kontakNama || '',
         status,
         markedBy: markedByUid || '',
         updatedAt: new Date().toISOString(),
       }
       await setDoc(doc(db, COLLECTION, id), payload, { merge: true })
-      setByUserId((prev) => ({
+      setByContactId((prev) => ({
         ...prev,
-        [userId]: { id, ...payload },
+        [contactId]: { id, ...payload },
       }))
     },
     [dateKey]
   )
 
   const markAllPresent = useCallback(
-    async (users, markedByUid) => {
-      if (!dateKey || !Array.isArray(users) || !users.length) return
+    async (contacts, markedByUid) => {
+      if (!dateKey || !Array.isArray(contacts) || !contacts.length) return
       const batch = writeBatch(db)
       const now = new Date().toISOString()
 
-      for (const u of users) {
-        if (!u?.id) continue
-        const id = attendanceDocId(dateKey, u.id)
-        const displayName = displayNameForUser(u)
+      for (const c of contacts) {
+        if (!c?.id) continue
+        const id = attendanceDocId(dateKey, c.id)
+        const kontakNama = displayNameForContact(c)
         const payload = {
           date: dateKey,
-          userId: u.id,
-          displayName,
+          contactId: c.id,
+          kontakNama,
           status: ATTENDANCE_STATUS.HADIR,
           markedBy: markedByUid || '',
           updatedAt: now,
@@ -132,7 +134,7 @@ export function useAttendance(dateKey) {
   )
 
   return {
-    byUserId,
+    byContactId,
     loading,
     error,
     refetch: load,

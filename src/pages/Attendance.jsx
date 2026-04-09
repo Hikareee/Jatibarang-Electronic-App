@@ -3,11 +3,11 @@ import Sidebar from '../components/Dashboard/Sidebar'
 import Header from '../components/Dashboard/Header'
 import Footer from '../components/Dashboard/Footer'
 import { useSidebarOpen } from '../hooks/useSidebarOpen'
-import { useUsers } from '../hooks/useUsers'
+import { useContacts } from '../hooks/useContactsData'
 import {
   useAttendance,
   ATTENDANCE_STATUS,
-  displayNameForUser,
+  displayNameForContact,
 } from '../hooks/useAttendance'
 import { useAuth } from '../contexts/AuthContext'
 import { CalendarCheck, Loader2, Users as UsersIcon } from 'lucide-react'
@@ -46,33 +46,33 @@ export default function Attendance() {
   const { sidebarOpen, toggleSidebar } = useSidebarOpen(true)
   const { currentUser } = useAuth()
   const [dateKey, setDateKey] = useState(() => localDateKey())
-  const { users, loading: usersLoading, error: usersError } = useUsers()
-  const { byUserId, loading: attLoading, error: attError, setStatus, markAllPresent } =
+  const { contacts, loading: contactsLoading, error: contactsError } = useContacts()
+  const { byContactId, loading: attLoading, error: attError, setStatus, markAllPresent } =
     useAttendance(dateKey)
 
   const [rowSaving, setRowSaving] = useState(null)
   const [bulkSaving, setBulkSaving] = useState(false)
 
   const team = useMemo(() => {
-    return users
-      .filter((u) => u.approved === true)
+    return contacts
+      .filter((c) => c?.types?.includes('Pegawai'))
       .slice()
       .sort((a, b) => {
-        const na = displayNameForUser(a).toLowerCase()
-        const nb = displayNameForUser(b).toLowerCase()
+        const na = displayNameForContact(a).toLowerCase()
+        const nb = displayNameForContact(b).toLowerCase()
         return na.localeCompare(nb, 'id')
       })
-  }, [users])
+  }, [contacts])
 
   const presentCount = useMemo(() => {
-    return team.filter((u) => byUserId[u.id]?.status === ATTENDANCE_STATUS.HADIR).length
-  }, [team, byUserId])
+    return team.filter((c) => byContactId[c.id]?.status === ATTENDANCE_STATUS.HADIR).length
+  }, [team, byContactId])
 
-  const handleStatusChange = async (user, value) => {
-    const uid = user.id
-    setRowSaving(uid)
+  const handleStatusChange = async (contact, value) => {
+    const id = contact.id
+    setRowSaving(id)
     try {
-      await setStatus(uid, displayNameForUser(user), value || '', currentUser?.uid)
+      await setStatus(id, displayNameForContact(contact), value || '', currentUser?.uid)
     } catch (err) {
       console.error(err)
       alert('Gagal menyimpan absensi')
@@ -83,7 +83,7 @@ export default function Attendance() {
 
   const handleMarkAllPresent = async () => {
     if (!team.length) return
-    if (!window.confirm(`Tandai semua ${team.length} pengguna sebagai hadir untuk tanggal ini?`)) return
+    if (!window.confirm(`Tandai semua ${team.length} pegawai sebagai hadir untuk tanggal ini?`)) return
     setBulkSaving(true)
     try {
       await markAllPresent(team, currentUser?.uid)
@@ -95,8 +95,8 @@ export default function Attendance() {
     }
   }
 
-  const loading = usersLoading || attLoading
-  const error = usersError || attError
+  const loading = contactsLoading || attLoading
+  const error = contactsError || attError
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
@@ -170,7 +170,7 @@ export default function Attendance() {
                 </div>
               ) : team.length === 0 ? (
                 <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                  Belum ada pengguna disetujui. Setujui pengguna di menu Users terlebih dahulu.
+                  Belum ada kontak bertipe Pegawai. Tambahkan Pegawai di menu Kontak terlebih dahulu.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -180,12 +180,8 @@ export default function Attendance() {
                         <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-300">
                           Nama
                         </th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-300">
-                          Email
-                        </th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-300">
-                          Peran
-                        </th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-300">Email</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-300">Telepon</th>
                         <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-300">
                           Status hari ini
                         </th>
@@ -195,32 +191,30 @@ export default function Attendance() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {team.map((user) => {
-                        const rec = byUserId[user.id]
+                      {team.map((contact) => {
+                        const rec = byContactId[contact.id]
                         const current = rec?.status || ''
-                        const saving = rowSaving === user.id
+                        const saving = rowSaving === contact.id
                         return (
                           <tr
-                            key={user.id}
+                            key={contact.id}
                             className="hover:bg-gray-50 dark:hover:bg-gray-700/40"
                           >
                             <td className="px-4 py-3 text-gray-900 dark:text-white font-medium">
-                              {displayNameForUser(user)}
+                              {displayNameForContact(contact)}
                             </td>
                             <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                              {user.email || '—'}
+                              {contact.email || '—'}
                             </td>
-                            <td className="px-4 py-3">
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 capitalize">
-                                {user.role || 'employee'}
-                              </span>
+                            <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                              {contact.phone || '—'}
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex flex-wrap items-center gap-2">
                                 <select
                                   value={current}
                                   disabled={saving}
-                                  onChange={(e) => handleStatusChange(user, e.target.value)}
+                                  onChange={(e) => handleStatusChange(contact, e.target.value)}
                                   className="min-w-[11rem] px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm disabled:opacity-50"
                                 >
                                   {STATUS_OPTIONS.map((opt) => (

@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Use VITE_APP_BASE=./ when building for Capacitor (APK) so assets load from app://localhost
+  base: process.env.VITE_APP_BASE || '/',
   plugins: [react()],
   server: {
     proxy: {
