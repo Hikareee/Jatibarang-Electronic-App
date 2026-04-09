@@ -13,9 +13,9 @@ import {
   User, 
   LogOut,
   Menu,
-  Bell,
   ChevronDown
 } from 'lucide-react'
+import NotificationMenu from './NotificationMenu'
 
 export default function Header({ onMenuClick }) {
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -122,14 +122,7 @@ export default function Header({ onMenuClick }) {
             )}
           </div>
 
-          {/* Notifications */}
-          <div className="relative">
-            <button className="flex items-center gap-1 px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors relative">
-              <Bell className="h-5 w-5 text-gray-700 dark:text-white" />
-              <ChevronDown className="h-4 w-4 text-gray-700 dark:text-white" />
-              <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-            </button>
-          </div>
+          <NotificationMenu />
 
           {/* Theme Toggle */}
           <button

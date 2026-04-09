@@ -21,7 +21,9 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
-  Calculator
+  Calculator,
+  CalendarCheck,
+  ClipboardList
 } from 'lucide-react'
 
 export default function Sidebar({ isOpen, onToggle }) {
@@ -95,6 +97,7 @@ export default function Sidebar({ isOpen, onToggle }) {
 
   const allMenuItems = [
     { icon: Home, label: t('home'), path: '/dashboard' },
+    { icon: ClipboardList, label: 'Permintaan', path: '/permintaan' },
     { 
       icon: ShoppingCart, 
       label: t('sales'), 
@@ -131,6 +134,7 @@ export default function Sidebar({ isOpen, onToggle }) {
     { icon: Users, label: t('contacts'), path: '/kontak', managerOnly: true },
     // Payroll is owner-only (admin cannot see salary data)
     { icon: Briefcase, label: t('payroll'), path: '/payroll', managerOnly: true, ownerOnly: true },
+    { icon: CalendarCheck, label: 'Absensi', path: '/absensi', managerOnly: true },
     { icon: Shield, label: t('users'), path: '/users', managerOnly: true },
     { icon: Sparkles, label: t('aiAssistant'), path: '/ai-assistant' },
   ]
@@ -191,7 +195,10 @@ export default function Sidebar({ isOpen, onToggle }) {
       <nav ref={navRef} className="flex-1 p-4 space-y-1 overflow-y-auto overscroll-contain">
         {menuItems.map((item) => {
           const Icon = item.icon
-          const isActive = location.pathname === item.path || (item.subItems && item.subItems.some(sub => location.pathname === sub.path))
+          const isActive =
+            location.pathname === item.path ||
+            (item.path === '/permintaan' && location.pathname.startsWith('/permintaan')) ||
+            (item.subItems && item.subItems.some((sub) => location.pathname === sub.path))
           const isExpanded = expandedMenus[item.path.replace('/', '')] || false
           const hasSubItems = item.subItems && item.subItems.length > 0
           

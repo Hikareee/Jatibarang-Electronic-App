@@ -48,6 +48,10 @@ import ProyekDetail from './pages/ProyekDetail'
 import RABCalculator from './pages/RABCalculator'
 import Payroll from './pages/Payroll'
 import PayrollEmployeeDetail from './pages/PayrollEmployeeDetail'
+import Attendance from './pages/Attendance'
+import EmployeeRequests from './pages/EmployeeRequests'
+import EmployeeExpenseReportForm from './pages/EmployeeExpenseReportForm'
+import EmployeeFundRequestForm from './pages/EmployeeFundRequestForm'
 import ApprovedRoute from './components/ApprovedRoute'
 import ManagerRoute from './components/ManagerRoute'
 import OwnerRoute from './components/OwnerRoute'
@@ -106,6 +110,48 @@ function AppRoutes() {
               <ManagerRoute>
                 <Users />
               </ManagerRoute>
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/absensi"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <ManagerRoute>
+                <Attendance />
+              </ManagerRoute>
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/permintaan"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <EmployeeRequests />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/permintaan/lapor-biaya"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <EmployeeExpenseReportForm />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/permintaan/dana"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <EmployeeFundRequestForm />
             </ApprovedRoute>
           </PrivateRoute>
         }

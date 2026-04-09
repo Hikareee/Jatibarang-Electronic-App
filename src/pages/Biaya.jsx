@@ -25,7 +25,7 @@ import {
   ChevronDown,
   Image
 } from 'lucide-react'
-import { useExpenses } from '../hooks/useExpensesData'
+import { useExpenses, isExpensePostedToLedger, WORKFLOW } from '../hooks/useExpensesData'
 import { useProjects } from '../hooks/useProjectsData'
 import { useContacts } from '../hooks/useContactsData'
 
@@ -141,11 +141,17 @@ export default function Biaya() {
     return '-'
   }
 
-  // Get status label
+  // Get status label (for tabs / filters)
   const getStatusLabel = (expense) => {
+    if (expense.requestType && !isExpensePostedToLedger(expense)) {
+      if (expense.workflowStatus === WORKFLOW.DRAFT) return 'Draft pengajuan'
+      if (expense.workflowStatus === WORKFLOW.SUBMITTED) return 'Menunggu persetujuan'
+      if (expense.workflowStatus === WORKFLOW.REJECTED) return 'Pengajuan ditolak'
+      return 'Pengajuan'
+    }
     const remaining = expense.remaining !== undefined ? expense.remaining : (expense.total || 0)
     const total = expense.total || 0
-    
+
     if (remaining === 0 || remaining < 0.01) return 'Lunas'
     if (remaining < total) return 'Dibayar Sebagian'
     return 'Belum Dibayar'
@@ -162,6 +168,12 @@ export default function Biaya() {
   }
 
   const getExpensePaymentStatusLabel = (expense) => {
+    if (expense?.requestType && !isExpensePostedToLedger(expense)) {
+      if (expense.workflowStatus === WORKFLOW.DRAFT) return 'Draft'
+      if (expense.workflowStatus === WORKFLOW.SUBMITTED) return 'Menunggu'
+      if (expense.workflowStatus === WORKFLOW.REJECTED) return 'Ditolak'
+      return 'Pengajuan'
+    }
     if (expense?.paymentStatus === 'reimburse') return 'Reimburse'
     const percentage = getPaymentPercentage(expense)
     if (percentage === 100) return 'Sudah Lunas'
@@ -196,6 +208,11 @@ export default function Biaya() {
       }
 
       const expenseData = expenseSnap.data()
+      if (!isExpensePostedToLedger(expenseData)) {
+        alert('Biaya ini belum diposting ke buku. Setujui pengajuan dari halaman detail terlebih dahulu.')
+        setPaymentMenuOpen(null)
+        return
+      }
       const total = parseFloat(expenseData.total) || 0
       const rawRem = expenseData.remaining
       const currentRemaining =
@@ -268,6 +285,7 @@ export default function Biaya() {
     let jatuhTempoTotal = 0
 
     expenses.forEach(expense => {
+      if (!isExpensePostedToLedger(expense)) return
       const expenseDate = expense.date ? new Date(expense.date) : (expense.createdAt ? new Date(expense.createdAt) : null)
       const remaining = expense.remaining !== undefined ? expense.remaining : (expense.total || 0)
       const total = expense.total || 0
@@ -364,10 +382,15 @@ export default function Biaya() {
   // Filter expenses based on status and search
   const filteredExpenses = expenses.filter(expense => {
     const status = getStatusLabel(expense)
-    const matchesStatus = selectedStatus === 'all' || 
+    const isPendingEmployeeRequest =
+      expense.requestType &&
+      (expense.workflowStatus === WORKFLOW.DRAFT || expense.workflowStatus === WORKFLOW.SUBMITTED)
+    const matchesStatus =
+      selectedStatus === 'all' ||
       (selectedStatus === 'unpaid' && status === 'Belum Dibayar') ||
       (selectedStatus === 'partial' && status === 'Dibayar Sebagian') ||
-      (selectedStatus === 'paid' && status === 'Lunas')
+      (selectedStatus === 'paid' && status === 'Lunas') ||
+      (selectedStatus === 'pending_review' && isPendingEmployeeRequest)
     
     const matchesSearch = !searchQuery || 
       expense.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -707,6 +730,16 @@ export default function Biaya() {
           }`}
         >
           Lunas
+        </button>
+        <button
+          onClick={() => setSelectedStatus('pending_review')}
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            selectedStatus === 'pending_review'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+          }`}
+        >
+          Permintaan karyawan
         </button>
         <button className="px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
           Lainnya

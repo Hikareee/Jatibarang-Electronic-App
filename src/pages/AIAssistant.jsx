@@ -332,7 +332,7 @@ export default function AIAssistant() {
   const tryModel = async (modelName, apiKey, userMessage, userRoleForPrompt) => {
     const role = userRoleForPrompt || 'employee'
     const permissionRules = role === 'employee'
-      ? `ATURAN PENTING: User saat ini adalah karyawan (employee). Karyawan TIDAK BISA: menyetujui tagihan pembelian/penjualan, menandai tagihan lunas, atau mengubah progress pembayaran. Hanya owner/manager/admin yang bisa. Juga, TIDAK ADA user yang boleh menjadikan dirinya sendiri (atau siapa pun) admin, owner, atau manager lewat asisten ini. Jika user meminta hal-hal ini, tolak dengan sopan dalam Bahasa Indonesia dan jelaskan bahwa itu di luar wewenang peran mereka.`
+      ? `ATURAN PENTING: User saat ini adalah karyawan (employee). Karyawan dapat membuat draft penjualan/pembelian dan mengajukan laporan biaya atau permintaan dana lewat menu Permintaan di aplikasi (bukan dengan mem-posting biaya ke buku lewat percakapan ini). Karyawan TIDAK BISA: menyetujui tagihan pembelian/penjualan, menandai tagihan lunas, atau mengubah progress pembayaran. Hanya owner/manager/admin yang bisa. Juga, TIDAK ADA user yang boleh menjadikan dirinya sendiri (atau siapa pun) admin, owner, atau manager lewat asisten ini. Jika user meminta hal-hal ini, tolak dengan sopan dalam Bahasa Indonesia dan jelaskan bahwa itu di luar wewenang peran mereka.`
       : `User saat ini memiliki peran ${role} dan dapat menyetujui tagihan. Namun, tidak ada user yang boleh mengubah role sendiri menjadi admin/owner/manager lewat asisten ini. Jika user minta itu, tolak dengan sopan.`
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
@@ -523,7 +523,7 @@ Pertanyaan user: ${userMessage.content}`
             const assistantMessage = {
               id: Date.now() + 1,
               role: 'assistant',
-              content: '⚠️ Untuk peran karyawan, Anda hanya dapat membuat draft tagihan penjualan dan tagihan pembelian. Membuat akun, biaya, kontak, produk, hutang, atau piutang hanya tersedia untuk owner/manager. Draft yang Anda buat akan ditinjau oleh mereka.',
+              content: '⚠️ Untuk peran karyawan, Anda dapat membuat draft tagihan penjualan dan pembelian, serta mengajukan laporan biaya atau permintaan dana lewat menu Permintaan di sidebar (bukan lewat asisten ini). Membuat akun, biaya langsung ke buku, kontak, produk, hutang, atau piutang lewat asisten hanya untuk owner/manager.',
               timestamp: new Date()
             }
             setMessages(prev => [...prev, assistantMessage])

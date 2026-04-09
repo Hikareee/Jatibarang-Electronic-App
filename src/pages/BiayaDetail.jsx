@@ -10,6 +10,13 @@ import { useContacts } from '../hooks/useContactsData'
 import { useAccounts } from '../hooks/useAccountsData'
 import { useProjects } from '../hooks/useProjectsData'
 import { useUserApproval } from '../hooks/useUserApproval'
+import { useAuth } from '../contexts/AuthContext'
+import {
+  approveEmployeeExpenseRequest,
+  rejectEmployeeExpenseRequest,
+  WORKFLOW,
+  REQUEST_TYPES,
+} from '../hooks/useExpensesData'
 import { uploadExpenseAttachment } from '../firebase/supabaseClient'
 import { ChevronLeft, Save, Calendar, Loader2, ImagePlus, FileText, X } from 'lucide-react'
 import FormattedNumberInput from '../components/FormattedNumberInput'
@@ -21,7 +28,8 @@ export default function BiayaDetail() {
   const { contacts, loading: contactsLoading } = useContacts()
   const { accounts, loading: accountsLoading } = useAccounts()
   const { projects, loading: projectsLoading } = useProjects()
-  const { canEditApproved, loading: approvalLoading } = useUserApproval()
+  const { currentUser } = useAuth()
+  const { canEditApproved, loading: approvalLoading, canApprove } = useUserApproval()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -29,6 +37,8 @@ export default function BiayaDetail() {
   const [error, setError] = useState(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [imageError, setImageError] = useState('')
+  const [requestMeta, setRequestMeta] = useState(null)
+  const [approvalBusy, setApprovalBusy] = useState(false)
 
   const [formData, setFormData] = useState({
     date: '',
@@ -56,9 +66,16 @@ export default function BiayaDetail() {
         const snap = await getDoc(doc(db, 'expenses', id))
         if (!snap.exists()) {
           setError('Biaya tidak ditemukan')
+          setRequestMeta(null)
           return
         }
         const data = snap.data()
+        setRequestMeta({
+          requestType: data.requestType || null,
+          workflowStatus: data.workflowStatus || null,
+          ledgerPosted: data.ledgerPosted === true,
+          createdBy: data.createdBy || null,
+        })
         const dateStr = data.date
           ? typeof data.date === 'string'
             ? data.date.split('T')[0]
@@ -159,12 +176,20 @@ export default function BiayaDetail() {
     }
   }
 
+  const isPendingSubmission =
+    requestMeta?.requestType &&
+    requestMeta?.workflowStatus === WORKFLOW.SUBMITTED &&
+    !requestMeta?.ledgerPosted
+
+  const canManagerFill = Boolean(canApprove && isPendingSubmission && !approvalLoading)
+
   const handleSave = async () => {
-    if (!canEditApproved) {
-      alert('Hanya owner yang bisa mengedit biaya ini')
+    if (!canEditApproved && !canManagerFill) {
+      alert('Anda tidak memiliki izin untuk mengedit biaya ini')
       return
     }
-    if (!formData.recipient) {
+    const isFundRequest = requestMeta?.requestType === REQUEST_TYPES.FUND_REQUEST
+    if (!formData.recipient && !isFundRequest) {
       alert('Penerima wajib diisi')
       return
     }
@@ -210,8 +235,11 @@ export default function BiayaDetail() {
         date: formData.date,
         dueDate: formData.dueDate || '',
         number: formData.number,
-        recipientId: formData.recipient,
-        recipient: recipientObj?.name || recipientObj?.company || '',
+        recipientId: formData.recipient || '',
+        recipient:
+          recipientObj?.name ||
+          recipientObj?.company ||
+          (isFundRequest ? 'Permintaan dana (internal)' : ''),
         accountId: formData.account,
         account: accountObj?.name || '',
         reference: formData.reference || '',
@@ -236,6 +264,43 @@ export default function BiayaDetail() {
     }
   }
 
+  const handleApproveRequest = async () => {
+    if (!id) return
+    try {
+      setApprovalBusy(true)
+      await approveEmployeeExpenseRequest(id, currentUser?.uid, currentUser?.email || '')
+      alert('Pengajuan disetujui dan diposting ke buku besar.')
+      navigate('/biaya')
+    } catch (err) {
+      console.error(err)
+      alert(err?.message || 'Gagal menyetujui pengajuan')
+    } finally {
+      setApprovalBusy(false)
+    }
+  }
+
+  const handleRejectRequest = async () => {
+    if (!id) return
+    const reason = window.prompt('Alasan penolakan (opsional):')
+    if (reason === null) return
+    try {
+      setApprovalBusy(true)
+      await rejectEmployeeExpenseRequest(
+        id,
+        currentUser?.uid,
+        reason || '',
+        currentUser?.email || ''
+      )
+      alert('Pengajuan ditolak.')
+      navigate('/biaya')
+    } catch (err) {
+      console.error(err)
+      alert('Gagal menolak pengajuan')
+    } finally {
+      setApprovalBusy(false)
+    }
+  }
+
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
@@ -250,7 +315,7 @@ export default function BiayaDetail() {
             <div className="flex items-center justify-between mb-6">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Detail Biaya</h1>
               <div className="flex items-center gap-3">
-                {canEditApproved && !approvalLoading && !isEditing && (
+                {(canEditApproved || canManagerFill) && !approvalLoading && !isEditing && (
                   <button
                     type="button"
                     onClick={() => setIsEditing(true)}
@@ -290,6 +355,37 @@ export default function BiayaDetail() {
               <p className="text-red-600 dark:text-red-400">{error}</p>
             ) : (
               <>
+                {isPendingSubmission && (
+                  <div className="mb-6 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                    <p className="text-sm font-medium text-amber-950 dark:text-amber-100">
+                      Pengajuan karyawan — menunggu persetujuan
+                    </p>
+                    <p className="text-xs text-amber-900/80 dark:text-amber-200/90 mt-1">
+                      Untuk permintaan dana: klik Edit, pilih akun (dan penerima jika perlu), lalu Simpan. Setelah data
+                      lengkap, klik Setujui & posting.
+                    </p>
+                    {canApprove && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <button
+                          type="button"
+                          disabled={approvalBusy || isEditing}
+                          onClick={handleApproveRequest}
+                          className="px-4 py-2 text-sm font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          {approvalBusy ? 'Memproses…' : 'Setujui & posting ke buku'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={approvalBusy}
+                          onClick={handleRejectRequest}
+                          className="px-4 py-2 text-sm font-medium rounded-lg border border-red-300 text-red-700 dark:border-red-800 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                        >
+                          Tolak pengajuan
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Left: form sections */}
                   <div className="lg:col-span-2 space-y-6">
