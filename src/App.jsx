@@ -54,6 +54,7 @@ import EmployeeExpenseReportForm from './pages/EmployeeExpenseReportForm'
 import EmployeeFundRequestForm from './pages/EmployeeFundRequestForm'
 import UangKas from './pages/UangKas'
 import ApprovedRoute from './components/ApprovedRoute'
+import AdminOwnerRoute from './components/AdminOwnerRoute'
 import ManagerRoute from './components/ManagerRoute'
 import OwnerRoute from './components/OwnerRoute'
 
@@ -162,7 +163,9 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <ApprovedRoute>
-              <UangKas />
+              <AdminOwnerRoute>
+                <UangKas />
+              </AdminOwnerRoute>
             </ApprovedRoute>
           </PrivateRoute>
         }

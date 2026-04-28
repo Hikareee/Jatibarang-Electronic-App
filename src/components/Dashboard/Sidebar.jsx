@@ -99,7 +99,7 @@ export default function Sidebar({ isOpen, onToggle }) {
   const allMenuItems = [
     { icon: Home, label: t('home'), path: '/dashboard' },
     { icon: ClipboardList, label: 'Permintaan', path: '/permintaan' },
-    { icon: Banknote, label: 'Uang Kas', path: '/uang-kas' },
+    { icon: Banknote, label: 'Uang Kas', path: '/uang-kas', adminOwnerOnly: true },
     { 
       icon: ShoppingCart, 
       label: t('sales'), 
@@ -144,7 +144,9 @@ export default function Sidebar({ isOpen, onToggle }) {
   const menuItems = useMemo(() => {
     const base = isEmployee ? allMenuItems.filter((item) => !item.managerOnly) : allMenuItems
     // Hide owner-only items from non-owner roles (including admin)
-    return base.filter((item) => !item.ownerOnly || role === 'owner')
+    return base
+      .filter((item) => !item.ownerOnly || role === 'owner')
+      .filter((item) => !item.adminOwnerOnly || role === 'owner' || role === 'admin')
   }, [isEmployee, role])
 
   return (
