@@ -23,7 +23,8 @@ import {
   Sparkles,
   Calculator,
   CalendarCheck,
-  ClipboardList
+  ClipboardList,
+  Banknote
 } from 'lucide-react'
 
 export default function Sidebar({ isOpen, onToggle }) {
@@ -98,6 +99,7 @@ export default function Sidebar({ isOpen, onToggle }) {
   const allMenuItems = [
     { icon: Home, label: t('home'), path: '/dashboard' },
     { icon: ClipboardList, label: 'Permintaan', path: '/permintaan' },
+    { icon: Banknote, label: 'Uang Kas', path: '/uang-kas' },
     { 
       icon: ShoppingCart, 
       label: t('sales'), 

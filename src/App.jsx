@@ -52,6 +52,7 @@ import Attendance from './pages/Attendance'
 import EmployeeRequests from './pages/EmployeeRequests'
 import EmployeeExpenseReportForm from './pages/EmployeeExpenseReportForm'
 import EmployeeFundRequestForm from './pages/EmployeeFundRequestForm'
+import UangKas from './pages/UangKas'
 import ApprovedRoute from './components/ApprovedRoute'
 import ManagerRoute from './components/ManagerRoute'
 import OwnerRoute from './components/OwnerRoute'
@@ -152,6 +153,16 @@ function AppRoutes() {
           <PrivateRoute>
             <ApprovedRoute>
               <EmployeeFundRequestForm />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/uang-kas"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <UangKas />
             </ApprovedRoute>
           </PrivateRoute>
         }

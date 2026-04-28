@@ -14,9 +14,10 @@ import {
   Image as ImageIcon,
   Pencil,
 } from 'lucide-react'
-import { getProductById, updateProduct } from '../hooks/useProductsData'
+import { getProductById, getProductsByName, updateProduct } from '../hooks/useProductsData'
 import { useContacts } from '../hooks/useContactsData'
 import FormattedNumberInput from '../components/FormattedNumberInput'
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, YAxis, XAxis } from 'recharts'
 
 const defaultForm = {
   nama: '',
@@ -61,6 +62,11 @@ export default function ProductEdit() {
   const [saving, setSaving] = useState(false)
   const [loadError, setLoadError] = useState(null)
   const [formData, setFormData] = useState(defaultForm)
+  const [priceHistoryBeli, setPriceHistoryBeli] = useState([])
+  const [priceHistoryJual, setPriceHistoryJual] = useState([])
+  const [priceChangeNoteBeli, setPriceChangeNoteBeli] = useState('')
+  const [priceChangeNoteJual, setPriceChangeNoteJual] = useState('')
+  const [compareRows, setCompareRows] = useState([])
   const skuRef = useRef(null)
 
   const [showImage, setShowImage] = useState(false)
@@ -113,6 +119,10 @@ export default function ProductEdit() {
           taxSettings: p.taxSettings || {},
           wholesalePrices: p.wholesalePrices || [],
         }
+        setPriceHistoryBeli(Array.isArray(p.priceHistoryBeli) ? p.priceHistoryBeli : [])
+        setPriceHistoryJual(Array.isArray(p.priceHistoryJual) ? p.priceHistoryJual : [])
+        setPriceChangeNoteBeli('')
+        setPriceChangeNoteJual('')
         const snapshot = cloneProductForm(loaded)
         baselineFormRef.current = snapshot
         setFormData(snapshot)
@@ -131,6 +141,41 @@ export default function ProductEdit() {
   useEffect(() => {
     autosizeSku()
   }, [formData.kode])
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const name = String(formData.nama || '').trim()
+      if (!name) {
+        setCompareRows([])
+        return
+      }
+      try {
+        const rows = await getProductsByName(name)
+        if (!alive) return
+        const candidates = (rows || [])
+          .filter((p) => p && p.id)
+          .map((p) => ({
+            id: p.id,
+            pemasokNama: p.pemasokNama || '',
+            pemasokContactId: p.pemasokContactId || '',
+            hargaBeli: Number(p.hargaBeli || 0),
+          }))
+          .sort((a, b) => a.hargaBeli - b.hargaBeli)
+        setCompareRows(candidates)
+      } catch (err) {
+        console.warn('Failed to load compare rows:', err)
+        setCompareRows([])
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [formData.nama])
+
+  const baseline = baselineFormRef.current || defaultForm
+  const hargaBeliChanged = Number(formData.hargaBeli || 0) !== Number(baseline.hargaBeli || 0)
+  const hargaJualChanged = Number(formData.hargaJual || 0) !== Number(baseline.hargaJual || 0)
 
   const handleSave = async () => {
     if (!canEdit) {
@@ -154,10 +199,12 @@ export default function ProductEdit() {
         deskripsi: formData.deskripsi,
         sayaBeli: formData.sayaBeli,
         hargaBeli: Number(formData.hargaBeli) || 0,
+        priceChangeNoteBeli: hargaBeliChanged ? priceChangeNoteBeli : '',
         pemasokContactId: formData.pemasokContactId || '',
         pemasokNama: formData.pemasokNama || '',
         sayaJual: formData.sayaJual,
         hargaJual: Number(formData.hargaJual) || 0,
+        priceChangeNoteJual: hargaJualChanged ? priceChangeNoteJual : '',
         qty: Number(formData.qty) || 0,
         hpp: Number(formData.hpp) || 0,
         accountSettings: formData.accountSettings,
@@ -469,17 +516,35 @@ export default function ProductEdit() {
                         </button>
                       </div>
                       {formData.sayaBeli && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Harga beli
+                        </label>
+                        <FormattedNumberInput
+                          value={formData.hargaBeli}
+                          onChange={(value) => setFormData({ ...formData, hargaBeli: value })}
+                          disabled={fieldsLocked}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                        />
+                      </div>
+
+                      {editMode && hargaBeliChanged && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Harga beli
+                            Alasan perubahan harga beli (opsional)
                           </label>
-                          <FormattedNumberInput
-                            value={formData.hargaBeli}
-                            onChange={(value) => setFormData({ ...formData, hargaBeli: value })}
+                          <input
+                            type="text"
+                            value={priceChangeNoteBeli}
+                            onChange={(e) => setPriceChangeNoteBeli(e.target.value)}
                             disabled={fieldsLocked}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                            placeholder="Contoh: vendor naik harga, diskon proyek, kurs, dll."
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
                           />
                         </div>
+                      )}
+                    </div>
                       )}
                     </div>
 
@@ -504,17 +569,35 @@ export default function ProductEdit() {
                         </button>
                       </div>
                       {formData.sayaJual && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Harga jual
+                        </label>
+                        <FormattedNumberInput
+                          value={formData.hargaJual}
+                          onChange={(value) => setFormData({ ...formData, hargaJual: value })}
+                          disabled={fieldsLocked}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                        />
+                      </div>
+
+                      {editMode && hargaJualChanged && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Harga jual
+                            Alasan perubahan harga jual (opsional)
                           </label>
-                          <FormattedNumberInput
-                            value={formData.hargaJual}
-                            onChange={(value) => setFormData({ ...formData, hargaJual: value })}
+                          <input
+                            type="text"
+                            value={priceChangeNoteJual}
+                            onChange={(e) => setPriceChangeNoteJual(e.target.value)}
                             disabled={fieldsLocked}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                            placeholder="Contoh: margin, kompetitor, promo, dll."
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
                           />
                         </div>
+                      )}
+                    </div>
                       )}
                     </div>
                   </div>
@@ -638,6 +721,78 @@ export default function ProductEdit() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
+                    Grafik perubahan harga beli
+                  </h2>
+                  <div className="h-44">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={(priceHistoryBeli || []).map((r) => ({
+                          at: r.at,
+                          price: Number(r.to ?? 0),
+                        }))}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="at" hide />
+                        <YAxis width={60} tickFormatter={(v) => new Intl.NumberFormat('id-ID').format(v)} />
+                        <Tooltip
+                          formatter={(v) => new Intl.NumberFormat('id-ID').format(Number(v || 0))}
+                          labelFormatter={() => ''}
+                        />
+                        <Line type="monotone" dataKey="price" stroke="#2563EB" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Grafik terisi otomatis setiap kali harga beli diubah lalu disimpan.
+                  </p>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
+                    Perbandingan harga beli (nama sama)
+                  </h2>
+                  {compareRows.length === 0 ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Tidak ada produk lain dengan nama yang sama.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 dark:bg-gray-700/80">
+                          <tr>
+                            <th className="text-left px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+                              Pemasok
+                            </th>
+                            <th className="text-right px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+                              Harga beli
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                          {compareRows.slice(0, 10).map((r) => (
+                            <tr
+                              key={r.id}
+                              className={r.id === id ? 'bg-blue-50/60 dark:bg-blue-900/20' : ''}
+                            >
+                              <td className="px-3 py-2 text-gray-900 dark:text-white max-w-[14rem] truncate" title={r.pemasokNama || ''}>
+                                {r.pemasokNama || '—'}
+                              </td>
+                              <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-white">
+                                {new Intl.NumberFormat('id-ID').format(Number(r.hargaBeli || 0))}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Buat produk terpisah per pemasok (nama sama) untuk bandingkan harga toko/vendor.
+                  </p>
                 </div>
               </div>
             </div>

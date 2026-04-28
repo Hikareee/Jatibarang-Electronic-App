@@ -8,6 +8,7 @@ import {
   limit,
   orderBy,
   query,
+  where,
   updateDoc,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
@@ -107,18 +108,77 @@ export async function getProductById(productId) {
   return { id: snap.id, ...snap.data() }
 }
 
+export async function getProductsByName(nama) {
+  const name = String(nama || '').trim()
+  if (!name) return []
+  const ref = collection(db, 'products')
+  const q = query(ref, where('nama', '==', name), orderBy('updatedAt', 'desc'))
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+}
+
 /**
  * Partial update — pass only fields that should change; does not overwrite createdAt.
  */
 export async function updateProduct(productId, partialData) {
   const ref = doc(db, 'products', productId)
-  const { id: _omit, createdAt: _c, ...rest } = partialData || {}
+  const snap = await getDoc(ref)
+  const current = snap.exists() ? snap.data() : {}
+
+  const {
+    id: _omit,
+    createdAt: _c,
+    priceChangeNoteBeli,
+    priceChangeNoteJual,
+    ...rest
+  } = partialData || {}
+
+  const nowIso = new Date().toISOString()
+
   const payload = Object.fromEntries(
     Object.entries({
       ...rest,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowIso,
     }).filter(([, v]) => v !== undefined)
   )
+
+  // Track price history when buy/sell price changes.
+  const oldBeli = current?.hargaBeli
+  const newBeli = rest?.hargaBeli
+  const oldJual = current?.hargaJual
+  const newJual = rest?.hargaJual
+
+  const hargaBeliChanged =
+    newBeli !== undefined && Number(oldBeli ?? 0) !== Number(newBeli ?? 0)
+  const hargaJualChanged =
+    newJual !== undefined && Number(oldJual ?? 0) !== Number(newJual ?? 0)
+
+  if (hargaBeliChanged) {
+    const history = Array.isArray(current?.priceHistoryBeli) ? current.priceHistoryBeli : []
+    const entry = {
+      at: nowIso,
+      from: Number(oldBeli ?? 0),
+      to: Number(newBeli ?? 0),
+      delta: Number(newBeli ?? 0) - Number(oldBeli ?? 0),
+      note: String(priceChangeNoteBeli || '').trim(),
+      pemasokContactId: rest?.pemasokContactId ?? current?.pemasokContactId ?? '',
+      pemasokNama: rest?.pemasokNama ?? current?.pemasokNama ?? '',
+    }
+    payload.priceHistoryBeli = [...history, entry].slice(-200)
+  }
+
+  if (hargaJualChanged) {
+    const history = Array.isArray(current?.priceHistoryJual) ? current.priceHistoryJual : []
+    const entry = {
+      at: nowIso,
+      from: Number(oldJual ?? 0),
+      to: Number(newJual ?? 0),
+      delta: Number(newJual ?? 0) - Number(oldJual ?? 0),
+      note: String(priceChangeNoteJual || '').trim(),
+    }
+    payload.priceHistoryJual = [...history, entry].slice(-200)
+  }
+
   await updateDoc(ref, payload)
 }
 
