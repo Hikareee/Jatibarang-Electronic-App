@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Search, ScanLine, MapPin, Package2 } from 'lucide-react'
+import { Search, ScanLine, MapPin, Package2, Camera } from 'lucide-react'
 import { useMobileStockLookup } from '../hooks/useMobileStockLookup'
+import MobileBarcodeCameraScanner from '../components/mobile/MobileBarcodeCameraScanner'
 
 function badgeClasses(color) {
   if (color === 'emerald') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
@@ -16,6 +17,7 @@ export default function MobileStockPage() {
   const [error, setError] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [merekFilter, setMerekFilter] = useState('all')
+  const [cameraOpen, setCameraOpen] = useState(false)
 
   const typeOptions = useMemo(
     () =>
@@ -45,23 +47,27 @@ export default function MobileStockPage() {
     productCards.find((card) => card.id === selectedProductId) ||
     null
 
-  async function handleSubmit(e) {
-    e.preventDefault()
+  async function runLookup(raw) {
     setError('')
     setMessage('')
     setSerialHit(null)
-    const result = await lookupByScan(scanInput)
+    const result = await lookupByScan(raw)
     if (!result.product && !result.serial) {
       setError('Barcode, SKU, atau serial tidak ditemukan.')
       return
     }
     if (result.product) {
       setSelectedProductId(result.product.id)
-      setMessage(`Item ditemukan: ${result.product.nama || result.product.kode || result.product.id}`)
+      setMessage(
+        `Item ditemukan: ${result.product.nama || result.product.kode || result.product.id}`
+      )
     }
-    if (result.serial) {
-      setSerialHit(result.serial)
-    }
+    if (result.serial) setSerialHit(result.serial)
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    await runLookup(scanInput)
   }
 
   return (
@@ -83,7 +89,19 @@ export default function MobileStockPage() {
             placeholder="Scan dan langsung enter"
             className="min-w-0 flex-1 bg-transparent text-sm outline-none"
           />
-          <button className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white">
+          <button
+            type="button"
+            onClick={() => setCameraOpen(true)}
+            className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-blue-700 shadow-sm ring-1 ring-slate-200 hover:bg-blue-50 dark:bg-slate-900 dark:text-blue-300 dark:ring-slate-700"
+            aria-label="Scan dengan kamera"
+          >
+            <Camera className="inline-block h-4 w-4 mr-1" />
+            Kamera
+          </button>
+          <button
+            type="submit"
+            className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white"
+          >
             Cari
           </button>
         </div>
@@ -198,6 +216,16 @@ export default function MobileStockPage() {
       <div className="pb-2 text-center text-[11px] text-slate-400">
         {loading ? 'Memuat data stok...' : `${filteredCards.length} item terdeteksi`}
       </div>
+
+      <MobileBarcodeCameraScanner
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onScan={async (code) => {
+          setCameraOpen(false)
+          setScanInput(code)
+          await runLookup(code)
+        }}
+      />
     </div>
   )
 }

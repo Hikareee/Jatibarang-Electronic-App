@@ -773,9 +773,9 @@ export default function PosTerminal() {
         {/* Shell terpisah: konten utama “melayang” di dalam bingkai */}
         <div className="flex min-h-0 flex-1 p-3 sm:p-5">
           <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[1.75rem] border border-white/90 bg-white shadow-2xl shadow-slate-300/60 dark:border-slate-700/90 dark:bg-slate-900 dark:shadow-black/40">
-            <div className="flex min-h-0 min-w-0 flex-1 divide-x divide-slate-100 overflow-hidden dark:divide-slate-800">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col divide-y divide-slate-100 overflow-hidden dark:divide-slate-800 lg:flex-row lg:divide-x lg:divide-y-0">
               {/* Kolom produk */}
-              <section className="flex min-h-0 flex-[1.15] flex-col">
+              <section className="flex min-h-0 w-full flex-[1.15] flex-col lg:w-auto">
                 <div className="shrink-0 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
                   <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-1">
                     {categories.map((c) => (
@@ -849,7 +849,7 @@ export default function PosTerminal() {
               </section>
 
               {/* Keranjang */}
-              <section className="flex w-full min-h-0 shrink-0 flex-col sm:w-[min(100%,24rem)] lg:w-[26rem]">
+              <section className="flex w-full min-h-0 shrink-0 flex-col lg:w-[26rem]">
                 <div className="shrink-0 space-y-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                     Rincian pesanan
@@ -1004,7 +1004,7 @@ export default function PosTerminal() {
               </section>
 
               {/* Pembayaran — area tengah bisa di-scroll; tombol Bayar tetap menempel di bawah */}
-              <section className="flex min-h-0 min-w-[min(100%,17rem)] max-w-[24rem] flex-1 flex-col overflow-hidden lg:w-[20rem] xl:w-[21rem]">
+              <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden lg:w-[20rem] xl:w-[21rem]">
                 <div className="shrink-0 border-b border-slate-100 px-3 py-2.5 dark:border-slate-800">
                   <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                     Penjual (komisi)
