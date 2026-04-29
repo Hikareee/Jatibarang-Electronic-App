@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { BrowserMultiFormatReader } from '@zxing/browser'
+import { BarcodeFormat, DecodeHintType } from '@zxing/library'
 import { Camera, X } from 'lucide-react'
 
 /**
@@ -24,7 +25,24 @@ export default function MobileBarcodeCameraScanner({ open, onScan, onClose }) {
       setIsScanning(true)
 
       try {
-        const reader = new BrowserMultiFormatReader()
+        // Make sure we accept both 1D barcodes and QR codes.
+        // Keep the list reasonably sized for performance on mobile.
+        const hints = new Map()
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.QR_CODE,
+          BarcodeFormat.AZTEC,
+          BarcodeFormat.DATA_MATRIX,
+          BarcodeFormat.CODE_128,
+          BarcodeFormat.CODE_39,
+          BarcodeFormat.CODE_93,
+          BarcodeFormat.EAN_13,
+          BarcodeFormat.EAN_8,
+          BarcodeFormat.UPC_A,
+          BarcodeFormat.UPC_E,
+          BarcodeFormat.ITF,
+        ])
+
+        const reader = new BrowserMultiFormatReader(hints)
         readerRef.current = reader
 
         const videoEl = videoRef.current
