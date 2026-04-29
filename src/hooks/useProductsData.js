@@ -13,6 +13,23 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
+function normalizeProductShape(raw = {}, id = '') {
+  const nama = raw.nama ?? raw.name ?? ''
+  const kode = raw.kode ?? raw.sku ?? ''
+  const hargaJual = raw.hargaJual ?? raw.salePrice ?? raw.price ?? 0
+  const hargaBeli = raw.hargaBeli ?? raw.buyPrice ?? raw.costPrice ?? 0
+  return {
+    id,
+    ...raw,
+    nama,
+    name: raw.name ?? nama,
+    kode,
+    sku: raw.sku ?? kode,
+    hargaJual: Number(hargaJual) || 0,
+    hargaBeli: Number(hargaBeli) || 0,
+  }
+}
+
 export function useProducts() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -25,13 +42,15 @@ export function useProducts() {
         setError(null)
         
         const productsRef = collection(db, 'products')
-        const q = query(productsRef, orderBy('nama', 'asc'))
-        const snapshot = await getDocs(q)
+        const snapshot = await getDocs(query(productsRef))
         
-        const productsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
+        const productsData = snapshot.docs
+          .map((doc) => normalizeProductShape(doc.data(), doc.id))
+          .sort((a, b) =>
+            String(a.nama || '').localeCompare(String(b.nama || ''), 'id', {
+              sensitivity: 'base',
+            })
+          )
         
         setProducts(productsData)
       } catch (err) {
@@ -87,6 +106,7 @@ export async function saveProduct(productData) {
     const finalProductData = {
       ...productData,
       kode: productData.kode || nextCode,
+      sku: productData.sku || productData.kode || nextCode,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
@@ -105,16 +125,46 @@ export async function getProductById(productId) {
   const ref = doc(db, 'products', productId)
   const snap = await getDoc(ref)
   if (!snap.exists()) return null
-  return { id: snap.id, ...snap.data() }
+  return normalizeProductShape(snap.data(), snap.id)
+}
+
+/**
+ * Resolve a product from in-memory list by SKU, kode, or product barcode (case-insensitive).
+ */
+export function findProductByScan(products, raw) {
+  const q = String(raw || '').trim()
+  if (!q || !Array.isArray(products)) return null
+  const lower = q.toLowerCase()
+  return (
+    products.find((p) => {
+      const sku = String(p.kode || p.sku || '').trim().toLowerCase()
+      const bc = String(p.barcode || '').trim().toLowerCase()
+      return (sku && sku === lower) || (bc && bc === lower)
+    }) || null
+  )
+}
+
+/** Default for electronics: require per-unit serial tracking */
+export function productRequiresSerial(p) {
+  if (!p || typeof p !== 'object') return true
+  return p.requiresSerial !== false
 }
 
 export async function getProductsByName(nama) {
   const name = String(nama || '').trim()
   if (!name) return []
   const ref = collection(db, 'products')
-  const q = query(ref, where('nama', '==', name), orderBy('updatedAt', 'desc'))
-  const snap = await getDocs(q)
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const qNama = query(ref, where('nama', '==', name))
+  const qName = query(ref, where('name', '==', name))
+  const [snapNama, snapName] = await Promise.all([getDocs(qNama), getDocs(qName)])
+  const merged = [...snapNama.docs, ...snapName.docs]
+  const uniq = new Map()
+  merged.forEach((d) => {
+    if (!uniq.has(d.id)) uniq.set(d.id, normalizeProductShape(d.data(), d.id))
+  })
+  return Array.from(uniq.values()).sort(
+    (a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
+  )
 }
 
 /**

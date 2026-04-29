@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
+import { canonicalRole } from './useUserApproval'
 
 export function useUserRole() {
   const { currentUser } = useAuth()
@@ -22,7 +23,7 @@ export function useUserRole() {
         
         if (userSnap.exists()) {
           const userData = userSnap.data()
-          setUserRole(userData.role || 'employee') // Default to employee if no role set
+          setUserRole(canonicalRole(userData.role))
         } else {
           // If user document doesn't exist, create it with default role
           setUserRole('employee')

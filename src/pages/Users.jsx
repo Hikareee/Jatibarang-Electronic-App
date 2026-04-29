@@ -180,6 +180,11 @@ export default function Users() {
             </div>
 
             {/* Pending Users Section */}
+            {error ? (
+              <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                Gagal memuat users: {error}
+              </div>
+            ) : null}
             {pendingUsers.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 mb-6">
                 <div className="flex items-center gap-2 mb-4">

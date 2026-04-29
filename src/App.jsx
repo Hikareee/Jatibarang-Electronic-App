@@ -1,4 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { DarkModeProvider } from './contexts/DarkModeContext'
@@ -43,9 +48,6 @@ import AIAssistant from './pages/AIAssistant'
 import Inventori from './pages/Inventori'
 import GudangDetail from './pages/GudangDetail'
 import Laporan from './pages/Laporan'
-import Proyek from './pages/Proyek'
-import ProyekDetail from './pages/ProyekDetail'
-import RABCalculator from './pages/RABCalculator'
 import Payroll from './pages/Payroll'
 import PayrollEmployeeDetail from './pages/PayrollEmployeeDetail'
 import Attendance from './pages/Attendance'
@@ -53,10 +55,26 @@ import EmployeeRequests from './pages/EmployeeRequests'
 import EmployeeExpenseReportForm from './pages/EmployeeExpenseReportForm'
 import EmployeeFundRequestForm from './pages/EmployeeFundRequestForm'
 import UangKas from './pages/UangKas'
+import PosLayout from './components/pos/PosLayout'
+import PosTerminal from './pages/PosTerminal'
+import PosTransaksi from './pages/PosTransaksi'
+import PosPengaturanLayout from './pages/PosPengaturanLayout'
+import PosSettingsKasir from './pages/pos-settings/PosSettingsKasir'
+import PosSettingsStruk from './pages/pos-settings/PosSettingsStruk'
+import PosSettingsPembayaranNonTunai from './pages/pos-settings/PosSettingsPembayaranNonTunai'
+import PosSettingsPajak from './pages/pos-settings/PosSettingsPajak'
+import PosSettingsPrinter from './pages/pos-settings/PosSettingsPrinter'
+import PosSettingsWebOrder from './pages/pos-settings/PosSettingsWebOrder'
+import PosSettingsGantiPIN from './pages/pos-settings/PosSettingsGantiPIN'
+import PosSettingsResetPIN from './pages/pos-settings/PosSettingsResetPIN'
 import ApprovedRoute from './components/ApprovedRoute'
 import AdminOwnerRoute from './components/AdminOwnerRoute'
 import ManagerRoute from './components/ManagerRoute'
 import OwnerRoute from './components/OwnerRoute'
+import MobileAppLayout from './pages/MobileAppLayout'
+import MobileStockPage from './pages/MobileStockPage'
+import MobileDeliveryPage from './pages/MobileDeliveryPage'
+import MobileDeliveryDetail from './pages/MobileDeliveryDetail'
 
 function PrivateRoute({ children }) {
   const { currentUser } = useAuth()
@@ -80,6 +98,49 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
+      <Route
+        path="/pos"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <PosLayout />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      >
+        <Route index element={<PosTerminal />} />
+        <Route path="transaksi" element={<PosTransaksi />} />
+        <Route path="pengaturan" element={<PosPengaturanLayout />}>
+          <Route index element={<Navigate to="/pos/pengaturan/kasir" replace />} />
+          <Route path="kasir" element={<PosSettingsKasir />} />
+          <Route path="struk-biaya" element={<PosSettingsStruk />} />
+          <Route
+            path="pembayaran-non-tunai"
+            element={<PosSettingsPembayaranNonTunai />}
+          />
+          <Route path="pajak" element={<PosSettingsPajak />} />
+          <Route path="printer" element={<PosSettingsPrinter />} />
+          <Route path="web-order" element={<PosSettingsWebOrder />} />
+          <Route path="ganti-pin" element={<PosSettingsGantiPIN />} />
+          <Route path="reset-pin" element={<PosSettingsResetPIN />} />
+        </Route>
+      </Route>
+      <Route
+        path="/mobile"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <MobileAppLayout />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      >
+        <Route index element={<Navigate to="/mobile/stock" replace />} />
+        <Route path="stock" element={<MobileStockPage />} />
+        <Route path="delivery" element={<MobileDeliveryPage />} />
+        <Route path="delivery/:invoiceId/:serialNumber" element={<MobileDeliveryDetail />} />
+      </Route>
+      <Route path="/mobile/ops" element={<Navigate to="/mobile/stock" replace />} />
       <Route
         path="/inventori"
         element={
@@ -178,6 +239,7 @@ function AppRoutes() {
           </PrivateRoute>
         }
       >
+        <Route index element={<Navigate to="overview" replace />} />
         <Route path="overview" element={<PenjualanOverview />} />
         <Route path="tagihan" element={<Tagihan />} />
         <Route path="tagihan/:id" element={<InvoiceDetail />} />
@@ -223,6 +285,7 @@ function AppRoutes() {
           </PrivateRoute>
         }
       >
+        <Route index element={<Navigate to="overview" replace />} />
         <Route path="overview" element={<PembelianOverview />} />
         <Route path="tagihan" element={<TagihanPembelian />} />
         <Route path="pengiriman" element={<PengirimanPembelian />} />
@@ -327,6 +390,19 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
+      {/* Sidebar "Kas & Bank" — sama dengan daftar akun (chart of accounts). */}
+      <Route
+        path="/kas-bank"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <ManagerRoute>
+                <Navigate to="/akun" replace />
+              </ManagerRoute>
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      />
       <Route
         path="/biaya"
         element={
@@ -364,30 +440,6 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/proyek"
-        element={
-          <PrivateRoute>
-            <ApprovedRoute>
-              <ManagerRoute>
-                <Proyek />
-              </ManagerRoute>
-            </ApprovedRoute>
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/proyek/:id"
-        element={
-          <PrivateRoute>
-            <ApprovedRoute>
-              <ManagerRoute>
-                <ProyekDetail />
-              </ManagerRoute>
-            </ApprovedRoute>
-          </PrivateRoute>
-        }
-      />
-      <Route
         path="/laporan"
         element={
           <PrivateRoute>
@@ -406,18 +458,6 @@ function AppRoutes() {
             <ApprovedRoute>
               <ManagerRoute>
                 <UserProfile />
-              </ManagerRoute>
-            </ApprovedRoute>
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/rab-calculator"
-        element={
-          <PrivateRoute>
-            <ApprovedRoute>
-              <ManagerRoute>
-                <RABCalculator />
               </ManagerRoute>
             </ApprovedRoute>
           </PrivateRoute>

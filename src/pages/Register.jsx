@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { doc, setDoc } from 'firebase/firestore'
-import { auth, db } from '../firebase/config'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function Register() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { register } = useAuth()
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -17,12 +16,12 @@ export default function Register() {
     const confirmPassword = formData.get('confirmPassword')
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError('Kata sandi tidak cocok')
       return
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+      setError('Kata sandi minimal 6 karakter')
       return
     }
 
@@ -30,28 +29,18 @@ export default function Register() {
       setError('')
       setLoading(true)
       
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-      const user = userCredential.user
-
-      await setDoc(doc(db, 'users', user.uid), {
-        email: email,
-        role: 'employee',
-        approved: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      })
-
+      await register(email, password)
       navigate('/await-approval')
     } catch (err) {
-      let errorMessage = 'Failed to create account'
+      let errorMessage = 'Gagal membuat akun'
       if (err.code === 'auth/email-already-in-use') {
-        errorMessage = 'Email already in use. Please use a different email or login.'
+        errorMessage = 'Email sudah digunakan. Gunakan email lain atau masuk.'
       } else if (err.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address'
+        errorMessage = 'Alamat email tidak valid'
       } else if (err.code === 'auth/weak-password') {
-        errorMessage = 'Password is too weak'
+        errorMessage = 'Kata sandi terlalu lemah'
       } else {
-        errorMessage = `Failed to create account: ${err.message}`
+        errorMessage = `Gagal membuat akun: ${err.message}`
       }
       setError(errorMessage)
     } finally {
@@ -70,16 +59,16 @@ export default function Register() {
         <div className="relative z-10 flex flex-col justify-center items-center p-12 text-white text-center">
           <div className="mb-12">
             <h1 className="text-4xl font-bold mb-2">IBASA</h1>
-            <p className="text-blue-100">Accounting Software</p>
+            <p className="text-blue-100">Perangkat Lunak Akuntansi</p>
           </div>
           <p className="text-xl text-white/95 mb-6 max-w-sm">
-            Already have an account?
+            Sudah punya akun?
           </p>
           <Link
             to="/login"
             className="inline-flex items-center justify-center px-8 py-3 rounded-lg bg-white text-blue-600 font-semibold hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600"
           >
-            Sign in
+            Masuk
           </Link>
         </div>
       </div>
@@ -89,10 +78,10 @@ export default function Register() {
         <div className="w-full max-w-md">
           <div className="mb-8 text-center lg:text-left">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Create your account
+              Buat akun Anda
             </h2>
             <p className="text-gray-600 dark:text-gray-400">
-              Register to access IBASA Accounting Software
+              Daftar untuk mengakses IBASA Accounting Software
             </p>
           </div>
 
@@ -113,13 +102,13 @@ export default function Register() {
                 name="email"
                 required
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Enter your email"
+                placeholder="Masukkan email Anda"
               />
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Password
+                Kata Sandi
               </label>
               <input
                 id="password"
@@ -128,13 +117,13 @@ export default function Register() {
                 required
                 minLength={6}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                placeholder="At least 6 characters"
+                placeholder="Minimal 6 karakter"
               />
             </div>
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Confirm password
+                Konfirmasi kata sandi
               </label>
               <input
                 id="confirmPassword"
@@ -143,7 +132,7 @@ export default function Register() {
                 required
                 minLength={6}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Repeat your password"
+                placeholder="Ulangi kata sandi"
               />
             </div>
 
@@ -152,20 +141,20 @@ export default function Register() {
               disabled={loading}
               className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
-              {loading ? 'Creating account...' : 'Register'}
+              {loading ? 'Sedang membuat akun...' : 'Daftar'}
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-            Already have an account?{' '}
+            Sudah punya akun?{' '}
             <Link to="/login" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
-              Sign in
+              Masuk
             </Link>
           </p>
 
           <div className="mt-8 text-center">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              © 2025 IBASA. All rights reserved.
+              © 2025 IBASA. Semua hak dilindungi.
             </p>
           </div>
         </div>

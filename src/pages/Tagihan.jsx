@@ -318,7 +318,16 @@ export default function Tagihan() {
                               />
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                              {invoice.number || 'N/A'}
+                              <span className="block font-medium">
+                                {invoice.number || 'N/A'}
+                              </span>
+                              {invoice.sourceType === 'pos' &&
+                              (invoice.paymentMethod === 'pay_later' ||
+                                invoice.posPayLater === true) ? (
+                                <span className="mt-0.5 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-900 dark:bg-amber-950/70 dark:text-amber-100">
+                                  POS · bayar nanti
+                                </span>
+                              ) : null}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                               {invoice.contactName ||

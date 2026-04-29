@@ -690,6 +690,34 @@ export default function InvoiceDetail() {
               {invoice.reference || '-'}
             </p>
           </div>
+          {invoice.sourceType === 'pos' &&
+          (invoice.posFulfillmentLabel || invoice.posFulfillmentMode) ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                Pengambilan / layanan
+              </label>
+              <p className="text-lg text-gray-900 dark:text-white">
+                {invoice.posFulfillmentLabel ||
+                  String(invoice.posFulfillmentMode || '')}
+              </p>
+            </div>
+          ) : null}
+          {invoice.sourceType === 'pos' &&
+          (invoice.paymentMethod === 'pay_later' || invoice.posPayLater === true) ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                Pembayaran
+              </label>
+              <p className="text-lg font-medium text-amber-800 dark:text-amber-200">
+                Bayar nanti (piutang)
+                {Number(invoice.posPiutangDueDays) > 0 ? (
+                  <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
+                    Target termin ±{invoice.posPiutangDueDays} hari dari tanggal transaksi
+                  </span>
+                ) : null}
+              </p>
+            </div>
+          ) : null}
           <div>
             <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
               Total

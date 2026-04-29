@@ -1,11 +1,52 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Prefer env vars; fallback to provided constants if not set
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://idkznzsdqkqlopnltmac.supabase.co'
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlka3puenNkcWtxbG9wbmx0bWFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MjAwNzksImV4cCI6MjA4Nzk5NjA3OX0.Jy-lVOZQCtJ3xEw7oy3-fwVFNmvomLd1e7bunChxwOQ'
+// Supabase is optional in this project.
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').trim()
+const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
 const SIGN_UPLOAD_URL = import.meta.env.VITE_SIGN_UPLOAD_URL || '/api/sign-upload'
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+export const isSupabaseEnabled = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY)
+
+function createNoopBuilder() {
+  const response = { data: [], error: null }
+  const builder = {
+    select: () => builder,
+    insert: () => builder,
+    update: () => builder,
+    delete: () => builder,
+    upsert: () => builder,
+    order: () => builder,
+    limit: () => builder,
+    eq: () => builder,
+    in: () => builder,
+    not: () => builder,
+    maybeSingle: async () => ({ data: null, error: null }),
+    single: async () => ({ data: null, error: null }),
+    then: (resolve) => Promise.resolve(response).then(resolve),
+    catch: () => builder,
+  }
+  return builder
+}
+
+function createNoopStorage() {
+  return {
+    from: () => ({
+      uploadToSignedUrl: async () => ({ error: null }),
+      getPublicUrl: () => ({ data: { publicUrl: '' } }),
+    }),
+  }
+}
+
+function createNoopSupabase() {
+  return {
+    from: () => createNoopBuilder(),
+    storage: createNoopStorage(),
+  }
+}
+
+export const supabase = isSupabaseEnabled
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : createNoopSupabase()
 
 function sanitizeName(name) {
   return String(name || 'file').replace(/[^\w.\-]+/g, '_')
@@ -15,6 +56,21 @@ async function signedUpload(file, bucket, prefix) {
   if (!file) throw new Error('No file provided')
   const bucketId = (bucket || 'AttachmentInvoice').toString().trim()
   if (!bucketId) throw new Error('Bucket is required')
+
+  // If Supabase credentials are intentionally absent, keep app usable.
+  if (!isSupabaseEnabled) {
+    const safeName = sanitizeName(file.name)
+    const localUrl = URL.createObjectURL(file)
+    return {
+      name: file.name || safeName,
+      url: localUrl,
+      path: `local-temp/${prefix}/${Date.now()}-${safeName}`,
+      size: file.size || 0,
+      type: file.type || 'application/octet-stream',
+      uploadedAt: new Date().toISOString(),
+      provider: 'local-temp',
+    }
+  }
 
   const safeName = sanitizeName(file.name)
   const path = `${prefix}/${Date.now()}-${safeName}`

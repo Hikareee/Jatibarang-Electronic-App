@@ -1,4 +1,4 @@
-# IBASA - React + Firebase
+# Jatibarang Electronic App - React + Firebase
 
 A full-stack accounting software built with React and Firebase.
 
@@ -31,9 +31,10 @@ A full-stack accounting software built with React and Firebase.
 
 ### Installation
 
-1. Clone the repository:
+1. Clone the repository and open the project folder:
 ```bash
-cd "IBASA"
+git clone https://github.com/Hikareee/Jatibarang-Electronic-App.git
+cd "Jatibarang-Electronic-App"
 npm install
 ```
 
@@ -54,6 +55,16 @@ npm run dev
 ```
 
 5. Open your browser and navigate to `http://localhost:5173`
+
+### Point of Sale (POS)
+
+After login as an approved user, open **`/pos`** (or **POS** in the sidebar) to sell tracked items:
+
+1. Register products under **Produk** (SKU/barcode optional; enable **Lacak per serial** for electronics).
+2. Receive stock under **Inventori → Gudang** and enter **one serial per line** per unit received.
+3. On POS, choose the warehouse, scan or tap products, then scan each unit’s serial before checkout.
+
+Direct link for counter staff: `{your-domain}/pos` (same app; map a subdomain to this path in Firebase Hosting/DNS when ready).
 
 ## Project Structure
 

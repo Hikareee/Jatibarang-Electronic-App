@@ -13,7 +13,8 @@ import {
   User, 
   LogOut,
   Menu,
-  ChevronDown
+  ChevronDown,
+  ScanLine,
 } from 'lucide-react'
 import NotificationMenu from './NotificationMenu'
 
@@ -52,6 +53,7 @@ export default function Header({ onMenuClick }) {
           </button>
           
           <button 
+            type="button"
             onClick={() => navigate('/sales/invoice/add')}
             className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
           >
@@ -60,6 +62,7 @@ export default function Header({ onMenuClick }) {
           </button>
 
           <button 
+            type="button"
             onClick={() => navigate('/pembelian/invoice/add')}
             className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
           >
@@ -67,9 +70,19 @@ export default function Header({ onMenuClick }) {
             <span className="text-gray-900 dark:text-white font-medium">{t('buy')}</span>
           </button>
 
-          <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm">
+          <button type="button" className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm">
             <CreditCard className="h-5 w-5 text-gray-900 dark:text-white" />
             <span className="text-gray-900 dark:text-white font-medium">{t('fees')}</span>
+          </button>
+
+          <button
+            type="button"
+            title="Terminal POS"
+            onClick={() => navigate('/pos')}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-500/70 bg-emerald-50 dark:bg-emerald-950/60 dark:border-emerald-600/70 text-emerald-900 dark:text-emerald-100 font-medium shadow-sm hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+          >
+            <ScanLine className="h-5 w-5 shrink-0" aria-hidden />
+            <span className="hidden min-[380px]:inline">POS</span>
           </button>
         </div>
 

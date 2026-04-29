@@ -105,6 +105,7 @@ export async function saveContact(contactData) {
     if (contactData.company) cleanedData.company = contactData.company
     if (contactData.phone) cleanedData.phone = contactData.phone
     if (contactData.email) cleanedData.email = contactData.email
+    if (contactData.address) cleanedData.address = contactData.address
 
     // Payroll fields (for Pegawai). Stored under cleanedData.payroll.
     if (contactData.payroll && typeof contactData.payroll === 'object') {
@@ -176,6 +177,7 @@ export async function updateContact(contactId, contactData) {
     if (contactData.company) cleanedData.company = contactData.company
     if (contactData.phone) cleanedData.phone = contactData.phone
     if (contactData.email) cleanedData.email = contactData.email
+    if (contactData.address !== undefined) cleanedData.address = contactData.address || ''
 
     // Payroll fields (optional)
     if (contactData.payroll && typeof contactData.payroll === 'object') {

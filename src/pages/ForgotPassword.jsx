@@ -17,9 +17,9 @@ export default function ForgotPassword() {
       setError('')
       setLoading(true)
       await resetPassword(email)
-      setMessage('Check your inbox for further instructions')
+      setMessage('Periksa email Anda untuk instruksi selanjutnya')
     } catch (err) {
-      setError('Failed to reset password: ' + err.message)
+      setError('Gagal mereset kata sandi: ' + err.message)
     } finally {
       setLoading(false)
     }
@@ -30,7 +30,7 @@ export default function ForgotPassword() {
       <div className="w-full max-w-md">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Reset Password
+            Reset Kata Sandi
           </h2>
           
           {message && (
@@ -61,7 +61,7 @@ export default function ForgotPassword() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  placeholder="Enter your email"
+                  placeholder="Masukkan email Anda"
                 />
               </div>
             </div>
@@ -71,7 +71,7 @@ export default function ForgotPassword() {
               disabled={loading}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? 'Sending...' : 'Send Reset Link'}
+              {loading ? 'Mengirim...' : 'Kirim Tautan Reset'}
             </button>
           </form>
 
@@ -80,7 +80,7 @@ export default function ForgotPassword() {
               to="/login"
               className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
-              Back to Login
+              Kembali ke Halaman Masuk
             </Link>
           </div>
         </div>

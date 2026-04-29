@@ -36,6 +36,19 @@ async function getNextWarehouseCode() {
   return `GDNG-${String(maxNum + 1).padStart(2, '0')}`
 }
 
+function nextWarehouseCodeFromLocal(rows = []) {
+  let maxNum = 0
+  rows.forEach((d) => {
+    const code = String(d?.code || '')
+    const match = code.match(/^GDNG-(\d+)$/i)
+    if (match) {
+      const n = parseInt(match[1], 10)
+      if (n > maxNum) maxNum = n
+    }
+  })
+  return `GDNG-${String(maxNum + 1).padStart(2, '0')}`
+}
+
 export default function Inventori() {
   const { t } = useLanguage()
   const navigate = useNavigate()
@@ -71,10 +84,19 @@ export default function Inventori() {
     fetchWarehouses()
   }, [])
 
-  const handleOpenAddWarehouse = async () => {
-    const nextCode = await getNextWarehouseCode()
-    setWarehouseForm({ name: '', code: nextCode, description: '' })
+  const handleOpenAddWarehouse = () => {
+    // Always open immediately, even when Firestore is empty/unreachable.
+    const fallbackCode = nextWarehouseCodeFromLocal(warehouses)
+    setWarehouseForm({ name: '', code: fallbackCode, description: '' })
     setShowAddWarehouse(true)
+    setError(null)
+    getNextWarehouseCode()
+      .then((nextCode) =>
+        setWarehouseForm((prev) => ({ ...prev, code: nextCode || prev.code }))
+      )
+      .catch((err) => {
+        console.error('Error preparing add warehouse modal:', err)
+      })
   }
 
   const handleSaveWarehouse = async () => {
@@ -91,7 +113,9 @@ export default function Inventori() {
         name: warehouseForm.name.trim(),
         code,
         description: (warehouseForm.description || '').trim(),
-        createdAt: serverTimestamp()
+        isActive: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       })
 
       setWarehouses(prev => [
@@ -102,7 +126,12 @@ export default function Inventori() {
       setShowAddWarehouse(false)
     } catch (err) {
       console.error('Error adding warehouse:', err)
-      alert('Gagal menambah gudang')
+      const msg = err?.message || String(err) || ''
+      if (msg.toLowerCase().includes('permission')) {
+        alert('Gagal menambah gudang: akses Firestore ditolak (permission-denied).')
+      } else {
+        alert(`Gagal menambah gudang: ${msg || 'unknown error'}`)
+      }
     } finally {
       setSavingWarehouse(false)
     }

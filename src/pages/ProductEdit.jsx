@@ -22,7 +22,10 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, YAxis, XA
 const defaultForm = {
   nama: '',
   kategori: '',
+  merek: '',
   kode: '',
+  barcode: '',
+  requiresSerial: true,
   satuan: 'Pcs',
   deskripsi: '',
   sayaBeli: true,
@@ -104,7 +107,10 @@ export default function ProductEdit() {
         const loaded = {
           nama: p.nama || '',
           kategori: p.kategori || '',
+          merek: p.merek || p.brand || p.merk || '',
           kode: p.kode || p.sku || '',
+          barcode: p.barcode || '',
+          requiresSerial: p.requiresSerial !== false,
           satuan: p.satuan || 'Pcs',
           deskripsi: p.deskripsi || '',
           sayaBeli: p.sayaBeli !== false,
@@ -193,8 +199,11 @@ export default function ProductEdit() {
       await updateProduct(id, {
         nama: formData.nama,
         kategori: formData.kategori,
+        merek: formData.merek || '',
         kode: formData.kode,
         sku: formData.kode,
+        barcode: String(formData.barcode || '').trim(),
+        requiresSerial: formData.requiresSerial !== false,
         satuan: formData.satuan,
         deskripsi: formData.deskripsi,
         sayaBeli: formData.sayaBeli,
@@ -408,6 +417,20 @@ export default function ProductEdit() {
                     </div>
 
                     <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Merek
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.merek || ''}
+                        onChange={(e) => setFormData({ ...formData, merek: e.target.value })}
+                        disabled={fieldsLocked}
+                        placeholder="Contoh: Samsung, LG, Sony"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                      />
+                    </div>
+
+                    <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
                         Kode/SKU
                         <HelpCircle className="h-4 w-4 text-gray-400" />
@@ -422,6 +445,37 @@ export default function ProductEdit() {
                         placeholder="SKU/00001"
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none overflow-hidden disabled:opacity-60"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Barcode produk
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.barcode ?? ''}
+                        onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                        disabled={fieldsLocked}
+                        placeholder="Opsional"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2 flex items-center gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.requiresSerial !== false}
+                          onChange={(e) =>
+                            setFormData({ ...formData, requiresSerial: e.target.checked })
+                          }
+                          disabled={fieldsLocked}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-60"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          Lacak per serial (produk elektronik)
+                        </span>
+                      </label>
                     </div>
 
                     <div>

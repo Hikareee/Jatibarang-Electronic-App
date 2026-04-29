@@ -9,7 +9,7 @@ export function useLanguage() {
 export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState(() => {
     const saved = localStorage.getItem('language')
-    return saved || 'en'
+    return saved || 'id'
   })
 
   useEffect(() => {

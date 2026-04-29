@@ -35,7 +35,7 @@ export default function Login() {
       await login(email, password)
       // Navigation will be handled by useEffect based on approval status
     } catch (err) {
-      setError('Failed to log in: ' + err.message)
+      setError('Gagal masuk: ' + err.message)
       setLoading(false)
     }
   }
@@ -48,17 +48,17 @@ export default function Login() {
       // Navigation will be handled by useEffect based on approval status
     } catch (err) {
       // Handle specific Firebase errors
-      let errorMessage = 'Failed to log in with Google'
+      let errorMessage = 'Gagal masuk dengan Google'
       if (err.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Sign-in popup was closed. Please try again.'
+        errorMessage = 'Popup login ditutup. Silakan coba lagi.'
       } else if (err.code === 'auth/popup-blocked') {
-        errorMessage = 'Popup was blocked by your browser. Please allow popups and try again.'
+        errorMessage = 'Popup diblokir browser. Izinkan popup lalu coba lagi.'
       } else if (err.code === 'auth/cancelled-popup-request') {
-        errorMessage = 'Sign-in was cancelled. Please try again.'
+        errorMessage = 'Login dibatalkan. Silakan coba lagi.'
       } else if (err.code === 'auth/account-exists-with-different-credential') {
-        errorMessage = 'An account already exists with this email. Please use email/password login.'
+        errorMessage = 'Akun dengan email ini sudah ada. Gunakan login email/kata sandi.'
       } else {
-        errorMessage = `Failed to log in with Google: ${err.message}`
+        errorMessage = `Gagal masuk dengan Google: ${err.message}`
       }
       setError(errorMessage)
       setGoogleLoading(false)
@@ -76,16 +76,16 @@ export default function Login() {
         <div className="relative z-10 flex flex-col justify-center items-center p-12 text-white text-center">
           <div className="mb-12">
             <h1 className="text-4xl font-bold mb-2">IBASA</h1>
-            <p className="text-blue-100">Accounting Software</p>
+            <p className="text-blue-100">Perangkat Lunak Akuntansi</p>
           </div>
           <p className="text-xl text-white/95 mb-6 max-w-sm">
-            Don&apos;t have an account?
+            Belum punya akun?
           </p>
           <Link
             to="/register"
             className="inline-flex items-center justify-center px-8 py-3 rounded-lg bg-white text-blue-600 font-semibold hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600"
           >
-            Register now
+            Daftar sekarang
           </Link>
         </div>
       </div>
@@ -95,10 +95,10 @@ export default function Login() {
         <div className="w-full max-w-md">
           <div className="mb-8 text-center lg:text-left">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Welcome to IBASA Accounting Software
+              Selamat datang di IBASA Accounting Software
             </h2>
             <p className="text-gray-600 dark:text-gray-400">
-              Sign in to your account
+              Masuk ke akun Anda
             </p>
           </div>
 
@@ -116,21 +116,21 @@ export default function Login() {
           />
 
           <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-            Don&apos;t have an account?{' '}
+            Belum punya akun?{' '}
             <Link to="/register" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
-              Register now
+              Daftar sekarang
             </Link>
           </p>
 
           <div className="mt-8 text-center">
             <div className="flex items-center justify-center gap-2 mb-4">
-              <span className="text-sm text-gray-500 dark:text-gray-400">Powered by</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Didukung oleh</span>
               <Link to="https://ibasa.com" className="text-blue-600 dark:text-blue-400 hover:underline">
                 IBASA
               </Link>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              © 2025 IBASA. All rights reserved.
+              © 2025 IBASA. Semua hak dilindungi.
             </p>
           </div>
         </div>

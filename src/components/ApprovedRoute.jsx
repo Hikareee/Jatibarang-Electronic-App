@@ -26,8 +26,8 @@ export default function ApprovedRoute({ children }) {
     return <Navigate to="/login" replace />
   }
 
-  // Only redirect to approval page if user is EXPLICITLY set to false
-  if (userData.approved === false) {
+  // Require explicit approval; missing/undefined is treated as not approved.
+  if (userData.approved !== true) {
     return <AwaitApproval />
   }
 

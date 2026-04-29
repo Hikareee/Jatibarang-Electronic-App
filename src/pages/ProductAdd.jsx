@@ -26,11 +26,15 @@ export default function ProductAdd() {
   const [saving, setSaving] = useState(false)
   const skuUserEditedRef = useRef(false)
   const skuRef = useRef(null)
+  const barcodeRef = useRef(null)
   
   const [formData, setFormData] = useState({
     nama: '',
     kategori: '',
+    merek: '',
     kode: 'SKU/00001',
+    barcode: '',
+    requiresSerial: true,
     satuan: 'Pcs',
     deskripsi: '',
     sayaBeli: true,
@@ -80,6 +84,19 @@ export default function ProductAdd() {
     autosizeSku()
   }, [formData.kode])
 
+  useEffect(() => {
+    barcodeRef.current?.focus()
+  }, [])
+
+  const handleBarcodeChange = (value) => {
+    const nextBarcode = String(value || '').trim()
+    setFormData((prev) => ({
+      ...prev,
+      barcode: nextBarcode,
+      kode: !skuUserEditedRef.current && nextBarcode ? nextBarcode : prev.kode,
+    }))
+  }
+
   const handleSave = async () => {
     if (!formData.nama || !formData.kategori || !formData.satuan) {
       alert('Nama Produk, Kategori, dan Satuan wajib diisi')
@@ -90,6 +107,7 @@ export default function ProductAdd() {
       setSaving(true)
       const productData = {
         ...formData,
+        sku: formData.kode,
         qty: 0, // Default quantity
         hpp: 0, // Default HPP
         createdAt: new Date().toISOString(),
@@ -196,6 +214,19 @@ export default function ProductAdd() {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Merek
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.merek}
+                    onChange={(e) => setFormData({ ...formData, merek: e.target.value })}
+                    placeholder="Contoh: Samsung, LG, Sony"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
                     Kode/SKU
                     <HelpCircle className="h-4 w-4 text-gray-400" />
@@ -212,6 +243,40 @@ export default function ProductAdd() {
                     placeholder="SKU/00001"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none overflow-hidden"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Barcode produk (scan cepat di POS)
+                  </label>
+                  <input
+                    ref={barcodeRef}
+                    type="text"
+                    value={formData.barcode}
+                    onChange={(e) => handleBarcodeChange(e.target.value)}
+                    placeholder="Scan barcode di sini"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Scanner barcode bisa langsung dipakai di field ini. Jika SKU belum diubah
+                    manual, nilai scan akan otomatis dipakai sebagai SKU.
+                  </p>
+                </div>
+
+                <div className="md:col-span-2 flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.requiresSerial}
+                      onChange={(e) =>
+                        setFormData({ ...formData, requiresSerial: e.target.checked })
+                      }
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      Lacak per serial (produk elektronik — wajib nomor unik per unit)
+                    </span>
+                  </label>
                 </div>
 
                 <div>

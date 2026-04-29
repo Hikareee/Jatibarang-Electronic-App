@@ -11,10 +11,12 @@ import {
   getDocs,
   addDoc,
   updateDoc,
+  writeBatch,
   serverTimestamp
 } from 'firebase/firestore'
 import { Plus, ChevronLeft, X, Warehouse as WarehouseIcon, Package } from 'lucide-react'
-import { useProducts } from '../hooks/useProductsData'
+import { useProducts, productRequiresSerial } from '../hooks/useProductsData'
+import { normalizeSerialId } from '../utils/itemSerials'
 
 export default function GudangDetail() {
   const { id } = useParams()
@@ -31,7 +33,8 @@ export default function GudangDetail() {
     productId: '',
     productName: '',
     quantity: 1,
-    unit: ''
+    unit: '',
+    serialLines: ''
   })
   const { products, loading: productsLoading } = useProducts()
 
@@ -70,7 +73,8 @@ export default function GudangDetail() {
       productId: '',
       productName: '',
       quantity: 1,
-      unit: ''
+      unit: '',
+      serialLines: ''
     })
     setShowTambahStock(true)
   }
@@ -92,7 +96,74 @@ export default function GudangDetail() {
     try {
       setSavingStock(true)
       const productId = stockForm.source === 'list' ? stockForm.productId || null : null
-      const unit = stockForm.unit.trim() || (productId ? (products.find(p => p.id === productId)?.satuan || '') : '')
+      const selectedProduct =
+        productId ? products.find((p) => p.id === productId) : null
+      const sku = selectedProduct
+        ? selectedProduct.kode || selectedProduct.sku || ''
+        : ''
+      const unit =
+        stockForm.unit.trim() ||
+        (productId ? products.find((p) => p.id === productId)?.satuan || '' : '')
+      const inboundSerialNeeded =
+        stockForm.source === 'list' &&
+        Boolean(productId && selectedProduct && productRequiresSerial(selectedProduct))
+
+      if (inboundSerialNeeded) {
+        const lines = stockForm.serialLines
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+        if (lines.length !== quantity) {
+          alert(
+            `Produk dengan lacak serial: isi tepat ${quantity} nomor serial (satu baris per unit). Anda memasukkan ${lines.length}.`
+          )
+          setSavingStock(false)
+          return
+        }
+        const norms = lines.map(normalizeSerialId)
+        if (norms.some((n) => !n)) {
+          alert('Ada nomor serial kosong/setelah dibersihkan tidak valid.')
+          setSavingStock(false)
+          return
+        }
+        const dup = new Set()
+        for (const n of norms) {
+          if (dup.has(n)) {
+            alert('Ada serial duplikat dalam daftar.')
+            setSavingStock(false)
+            return
+          }
+          dup.add(n)
+        }
+        const nowInbound = new Date().toISOString()
+        for (const n of norms) {
+          const sref = doc(db, 'itemSerials', n)
+          const ss = await getDoc(sref)
+          if (ss.exists()) {
+            alert(`Serial ${n} sudah terdaftar di sistem.`)
+            setSavingStock(false)
+            return
+          }
+        }
+        const serialBatch = writeBatch(db)
+        lines.forEach((rawLine, i) => {
+          const nid = norms[i]
+          const sref = doc(db, 'itemSerials', nid)
+          serialBatch.set(sref, {
+            serialNumber: rawLine.trim(),
+            sku,
+            productId,
+            productName,
+            warehouseId: id,
+            status: 'in_stock',
+            inboundAt: nowInbound,
+            createdAt: nowInbound,
+            updatedAt: nowInbound,
+            lastMovementType: 'warehouse_receive',
+          })
+        })
+        await serialBatch.commit()
+      }
 
       const existing = stock.find(
         s => (productId && s.productId === productId) || (!productId && (s.productName || '').toLowerCase() === productName.toLowerCase())
@@ -325,7 +396,8 @@ export default function GudangDetail() {
                             ...stockForm,
                             productId: e.target.value,
                             productName: p ? p.nama : '',
-                            unit: p ? (p.satuan || '') : ''
+                            unit: p ? (p.satuan || '') : '',
+                            serialLines: ''
                           })
                         }}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
@@ -380,6 +452,33 @@ export default function GudangDetail() {
                       />
                     </div>
                   </div>
+
+                  {stockForm.source === 'list' &&
+                    stockForm.productId &&
+                    productRequiresSerial(
+                      products.find((p) => p.id === stockForm.productId) ?? {
+                        requiresSerial: false,
+                      }
+                    ) && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Nomor serial per unit{' '}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                          Satu baris satu serial. Harus tepat {Number(stockForm.quantity) || 0} baris (sesuai kuantitas).
+                        </p>
+                        <textarea
+                          value={stockForm.serialLines}
+                          onChange={(e) =>
+                            setStockForm({ ...stockForm, serialLines: e.target.value })
+                          }
+                          placeholder="SERIAL001&#10;SERIAL002&#10;"
+                          rows={4}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                        />
+                      </div>
+                    )}
                 </div>
 
                 <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
