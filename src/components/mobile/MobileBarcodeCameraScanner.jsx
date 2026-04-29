@@ -102,15 +102,15 @@ export default function MobileBarcodeCameraScanner({ open, onScan, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl dark:bg-slate-900">
-        <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+        <div className="flex items-center justify-between gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
           <div className="flex items-center gap-2">
-            <Camera className="h-4 w-4 text-blue-600" />
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Scan Barcode</p>
+            <Camera className="h-4 w-4 text-white" />
+            <p className="text-sm font-semibold text-white">Scan Barcode / QR</p>
           </div>
           <button
             type="button"
             onClick={() => onClose?.()}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 text-white/90 hover:bg-white/25"
             aria-label="Tutup"
           >
             <X className="h-4 w-4" />
@@ -127,7 +127,16 @@ export default function MobileBarcodeCameraScanner({ open, onScan, onClose }) {
 
           {/* Scan overlay */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="h-32 w-32 rounded-2xl border-2 border-blue-500/90 shadow-[0_0_0_4px_rgba(59,130,246,.15)]" />
+            <div className="relative h-32 w-32 rounded-2xl bg-blue-600/5 ring-1 ring-blue-400/50 shadow-[0_0_0_4px_rgba(59,130,246,.10)]">
+              {/* corners */}
+              <div className="absolute left-2 top-2 h-4 w-4 border-t-2 border-l-2 border-blue-500/90 rounded-tl-lg" />
+              <div className="absolute right-2 top-2 h-4 w-4 border-t-2 border-r-2 border-blue-500/90 rounded-tr-lg" />
+              <div className="absolute left-2 bottom-2 h-4 w-4 border-b-2 border-l-2 border-blue-500/90 rounded-bl-lg" />
+              <div className="absolute right-2 bottom-2 h-4 w-4 border-b-2 border-r-2 border-blue-500/90 rounded-br-lg" />
+
+              {/* scan line */}
+              <div className="absolute left-5 right-5 top-3 h-px bg-gradient-to-r from-transparent via-blue-500/80 to-transparent animate-pulse" />
+            </div>
           </div>
         </div>
 

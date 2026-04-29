@@ -92,10 +92,10 @@ export default function MobileStockPage() {
           <button
             type="button"
             onClick={() => setCameraOpen(true)}
-            className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-blue-700 shadow-sm ring-1 ring-slate-200 hover:bg-blue-50 dark:bg-slate-900 dark:text-blue-300 dark:ring-slate-700"
+            className="rounded-xl bg-gradient-to-b from-blue-50 to-white px-3 py-2 text-xs font-semibold text-blue-700 shadow-sm ring-1 ring-blue-100 hover:from-blue-100 hover:ring-blue-200 dark:from-slate-800/70 dark:to-slate-900/40 dark:text-blue-300 dark:ring-blue-900/40 dark:hover:from-slate-800/90 dark:hover:to-slate-900/60 dark:hover:ring-blue-800/60"
             aria-label="Scan dengan kamera"
           >
-            <Camera className="inline-block h-4 w-4 mr-1" />
+            <Camera className="inline-block mr-1 h-4 w-4" />
             Kamera
           </button>
           <button

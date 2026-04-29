@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom'
-import { LogOut, ScanLine } from 'lucide-react'
+import { LogOut, Moon, ScanLine, Sun } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useDarkMode } from '../contexts/DarkModeContext'
 import MobileBottomNav from '../components/mobile/MobileBottomNav'
 
 function titleForPath(pathname) {
@@ -11,6 +12,7 @@ function titleForPath(pathname) {
 export default function MobileAppLayout() {
   const location = useLocation()
   const { currentUser, logout } = useAuth()
+  const { darkMode, toggleDarkMode } = useDarkMode()
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
@@ -25,6 +27,15 @@ export default function MobileAppLayout() {
               {currentUser?.email || 'Approved staff'}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => toggleDarkMode()}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            aria-label="Toggle theme"
+            title={darkMode ? 'Light mode' : 'Dark mode'}
+          >
+            {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
           <button
             type="button"
             onClick={() => logout()}
