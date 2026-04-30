@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import Sidebar from '../components/Dashboard/Sidebar'
@@ -6,27 +6,39 @@ import Header from '../components/Dashboard/Header'
 import Footer from '../components/Dashboard/Footer'
 import { useSidebarOpen } from '../hooks/useSidebarOpen'
 import { 
-  Users as UsersIcon,
   CheckCircle,
-  XCircle,
-  MoreVertical,
   Loader2,
-  MessageCircle,
   Shield,
   UserCheck,
   UserX
 } from 'lucide-react'
 import { useUsers } from '../hooks/useUsers'
 import { useUserApproval } from '../hooks/useUserApproval'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function Users() {
-  const { t } = useLanguage()
+  useLanguage()
   const navigate = useNavigate()
   const { sidebarOpen, toggleSidebar } = useSidebarOpen(true)
-  const { users, loading, error, updateUserRole, approveUser } = useUsers()
-  const { canApprove: userCanApprove } = useUserApproval()
+  const { users, loading, error, updateUserRole, approveUser, createUserWithUsernamePassword } =
+    useUsers()
+  const { canApprove: userCanApprove, role: myRole } = useUserApproval()
+  const { currentUser } = useAuth()
   const [selectedUsers, setSelectedUsers] = useState([])
   const [processing, setProcessing] = useState(null)
+  const [createForm, setCreateForm] = useState({
+    username: '',
+    password: '',
+    role: 'employee',
+  })
+  const [createBusy, setCreateBusy] = useState(false)
+
+  const isOwner = myRole === 'owner'
+  const myUid = currentUser?.uid || ''
+  const roleSelectDisabledReason = useMemo(() => {
+    if (!isOwner) return 'Hanya owner yang bisa mengubah role.'
+    return ''
+  }, [isOwner])
 
   // Format date to DD/MM/YYYY
   const formatDate = (dateString) => {
@@ -115,6 +127,26 @@ export default function Users() {
   const pendingUsers = users.filter(u => !u.approved)
   const approvedUsers = users.filter(u => u.approved)
 
+  const handleCreateUser = async (e) => {
+    e.preventDefault()
+    if (!isOwner) return
+    try {
+      setCreateBusy(true)
+      await createUserWithUsernamePassword({
+        username: createForm.username,
+        password: createForm.password,
+        role: createForm.role,
+      })
+      alert('User berhasil dibuat')
+      setCreateForm({ username: '', password: '', role: 'employee' })
+    } catch (err) {
+      alert(`Gagal membuat user: ${err?.message || String(err)}`)
+      console.error(err)
+    } finally {
+      setCreateBusy(false)
+    }
+  }
+
   if (!userCanApprove) {
     return (
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
@@ -179,6 +211,83 @@ export default function Users() {
               </h1>
             </div>
 
+            {/* Create User (Owner only) */}
+            {isOwner ? (
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-6 mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Shield className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Buat Akun Karyawan (Username + Password)
+                  </h2>
+                </div>
+                <form onSubmit={handleCreateUser} className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <div className="md:col-span-5">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                        Username / Email
+                      </label>
+                      <input
+                        value={createForm.username}
+                        onChange={(e) =>
+                          setCreateForm((p) => ({ ...p, username: e.target.value }))
+                        }
+                        placeholder="contoh: kasir1 (atau email)"
+                        className="h-10 w-full px-3 text-sm rounded-lg border border-gray-300 bg-white text-gray-900 shadow-sm outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-3">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                        Password
+                      </label>
+                      <input
+                        value={createForm.password}
+                        onChange={(e) =>
+                          setCreateForm((p) => ({ ...p, password: e.target.value }))
+                        }
+                        type="password"
+                        minLength={6}
+                        placeholder="Minimal 6 karakter"
+                        className="h-10 w-full px-3 text-sm rounded-lg border border-gray-300 bg-white text-gray-900 shadow-sm outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                        Role
+                      </label>
+                      <select
+                        value={createForm.role}
+                        onChange={(e) =>
+                          setCreateForm((p) => ({ ...p, role: e.target.value }))
+                        }
+                        className="h-10 w-full px-3 text-sm rounded-lg border border-gray-300 bg-white text-gray-900 shadow-sm outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      >
+                        <option value="employee">Employee</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                        <option value="owner">Owner</option>
+                      </select>
+                    </div>
+                    <div className="md:col-span-2 flex items-end">
+                      <button
+                        type="submit"
+                        disabled={createBusy}
+                        className="h-10 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-b from-purple-600 to-purple-700 text-white text-sm font-semibold shadow-sm hover:from-purple-500 hover:to-purple-700 disabled:opacity-50"
+                      >
+                        {createBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        Buat User
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    Tip: jika tidak pakai email, sistem akan buat email otomatis (domain khusus
+                    karyawan).
+                  </p>
+                </form>
+              </div>
+            ) : null}
+
             {/* Pending Users Section */}
             {error ? (
               <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
@@ -240,7 +349,12 @@ export default function Users() {
                             <select
                               value={user.role || 'employee'}
                               onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                              disabled={processing === user.id}
+                              disabled={!isOwner || processing === user.id || user.id === myUid}
+                              title={
+                                user.id === myUid
+                                  ? 'Tidak bisa mengubah role akun sendiri.'
+                                  : roleSelectDisabledReason
+                              }
                               className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                             >
                               <option value="employee">Employee</option>
@@ -328,7 +442,12 @@ export default function Users() {
                             <select
                               value={user.role || 'employee'}
                               onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                              disabled={processing === user.id}
+                              disabled={!isOwner || processing === user.id || user.id === myUid}
+                              title={
+                                user.id === myUid
+                                  ? 'Tidak bisa mengubah role akun sendiri.'
+                                  : roleSelectDisabledReason
+                              }
                               className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                             >
                               <option value="employee">Employee</option>

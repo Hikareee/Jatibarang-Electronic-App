@@ -13,11 +13,13 @@ export default function LoginForm({ onSubmit, onGoogleLogin, loading, googleLoad
 
   function handleEmailChange(e) {
     const email = e.target.value
-    if (email && !validateEmail(email)) {
+    // Allow "username" (no @) OR a valid email.
+    if (!email) return setEmailError('')
+    if (String(email).includes('@') && !validateEmail(email)) {
       setEmailError('Format email tidak valid.')
-    } else {
-      setEmailError('')
+      return
     }
+    setEmailError('')
   }
 
   return (
@@ -25,7 +27,7 @@ export default function LoginForm({ onSubmit, onGoogleLogin, loading, googleLoad
       {/* Email Field */}
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Email
+          Email / Username
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -34,13 +36,13 @@ export default function LoginForm({ onSubmit, onGoogleLogin, loading, googleLoad
           <input
             id="email"
             name="email"
-            type="email"
+            type="text"
             required
             onChange={handleEmailChange}
             className={`block w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
               emailError ? 'border-red-500' : 'border-gray-300'
             }`}
-            placeholder="Masukkan email Anda"
+            placeholder="Email atau username (contoh: kasir1)"
           />
         </div>
         {emailError && (

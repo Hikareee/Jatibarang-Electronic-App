@@ -26,8 +26,14 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault()
     const formData = new FormData(e.target)
-    const email = formData.get('email')
+    let email = String(formData.get('email') || '').trim()
     const password = formData.get('password')
+
+    // Support employee "username" login by appending a fixed domain.
+    if (email && !email.includes('@')) {
+      const domain = String(import.meta.env.VITE_EMPLOYEE_EMAIL_DOMAIN || 'pos.local').trim() || 'pos.local'
+      email = `${email}@${domain}`
+    }
 
     try {
       setError('')
