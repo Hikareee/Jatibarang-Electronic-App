@@ -6,6 +6,7 @@ import MobileBottomNav from '../components/mobile/MobileBottomNav'
 
 function titleForPath(pathname) {
   if (pathname.startsWith('/mobile/delivery')) return 'Delivery'
+  if (pathname.startsWith('/mobile/order')) return 'Pesanan sales'
   return 'Stock Lookup'
 }
 

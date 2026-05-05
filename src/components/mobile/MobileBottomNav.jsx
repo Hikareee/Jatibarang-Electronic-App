@@ -1,15 +1,16 @@
 import { NavLink } from 'react-router-dom'
-import { Boxes, Truck } from 'lucide-react'
+import { Boxes, Truck, ClipboardList } from 'lucide-react'
 
 const ITEMS = [
   { to: '/mobile/stock', label: 'Stock', Icon: Boxes },
+  { to: '/mobile/order', label: 'Pesan', Icon: ClipboardList },
   { to: '/mobile/delivery', label: 'Delivery', Icon: Truck },
 ]
 
 export default function MobileBottomNav() {
   return (
     <nav className="border-t border-slate-200 bg-white px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 dark:border-slate-800 dark:bg-slate-950">
-      <div className="mx-auto grid max-w-md grid-cols-2 gap-2">
+      <div className="mx-auto grid max-w-md grid-cols-3 gap-2">
         {ITEMS.map(({ to, label, Icon }) => (
           <NavLink
             key={to}

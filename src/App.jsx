@@ -75,6 +75,7 @@ import MobileAppLayout from './pages/MobileAppLayout'
 import MobileStockPage from './pages/MobileStockPage'
 import MobileDeliveryPage from './pages/MobileDeliveryPage'
 import MobileDeliveryDetail from './pages/MobileDeliveryDetail'
+import MobileFloorOrderPage from './pages/MobileFloorOrderPage'
 
 function PrivateRoute({ children }) {
   const { currentUser } = useAuth()
@@ -137,6 +138,7 @@ function AppRoutes() {
       >
         <Route index element={<Navigate to="/mobile/stock" replace />} />
         <Route path="stock" element={<MobileStockPage />} />
+        <Route path="order" element={<MobileFloorOrderPage />} />
         <Route path="delivery" element={<MobileDeliveryPage />} />
         <Route path="delivery/:invoiceId/:serialNumber" element={<MobileDeliveryDetail />} />
       </Route>

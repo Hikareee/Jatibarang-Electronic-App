@@ -12,11 +12,13 @@ import {
   Plus,
   Save,
   MessageCircle,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Camera
 } from 'lucide-react'
 import { getNextProductCode, saveProduct } from '../hooks/useProductsData'
 import { useContacts } from '../hooks/useContactsData'
 import FormattedNumberInput from '../components/FormattedNumberInput'
+import CameraScannerModal from '../components/Scanner/CameraScannerModal'
 
 export default function ProductAdd() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -27,6 +29,7 @@ export default function ProductAdd() {
   const skuUserEditedRef = useRef(false)
   const skuRef = useRef(null)
   const barcodeRef = useRef(null)
+  const [scannerTarget, setScannerTarget] = useState(null) // 'sku' | 'barcode' | null
   
   const [formData, setFormData] = useState({
     nama: '',
@@ -97,6 +100,9 @@ export default function ProductAdd() {
     }))
   }
 
+  const openScanSku = () => setScannerTarget('sku')
+  const openScanBarcode = () => setScannerTarget('barcode')
+
   const handleSave = async () => {
     if (!formData.nama || !formData.kategori || !formData.satuan) {
       alert('Nama Produk, Kategori, dan Satuan wajib diisi')
@@ -130,7 +136,7 @@ export default function ProductAdd() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6">
           <div className="max-w-4xl mx-auto">
             {/* Breadcrumbs */}
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
@@ -159,7 +165,7 @@ export default function ProductAdd() {
             </div>
 
             {/* Form */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4 sm:p-6 space-y-6">
               {/* Image Section */}
               <div>
                 <button
@@ -231,6 +237,7 @@ export default function ProductAdd() {
                     Kode/SKU
                     <HelpCircle className="h-4 w-4 text-gray-400" />
                   </label>
+                  <div className="flex items-start gap-2">
                   <textarea
                     ref={skuRef}
                     value={formData.kode}
@@ -243,12 +250,23 @@ export default function ProductAdd() {
                     placeholder="SKU/00001"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none overflow-hidden"
                   />
+                  <button
+                    type="button"
+                    onClick={openScanSku}
+                    className="h-10 shrink-0 inline-flex items-center gap-2 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+                    title="Scan SKU dengan kamera"
+                  >
+                    <Camera className="h-4 w-4" />
+                    <span className="text-sm">Scan</span>
+                  </button>
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Barcode produk (scan cepat di POS)
                   </label>
+                  <div className="flex items-center gap-2">
                   <input
                     ref={barcodeRef}
                     type="text"
@@ -257,6 +275,16 @@ export default function ProductAdd() {
                     placeholder="Scan barcode di sini"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
+                  <button
+                    type="button"
+                    onClick={openScanBarcode}
+                    className="h-10 shrink-0 inline-flex items-center gap-2 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+                    title="Scan barcode/QR dengan kamera"
+                  >
+                    <Camera className="h-4 w-4" />
+                    <span className="text-sm">Scan</span>
+                  </button>
+                  </div>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     Scanner barcode bisa langsung dipakai di field ini. Jika SKU belum diubah
                     manual, nilai scan akan otomatis dipakai sebagai SKU.
@@ -459,6 +487,24 @@ export default function ProductAdd() {
         
         <Footer />
       </div>
+
+      <CameraScannerModal
+        open={Boolean(scannerTarget)}
+        onClose={() => setScannerTarget(null)}
+        title={scannerTarget === 'sku' ? 'Scan SKU' : 'Scan Barcode / QR'}
+        hint="Arahkan kamera ke barcode atau QR."
+        onScan={(code) => {
+          const text = String(code || '').trim()
+          setScannerTarget(null)
+          if (!text) return
+          if (scannerTarget === 'sku') {
+            skuUserEditedRef.current = true
+            setFormData((p) => ({ ...p, kode: text }))
+          } else {
+            handleBarcodeChange(text)
+          }
+        }}
+      />
     </div>
   )
 }

@@ -13,11 +13,13 @@ import {
   Save,
   Image as ImageIcon,
   Pencil,
+  Camera,
 } from 'lucide-react'
 import { getProductById, getProductsByName, updateProduct } from '../hooks/useProductsData'
 import { useContacts } from '../hooks/useContactsData'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, YAxis, XAxis } from 'recharts'
+import CameraScannerModal from '../components/Scanner/CameraScannerModal'
 
 const defaultForm = {
   nama: '',
@@ -71,6 +73,7 @@ export default function ProductEdit() {
   const [priceChangeNoteJual, setPriceChangeNoteJual] = useState('')
   const [compareRows, setCompareRows] = useState([])
   const skuRef = useRef(null)
+  const [scannerTarget, setScannerTarget] = useState(null) // 'sku' | 'barcode' | null
 
   const [showImage, setShowImage] = useState(false)
   const [showAccountTax, setShowAccountTax] = useState(false)
@@ -280,7 +283,7 @@ export default function ProductEdit() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6">
           <div className="max-w-7xl mx-auto">
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Beranda &gt; Produk &gt; Edit
@@ -435,6 +438,7 @@ export default function ProductEdit() {
                         Kode/SKU
                         <HelpCircle className="h-4 w-4 text-gray-400" />
                       </label>
+                      <div className="flex items-start gap-2">
                       <textarea
                         ref={skuRef}
                         value={formData.kode}
@@ -445,12 +449,24 @@ export default function ProductEdit() {
                         placeholder="SKU/00001"
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none overflow-hidden disabled:opacity-60"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setScannerTarget('sku')}
+                        disabled={fieldsLocked}
+                        className="h-10 shrink-0 inline-flex items-center gap-2 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-60"
+                        title="Scan SKU dengan kamera"
+                      >
+                        <Camera className="h-4 w-4" />
+                        <span className="text-sm">Scan</span>
+                      </button>
+                      </div>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Barcode produk
                       </label>
+                      <div className="flex items-center gap-2">
                       <input
                         type="text"
                         value={formData.barcode ?? ''}
@@ -459,6 +475,17 @@ export default function ProductEdit() {
                         placeholder="Opsional"
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setScannerTarget('barcode')}
+                        disabled={fieldsLocked}
+                        className="h-10 shrink-0 inline-flex items-center gap-2 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-60"
+                        title="Scan barcode/QR dengan kamera"
+                      >
+                        <Camera className="h-4 w-4" />
+                        <span className="text-sm">Scan</span>
+                      </button>
+                      </div>
                     </div>
 
                     <div className="md:col-span-2 flex items-center gap-3">
@@ -855,6 +882,23 @@ export default function ProductEdit() {
 
         <Footer />
       </div>
+
+      <CameraScannerModal
+        open={Boolean(scannerTarget)}
+        onClose={() => setScannerTarget(null)}
+        title={scannerTarget === 'sku' ? 'Scan SKU' : 'Scan Barcode / QR'}
+        hint="Arahkan kamera ke barcode atau QR."
+        onScan={(code) => {
+          const text = String(code || '').trim()
+          setScannerTarget(null)
+          if (!text) return
+          if (scannerTarget === 'sku') {
+            setFormData((p) => ({ ...p, kode: text }))
+          } else {
+            setFormData((p) => ({ ...p, barcode: text }))
+          }
+        }}
+      />
     </div>
   )
 }

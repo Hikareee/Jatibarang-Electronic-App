@@ -14,9 +14,10 @@ import {
   writeBatch,
   serverTimestamp
 } from 'firebase/firestore'
-import { Plus, ChevronLeft, X, Warehouse as WarehouseIcon, Package } from 'lucide-react'
+import { Plus, ChevronLeft, X, Warehouse as WarehouseIcon, Package, Camera } from 'lucide-react'
 import { useProducts, productRequiresSerial } from '../hooks/useProductsData'
 import { normalizeSerialId } from '../utils/itemSerials'
+import CameraScannerModal from '../components/Scanner/CameraScannerModal'
 
 export default function GudangDetail() {
   const { id } = useParams()
@@ -28,6 +29,7 @@ export default function GudangDetail() {
   const [error, setError] = useState(null)
   const [showTambahStock, setShowTambahStock] = useState(false)
   const [savingStock, setSavingStock] = useState(false)
+  const [serialScannerOpen, setSerialScannerOpen] = useState(false)
   const [stockForm, setStockForm] = useState({
     source: 'list', // 'list' | 'manual'
     productId: '',
@@ -247,7 +249,7 @@ export default function GudangDetail() {
       <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6">
           <div className="max-w-7xl mx-auto">
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Beranda &gt; Inventori &gt; {warehouse.name}
@@ -341,7 +343,7 @@ export default function GudangDetail() {
 
           {showTambahStock && (
             <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-3">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                     Tambah Stok
@@ -468,6 +470,20 @@ export default function GudangDetail() {
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                           Satu baris satu serial. Harus tepat {Number(stockForm.quantity) || 0} baris (sesuai kuantitas).
                         </p>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <button
+                            type="button"
+                            onClick={() => setSerialScannerOpen(true)}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+                            title="Scan serial dengan kamera (barcode/QR)"
+                          >
+                            <Camera className="h-4 w-4" />
+                            Scan serial
+                          </button>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            Terisi: {(stockForm.serialLines || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean).length}
+                          </span>
+                        </div>
                         <textarea
                           value={stockForm.serialLines}
                           onChange={(e) =>
@@ -503,6 +519,31 @@ export default function GudangDetail() {
         </main>
         <Footer />
       </div>
+
+      <CameraScannerModal
+        open={serialScannerOpen}
+        onClose={() => setSerialScannerOpen(false)}
+        title="Scan Serial"
+        hint="Arahkan kamera ke barcode atau QR serial."
+        onScan={(code) => {
+          const raw = String(code || '').trim()
+          setSerialScannerOpen(false)
+          if (!raw) return
+          const normalized = normalizeSerialId(raw)
+          if (!normalized) return
+
+          setStockForm((prev) => {
+            const existing = String(prev.serialLines || '')
+              .split(/\r?\n/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .map(normalizeSerialId)
+            if (existing.includes(normalized)) return prev
+            const nextLines = (prev.serialLines ? `${prev.serialLines}\n` : '') + normalized
+            return { ...prev, serialLines: nextLines }
+          })
+        }}
+      />
     </div>
   )
 }

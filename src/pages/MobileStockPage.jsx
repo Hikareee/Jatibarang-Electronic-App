@@ -17,6 +17,7 @@ export default function MobileStockPage() {
   const [error, setError] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [merekFilter, setMerekFilter] = useState('all')
+  const [nameSearch, setNameSearch] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
 
   const typeOptions = useMemo(
@@ -41,6 +42,24 @@ export default function MobileStockPage() {
     rows.sort((a, b) => (Number(b.qtyTotal) || 0) - (Number(a.qtyTotal) || 0))
     return rows
   }, [merekFilter, productCards, typeFilter])
+
+  const nameFilteredCards = useMemo(() => {
+    const raw = nameSearch.trim().toLowerCase()
+    if (!raw) return filteredCards.slice(0, 80)
+    const tokens = raw.split(/\s+/).filter(Boolean)
+    return filteredCards.filter((card) => {
+      const nama = String(card.nama || card.name || '').toLowerCase()
+      const sku = String(card.kode || card.sku || '').toLowerCase()
+      const bc = String(card.barcode || '').toLowerCase()
+      const hay = `${nama} ${sku} ${bc}`
+      const singleMatch =
+        nama.includes(raw) || sku === raw || bc === raw || hay.includes(raw)
+      const tokenMatch =
+        tokens.length > 1 &&
+        tokens.every((t) => hay.includes(t) || sku.includes(t) || bc.includes(t))
+      return singleMatch || tokenMatch
+    })
+  }, [filteredCards, nameSearch])
 
   const selectedProduct =
     filteredCards.find((card) => card.id === selectedProductId) ||
@@ -107,7 +126,49 @@ export default function MobileStockPage() {
         </div>
       </form>
 
-      <div className="grid grid-cols-2 gap-2">
+      <label className="block text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">
+        Cari nama produk
+      </label>
+      <input
+        value={nameSearch}
+        onChange={(e) => setNameSearch(e.target.value)}
+        placeholder="Ketik nama, SKU, atau barcode… Beberapa kata: kabel hdmi"
+        className="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900"
+      />
+      {nameSearch.trim() ? (
+        <div className="mt-2 max-h-44 space-y-1 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950/60">
+          {nameFilteredCards.length === 0 ? (
+            <p className="py-4 text-center text-xs text-slate-500">Tidak ada produk.</p>
+          ) : (
+            nameFilteredCards.slice(0, 50).map((card) => (
+              <button
+                key={card.id}
+                type="button"
+                onClick={() => {
+                  setSelectedProductId(card.id)
+                  setError('')
+                  setSerialHit(null)
+                  setMessage(
+                    `Memilih: ${card.nama || card.kode || card.id}`
+                  )
+                }}
+                className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-white dark:hover:bg-slate-900 ${
+                  selectedProductId === card.id ? 'bg-blue-50 ring-1 ring-blue-200 dark:bg-blue-950/40 dark:ring-blue-900' : ''
+                }`}
+              >
+                <span className="min-w-0 truncate font-medium">
+                  {card.nama || card.kode || card.id}
+                </span>
+                <span className="shrink-0 text-[11px] text-slate-500">
+                  stok {Number(card.qtyTotal || 0)}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      ) : null}
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
@@ -214,7 +275,13 @@ export default function MobileStockPage() {
       )}
 
       <div className="pb-2 text-center text-[11px] text-slate-400">
-        {loading ? 'Memuat data stok...' : `${filteredCards.length} item terdeteksi`}
+        {loading ? (
+          'Memuat data stok...'
+        ) : nameSearch.trim() ? (
+          `${nameFilteredCards.length} hasil nama`
+        ) : (
+          `${filteredCards.length} item (tampilan daftar sampai ketik nama)`
+        )}
       </div>
 
       <MobileBarcodeCameraScanner

@@ -6,6 +6,7 @@ import {
   Loader2,
   User,
   Calendar,
+  ClipboardList,
 } from 'lucide-react'
 import { db } from '../firebase/config'
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore'
@@ -24,6 +25,10 @@ import {
   POS_FULFILLMENT_OPTIONS,
   labelForPosFulfillmentId,
 } from '../constants/posFulfillmentModes'
+import {
+  useFloorOrdersAwaitingPayment,
+  markFloorOrderPaid,
+} from '../hooks/useFloorOrders'
 
 function parseIdDigits(s) {
   const d = String(s || '').replace(/\D/g, '')
@@ -102,6 +107,8 @@ export default function PosTerminal() {
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [customerModalOpen, setCustomerModalOpen] = useState(false)
   const [customerSaving, setCustomerSaving] = useState(false)
+  const [floorOrdersModalOpen, setFloorOrdersModalOpen] = useState(false)
+  const [activeFloorOrderId, setActiveFloorOrderId] = useState('')
   const [newCustomerForm, setNewCustomerForm] = useState({
     name: '',
     phone: '',
@@ -111,6 +118,8 @@ export default function PosTerminal() {
 
   const { settings: posSettings } = usePosWarehouseSettings(warehouseId)
   const { rows: nfcRows } = useNonCashPayments(warehouseId)
+  const { orders: floorAwaiting, loading: floorOrdersLoading } =
+    useFloorOrdersAwaitingPayment(warehouseId)
 
   const { openShift } = usePosShifts(warehouseId)
 
@@ -260,6 +269,14 @@ export default function PosTerminal() {
     })
   }, [products, categoryFilter, stockDocIdByPrimary, stockDocIdBySecondary])
 
+  const productById = useMemo(() => {
+    const m = {}
+    ;(products || []).forEach((p) => {
+      m[p.id] = p
+    })
+    return m
+  }, [products])
+
   const qtyByProduct = useMemo(() => {
     const m = {}
     cart.forEach((c) => {
@@ -368,6 +385,64 @@ export default function PosTerminal() {
       ])
     },
     [products, stockDocIdByPrimary, stockDocIdBySecondary]
+  )
+
+  const handleLoadFloorOrder = useCallback(
+    (order) => {
+      if (!order?.lines?.length) return
+      if (
+        !window.confirm(
+          'Kosongkan keranjang saat ini dan muat pesanan sales ini ke kasir?'
+        )
+      ) {
+        return
+      }
+      for (const line of order.lines) {
+        const pid = String(line.productId || '').trim()
+        if (!productById[pid]) {
+          setErr(`Produk tidak ditemukan di master data: ${pid}`)
+          return
+        }
+        const docPrimary = stockDocIdByPrimary[pid]
+        const docSecondary = stockDocIdBySecondary[pid]
+        if (!docPrimary && !docSecondary) {
+          setErr(
+            `Stok outlet tidak ada untuk: ${line.nama || pid}. Tambahkan stok di Inventori.`
+          )
+          return
+        }
+      }
+      const newLines = []
+      for (const line of order.lines) {
+        const pid = String(line.productId || '').trim()
+        const p = productById[pid]
+        const docPrimary = stockDocIdByPrimary[pid]
+        const docSecondary = stockDocIdBySecondary[pid]
+        const docDec = docPrimary || docSecondary
+        const harga = Number(p.hargaJual ?? p.harga_jual ?? 0) || 0
+        const sku = p.kode || p.sku || ''
+        const q = Math.max(1, Math.round(Number(line.qty) || 1))
+        for (let i = 0; i < q; i += 1) {
+          newLines.push({
+            lineId: randomId(),
+            productId: p.id,
+            sku,
+            nama: p.nama || sku,
+            harga,
+            serialNumber: null,
+            stockDocIdForDecrement: docDec,
+          })
+        }
+      }
+      setErr('')
+      setActiveFloorOrderId(order.id)
+      setCart(newLines)
+      setFloorOrdersModalOpen(false)
+      setMsg(
+        `Pesanan sales "${order.label}" (${order.number}) dimuat. Scan serial per unit lalu bayar.`
+      )
+    },
+    [productById, stockDocIdByPrimary, stockDocIdBySecondary]
   )
 
   const removeLine = (lineId) => {
@@ -643,6 +718,18 @@ export default function PosTerminal() {
               'id-ID'
             )}`
       )
+      if (activeFloorOrderId) {
+        try {
+          await markFloorOrderPaid(activeFloorOrderId, {
+            invoiceId: result.invoiceId,
+            invoiceNumber: result.number,
+          })
+        } catch (e) {
+          console.error(e)
+        } finally {
+          setActiveFloorOrderId('')
+        }
+      }
       setCart([])
       if (!selectedCustomerId) {
         setNewCustomerForm({ name: '', phone: '', email: '', address: '' })
@@ -751,6 +838,24 @@ export default function PosTerminal() {
           </form>
 
           <div className="ml-auto flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={!warehouseId}
+              onClick={() => {
+                setErr('')
+                setFloorOrdersModalOpen(true)
+              }}
+              className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-900/60 dark:bg-amber-950/50 dark:text-amber-100 dark:hover:bg-amber-950/80"
+              title="Pesanan dari sales (mobile)"
+            >
+              <ClipboardList className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">Pesanan sales</span>
+              {floorAwaiting.length > 0 ? (
+                <span className="rounded-full bg-amber-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {floorAwaiting.length}
+                </span>
+              ) : null}
+            </button>
             <span className="hidden md:inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               <Calendar className="h-4 w-4" aria-hidden />
               {todayLong}
@@ -1328,6 +1433,94 @@ export default function PosTerminal() {
           </span>
           <span>POS / serial &amp; SKU terlacak · {grandTotalDisplay > 0 ? `Total ± Rp ${grandTotalDisplay.toLocaleString('id-ID')}` : 'Belum ada item'}</span>
         </footer>
+
+        {floorOrdersModalOpen ? (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="floor-orders-title"
+          >
+            <div className="max-h-[85vh] w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+                <h2
+                  id="floor-orders-title"
+                  className="text-lg font-bold text-slate-900 dark:text-white"
+                >
+                  Pesanan sales (menunggu kasir)
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setFloorOrdersModalOpen(false)}
+                  className="rounded-lg border border-slate-200 px-3 py-1 text-sm dark:border-slate-600"
+                >
+                  Tutup
+                </button>
+              </div>
+              <div className="max-h-[60vh] overflow-y-auto p-4">
+                {floorOrdersLoading ? (
+                  <p className="text-center text-sm text-slate-500">Memuat…</p>
+                ) : floorAwaiting.length === 0 ? (
+                  <p className="text-center text-sm text-slate-500">
+                    Belum ada pesanan untuk outlet ini. Sales mengirim dari menu{' '}
+                    <strong>Order</strong> di aplikasi mobile.
+                  </p>
+                ) : (
+                  <ul className="space-y-3">
+                    {floorAwaiting.map((o) => {
+                      const lines = Array.isArray(o.lines) ? o.lines : []
+                      const units = lines.reduce(
+                        (s, l) => s + Math.max(1, Math.round(Number(l.qty) || 1)),
+                        0
+                      )
+                      return (
+                        <li
+                          key={o.id}
+                          className="rounded-xl border border-slate-200 p-3 dark:border-slate-700"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-semibold text-slate-900 dark:text-white">
+                                {o.label || 'Tanpa label'}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {o.number} · {units} unit ·{' '}
+                                {o.createdByEmail || o.createdByUid || 'Sales'}
+                              </p>
+                              {o.notes ? (
+                                <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                                  {o.notes}
+                                </p>
+                              ) : null}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleLoadFloorOrder(o)}
+                              className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+                            >
+                              Buka di kasir
+                            </button>
+                          </div>
+                          <ul className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs dark:border-slate-800">
+                            {lines.slice(0, 8).map((l, idx) => (
+                              <li key={`${o.id}:${idx}`} className="text-slate-600 dark:text-slate-300">
+                                ×{Math.max(1, Math.round(Number(l.qty) || 1))}{' '}
+                                {l.nama || l.productId}
+                              </li>
+                            ))}
+                            {lines.length > 8 ? (
+                              <li className="text-slate-400">…</li>
+                            ) : null}
+                          </ul>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {customerModalOpen ? (
           <div
