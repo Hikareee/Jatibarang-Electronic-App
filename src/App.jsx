@@ -76,6 +76,9 @@ import MobileStockPage from './pages/MobileStockPage'
 import MobileDeliveryPage from './pages/MobileDeliveryPage'
 import MobileDeliveryDetail from './pages/MobileDeliveryDetail'
 import MobileFloorOrderPage from './pages/MobileFloorOrderPage'
+import WarehouseAppLayout from './pages/WarehouseAppLayout'
+import WarehouseHubPage from './pages/WarehouseHubPage'
+import WarehouseWorkspacePage from './pages/WarehouseWorkspacePage'
 
 function PrivateRoute({ children }) {
   const { currentUser } = useAuth()
@@ -143,6 +146,20 @@ function AppRoutes() {
         <Route path="delivery/:invoiceId/:serialNumber" element={<MobileDeliveryDetail />} />
       </Route>
       <Route path="/mobile/ops" element={<Navigate to="/mobile/stock" replace />} />
+      <Route path="/mobile/warehouse" element={<Navigate to="/warehouse" replace />} />
+      <Route
+        path="/warehouse"
+        element={
+          <PrivateRoute>
+            <ApprovedRoute>
+              <WarehouseAppLayout />
+            </ApprovedRoute>
+          </PrivateRoute>
+        }
+      >
+        <Route index element={<WarehouseHubPage />} />
+        <Route path=":warehouseId" element={<WarehouseWorkspacePage />} />
+      </Route>
       <Route
         path="/inventori"
         element={

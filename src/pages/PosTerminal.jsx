@@ -78,7 +78,7 @@ export default function PosTerminal() {
   const [warehouseId, setWarehouseId] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('Semua')
 
-  /** @type {Array<{ lineId: string, productId: string, sku: string, nama: string, harga: number, serialNumber: string|null, stockDocIdForDecrement?: string }>} */
+  /** @type {Array<{ lineId: string, productId: string, sku: string, nama: string, harga: number, serialNumber: string|null, stockDocIdForDecrement?: string, fulfillmentMode?: string }>} */
   const [cart, setCart] = useState([])
   const [scanValue, setScanValue] = useState('')
   const [salespersonUid, setSalespersonUid] = useState('')
@@ -285,6 +285,26 @@ export default function PosTerminal() {
     return m
   }, [cart])
 
+  const stockSummaryByProductId = useMemo(() => {
+    const m = {}
+    stockRows.forEach((r) => {
+      const pid = String(r.productId || '').trim()
+      if (!pid) return
+      const q = Number(r.quantity) || 0
+      if (q <= 0) return
+      const wname =
+        warehouses.find((x) => x.id === r._posWarehouseId)?.name ||
+        r._posWarehouseId ||
+        'Lokasi'
+      if (!m[pid]) m[pid] = []
+      m[pid].push(`${wname} ${q}`)
+    })
+    Object.keys(m).forEach((pid) => {
+      m[pid] = m[pid].join(', ')
+    })
+    return m
+  }, [stockRows, warehouses])
+
   const subtotalCart = cart.reduce((s, l) => s + (l.harga || 0), 0)
   const orderDiscRaw =
     posSettings?.tambahanDiskonEnabled === true ? parseIdDigits(orderDiscountStr) : 0
@@ -381,18 +401,25 @@ export default function PosTerminal() {
           harga,
           serialNumber: null,
           stockDocIdForDecrement: docDec,
+          fulfillmentMode: posFulfillmentMode,
         },
       ])
     },
-    [products, stockDocIdByPrimary, stockDocIdBySecondary]
+    [products, stockDocIdByPrimary, stockDocIdBySecondary, posFulfillmentMode]
   )
+
+  const setLineFulfillment = useCallback((lineId, mode) => {
+    setCart((prev) =>
+      prev.map((l) => (l.lineId === lineId ? { ...l, fulfillmentMode: mode } : l))
+    )
+  }, [])
 
   const handleLoadFloorOrder = useCallback(
     (order) => {
       if (!order?.lines?.length) return
       if (
         !window.confirm(
-          'Kosongkan keranjang saat ini dan muat pesanan sales ini ke kasir?'
+          'Kosongkan keranjang saat ini dan muat pesanan sales ini?'
         )
       ) {
         return
@@ -422,6 +449,8 @@ export default function PosTerminal() {
         const harga = Number(p.hargaJual ?? p.harga_jual ?? 0) || 0
         const sku = p.kode || p.sku || ''
         const q = Math.max(1, Math.round(Number(line.qty) || 1))
+        const lineFulfillment =
+          String(line.fulfillmentMode || '').trim() || POS_FULFILLMENT_OPTIONS[0].id
         for (let i = 0; i < q; i += 1) {
           newLines.push({
             lineId: randomId(),
@@ -431,6 +460,7 @@ export default function PosTerminal() {
             harga,
             serialNumber: null,
             stockDocIdForDecrement: docDec,
+            fulfillmentMode: lineFulfillment,
           })
         }
       }
@@ -438,11 +468,29 @@ export default function PosTerminal() {
       setActiveFloorOrderId(order.id)
       setCart(newLines)
       setFloorOrdersModalOpen(false)
+
+      const custId = String(order.customerId || '').trim()
+      if (
+        custId &&
+        customerOptions.some((c) => c.id === custId)
+      ) {
+        setSelectedCustomerId(custId)
+      } else {
+        setSelectedCustomerId('')
+      }
+
+      const custLabel =
+        order.customerName || order.customerLabel || order.label || ''
       setMsg(
-        `Pesanan sales "${order.label}" (${order.number}) dimuat. Scan serial per unit lalu bayar.`
+        `Pesanan sales ${custLabel ? `"${custLabel}" ` : ''}(${order.number}) dimuat. Scan serial per unit lalu bayar.`
       )
     },
-    [productById, stockDocIdByPrimary, stockDocIdBySecondary]
+    [
+      productById,
+      stockDocIdByPrimary,
+      stockDocIdBySecondary,
+      customerOptions,
+    ]
   )
 
   const removeLine = (lineId) => {
@@ -684,6 +732,7 @@ export default function PosTerminal() {
           productId: l.productId,
           serialNumber: l.serialNumber,
           unitPrice: l.harga,
+          fulfillmentMode: l.fulfillmentMode || posFulfillmentMode,
           ...(l.stockDocIdForDecrement
             ? { stockDocIdForDecrement: l.stockDocIdForDecrement }
             : {}),
@@ -709,12 +758,23 @@ export default function PosTerminal() {
         customerPhone: selectedCustomerPhone,
         customerAddress: selectedCustomerAddress,
       })
+      const fulfillMsg =
+        cart.length > 0
+          ? [
+              ...new Set(
+                cart.map(
+                  (ln) =>
+                    labelForPosFulfillmentId(ln.fulfillmentMode || posFulfillmentMode)
+                )
+              ),
+            ].join(' · ')
+          : fulfillmentLabelActive
       setMsg(
         paymentMethod === 'pay_later'
-          ? `Tagihan ${result.number} tercatat (piutang) · jatuh tempo sesuai Tagihan · ${fulfillmentLabelActive} · Rp ${result.total?.toLocaleString(
+          ? `Tagihan ${result.number} tercatat (piutang) · jatuh tempo sesuai Tagihan · ${fulfillMsg} · Rp ${result.total?.toLocaleString(
               'id-ID'
             )}`
-          : `Berhasil ${result.number} · ${fulfillmentLabelActive} · Total Rp ${result.total?.toLocaleString(
+          : `Berhasil ${result.number} · ${fulfillMsg} · Total Rp ${result.total?.toLocaleString(
               'id-ID'
             )}`
       )
@@ -1091,6 +1151,29 @@ export default function PosTerminal() {
                                   {line.serialNumber || '(scan…)'}
                                 </span>
                               </div>
+                              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                Lokasi stok POS:{' '}
+                                <span className="font-medium text-slate-700 dark:text-slate-300">
+                                  {stockSummaryByProductId[line.productId] ||
+                                    '— outlet / lokasi kedua'}
+                                </span>
+                              </p>
+                              <label className="mt-2 block text-[10px] font-semibold uppercase text-slate-500">
+                                Cara pengambilan baris ini
+                              </label>
+                              <select
+                                value={line.fulfillmentMode || posFulfillmentMode}
+                                onChange={(e) =>
+                                  setLineFulfillment(line.lineId, e.target.value)
+                                }
+                                className="mt-1 w-full max-w-xs rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-950"
+                              >
+                                {POS_FULFILLMENT_OPTIONS.map((opt) => (
+                                  <option key={opt.id} value={opt.id}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                             <button
                               type="button"
@@ -1447,7 +1530,7 @@ export default function PosTerminal() {
                   id="floor-orders-title"
                   className="text-lg font-bold text-slate-900 dark:text-white"
                 >
-                  Pesanan sales (menunggu kasir)
+                  Pesanan sales (menunggu pembayaran)
                 </h2>
                 <button
                   type="button"
@@ -1463,7 +1546,7 @@ export default function PosTerminal() {
                 ) : floorAwaiting.length === 0 ? (
                   <p className="text-center text-sm text-slate-500">
                     Belum ada pesanan untuk outlet ini. Sales mengirim dari menu{' '}
-                    <strong>Order</strong> di aplikasi mobile.
+                    <strong>Pesan</strong> di aplikasi mobile.
                   </p>
                 ) : (
                   <ul className="space-y-3">
@@ -1481,7 +1564,10 @@ export default function PosTerminal() {
                           <div className="flex items-start justify-between gap-2">
                             <div>
                               <p className="font-semibold text-slate-900 dark:text-white">
-                                {o.label || 'Tanpa label'}
+                                {o.customerName ||
+                                  o.customerLabel ||
+                                  o.label ||
+                                  'Pelanggan'}
                               </p>
                               <p className="text-xs text-slate-500">
                                 {o.number} · {units} unit ·{' '}
@@ -1498,7 +1584,7 @@ export default function PosTerminal() {
                               onClick={() => handleLoadFloorOrder(o)}
                               className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
                             >
-                              Buka di kasir
+                              Muat ke keranjang
                             </button>
                           </div>
                           <ul className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs dark:border-slate-800">
@@ -1506,6 +1592,13 @@ export default function PosTerminal() {
                               <li key={`${o.id}:${idx}`} className="text-slate-600 dark:text-slate-300">
                                 ×{Math.max(1, Math.round(Number(l.qty) || 1))}{' '}
                                 {l.nama || l.productId}
+                                {l.fulfillmentMode ? (
+                                  <span className="ml-1 text-[10px] text-blue-700 dark:text-blue-400">
+                                    (
+                                    {labelForPosFulfillmentId(l.fulfillmentMode)}
+                                    )
+                                  </span>
+                                ) : null}
                               </li>
                             ))}
                             {lines.length > 8 ? (

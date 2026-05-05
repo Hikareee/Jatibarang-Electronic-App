@@ -1,5 +1,6 @@
 import { runTransaction, doc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { labelForPosFulfillmentId } from '../constants/posFulfillmentModes'
 import { getNextInvoiceNumber } from './useInvoiceData'
 import { normalizeSerialId } from '../utils/itemSerials'
 import { updateAccountBalance } from '../utils/accountBalance'
@@ -21,7 +22,6 @@ function addDaysIso(iso, days) {
  * @param {Array<{ productId: string, serialNumber: string, unitPrice?: number, lineDiscountRp?: number, stockDocIdForDecrement?: string }>} params.lines
  * @param {object} params.stockDocIdByProductId - map productId → doc id pada **warehouseId** utama (fallback jika line tanpa doc)
  * @param {string} [params.fulfillmentMode] - id POS_FULFILLMENT_OPTIONS (mis. pickup_store, wrap, delivery, booking)
- * @param {string} [params.fulfillmentLabel] - label tampilan bahasa Indonesia
  * @param {number} [params.payLaterDueDays] - hari jatuh tempo dari transaksi jika paymentMethod pay_later (default 30)
  * @param {string} [params.customerId] - id kontak pelanggan (kosong untuk walk-in)
  * @param {string} [params.customerName] - nama pelanggan tampilan POS
@@ -47,7 +47,6 @@ export async function commitPosSale(params) {
     productById,
     stockDocIdByProductId,
     fulfillmentMode: fulfillmentModeParam,
-    fulfillmentLabel: fulfillmentLabelParam,
     payLaterDueDays: payLaterDueDaysParam,
     customerId: customerIdParam,
     customerName: customerNameParam,
@@ -61,11 +60,26 @@ export async function commitPosSale(params) {
       .replace(/[^a-z0-9_-]/gi, '')
       .slice(0, 32) || ''
   const fulfillmentMode = sanitizedMode || 'pickup_store'
-  const fulfillmentLabel =
-    String(fulfillmentLabelParam || 'Ambil di Toko').trim().slice(0, 80) ||
-    'Ambil di Toko'
-  const fulfillSuffix = fulfillmentLabel ? ` — ${fulfillmentLabel}` : ''
-  const isDelivery = fulfillmentMode === 'delivery'
+  /** Per-line mode when set on cart rows; fallback to cashier global mode. */
+  const lineFulfillmentModes = lines.map((ln) => {
+    const fromLine =
+      String(ln?.fulfillmentMode || '')
+        .trim()
+        .replace(/[^a-z0-9_-]/gi, '')
+        .slice(0, 32) || ''
+    return fromLine || fulfillmentMode
+  })
+  const anyLineDelivery = lineFulfillmentModes.some((m) => m === 'delivery')
+  const invoiceHeaderFulfillmentMode =
+    lineFulfillmentModes.length &&
+    lineFulfillmentModes.every((m) => m === lineFulfillmentModes[0])
+      ? lineFulfillmentModes[0]
+      : 'mixed'
+  const invoiceHeaderFulfillmentLabel =
+    invoiceHeaderFulfillmentMode === 'mixed'
+      ? [...new Set(lineFulfillmentModes.map((m) => labelForPosFulfillmentId(m)))].join(' · ')
+      : labelForPosFulfillmentId(invoiceHeaderFulfillmentMode)
+  const fulfillSuffix = invoiceHeaderFulfillmentLabel ? ` — ${invoiceHeaderFulfillmentLabel}` : ''
   const customerId = String(customerIdParam || '').trim()
   const customerName = String(customerNameParam || '').trim() || 'POS Walk-in'
   const customerPhone = String(customerPhoneParam || '').trim()
@@ -129,6 +143,8 @@ export async function commitPosSale(params) {
 
     // Validate serials and build items
     lines.forEach((line, idx) => {
+      const lineFm = lineFulfillmentModes[idx] || fulfillmentMode
+      const lineIsDelivery = lineFm === 'delivery'
       const pid = line.productId
       const norm = normalizeSerialId(line.serialNumber)
       if (!norm) throw new Error('Nomor serial tidak valid')
@@ -182,8 +198,10 @@ export async function commitPosSale(params) {
         tax: 0,
         description: p.deskripsi || '',
         spek: '-',
-        deliveryStatus: isDelivery ? 'awaiting_dispatch' : '',
-        deliveryStatusLabel: isDelivery ? 'Menunggu dispatch' : '',
+        deliveryStatus: lineIsDelivery ? 'awaiting_dispatch' : '',
+        deliveryStatusLabel: lineIsDelivery ? 'Menunggu dispatch' : '',
+        posLineFulfillmentMode: lineFm,
+        posLineFulfillmentLabel: labelForPosFulfillmentId(lineFm),
       })
     })
 
@@ -247,6 +265,8 @@ export async function commitPosSale(params) {
       isCashMethod ? 'cash' : isPayLater ? 'pay_later' : pmNorm
 
     serialRefs.forEach((serialRef, idx) => {
+      const lineFm = lineFulfillmentModes[idx] || fulfillmentMode
+      const lineIsDelivery = lineFm === 'delivery'
       transaction.update(serialRef, {
         status: 'sold',
         lastMovementType: 'pos_sale',
@@ -255,7 +275,7 @@ export async function commitPosSale(params) {
         updatedAt: nowIso,
         salespersonUid: salespersonUid || '',
         salespersonName: salespersonName || '',
-        ...(isDelivery
+        ...(lineIsDelivery
           ? {
               deliveryEnabled: true,
               deliveryInvoiceId: invoiceRef.id,
@@ -286,6 +306,8 @@ export async function commitPosSale(params) {
 
     /** @type Map<string, number> key warehouseId:::stockDocId */
     const decrementMap = new Map()
+    /** @type Map<string, { sourceWarehouseId: string, destinationWarehouseId: string, items: Array<{productId: string, productName: string, sku: string, serialNumber: string, qty: number}> }> */
+    const doBySourceWarehouse = new Map()
     lines.forEach((line, idx) => {
       const pid = line.productId
       const sd = serialSnaps[idx].data()
@@ -300,6 +322,29 @@ export async function commitPosSale(params) {
       }
       const mapKey = `${wid}:::${docId}`
       decrementMap.set(mapKey, (decrementMap.get(mapKey) || 0) + 1)
+
+      const lineFm = lineFulfillmentModes[idx] || fulfillmentMode
+      const lineIsDelivery = lineFm === 'delivery'
+      // Auto-DO only for "send to store" cases (sold in POS, sourced from other warehouse, not customer delivery line).
+      if (!lineIsDelivery && String(wid || '') && String(wid) !== String(warehouseId)) {
+        const p = productById[pid] || {}
+        const serialNumber = normalizeSerialId(line.serialNumber)
+        const srcKey = String(wid)
+        const cur =
+          doBySourceWarehouse.get(srcKey) || {
+            sourceWarehouseId: srcKey,
+            destinationWarehouseId: String(warehouseId),
+            items: [],
+          }
+        cur.items.push({
+          productId: String(pid || ''),
+          productName: String(p.nama || p.name || pid || ''),
+          sku: String(p.kode || p.sku || ''),
+          serialNumber,
+          qty: 1,
+        })
+        doBySourceWarehouse.set(srcKey, cur)
+      }
     })
 
     const uniqueOps = Array.from(decrementMap.entries()).map(([key, qty]) => {
@@ -344,10 +389,14 @@ export async function commitPosSale(params) {
       isCashSale: isCash,
       partialPaymentReceivedRp: allowPartialCash && invoiceRemainingAmt > 0 ? amountAppliedToBill : null,
       posEligibleWarehouseIds: eligibleWarehouseIds,
-      posFulfillmentMode: fulfillmentMode,
-      posFulfillmentLabel: fulfillmentLabel,
-      deliveryStatus: isDelivery ? 'awaiting_dispatch' : '',
-      deliveryStatusLabel: isDelivery ? 'Menunggu dispatch' : '',
+      posFulfillmentMode: invoiceHeaderFulfillmentMode,
+      posFulfillmentLabel: invoiceHeaderFulfillmentLabel,
+      deliveryStatus: anyLineDelivery ? 'awaiting_dispatch' : '',
+      deliveryStatusLabel: anyLineDelivery
+        ? lineFulfillmentModes.every((m) => m === 'delivery')
+          ? 'Menunggu dispatch'
+          : 'Campuran pengantaran — lihat per baris'
+        : '',
       transactionDate: nowIso.split('T')[0],
       dueDate: invoiceRemainingAmt > 0 ? dueIsoForRemainder : nowIso.split('T')[0],
       items: invoiceItems,
@@ -406,8 +455,8 @@ export async function commitPosSale(params) {
       vatRatePercent,
       ppnAmount,
       taxLabel,
-      posFulfillmentMode: fulfillmentMode,
-      posFulfillmentLabel: fulfillmentLabel,
+      posFulfillmentMode: invoiceHeaderFulfillmentMode,
+      posFulfillmentLabel: invoiceHeaderFulfillmentLabel,
       createdAt: nowIso,
       updatedAt: nowIso,
       ...(isCash
@@ -444,6 +493,44 @@ export async function commitPosSale(params) {
         updatedAt: nowIso,
       })
     }
+
+    // Create warehouse DO requests for items that must be sent from non-store warehouse to outlet.
+    Array.from(doBySourceWarehouse.values()).forEach((row) => {
+      if (!row.items.length) return
+      const doRef = doc(collection(db, 'warehouseTransferOrders'))
+      const grouped = new Map()
+      row.items.forEach((it) => {
+        const key = `${it.productId}:::${it.serialNumber}`
+        const prev = grouped.get(key)
+        if (prev) {
+          prev.qty += 1
+        } else {
+          grouped.set(key, { ...it })
+        }
+      })
+      const items = Array.from(grouped.values())
+      transaction.set(doRef, {
+        number: `DO-${Date.now().toString(36).toUpperCase()}`,
+        status: 'pending',
+        statusLabel: 'Menunggu proses gudang',
+        sourceWarehouseId: row.sourceWarehouseId,
+        destinationWarehouseId: row.destinationWarehouseId,
+        sourceType: 'pos_sale',
+        sourceRef: {
+          collection: 'invoices',
+          id: invoiceRef.id,
+          number,
+        },
+        customerName: customerName || '',
+        requestedByUid: cashierUid || salespersonUid || '',
+        requestedByName: salespersonName || '',
+        requestReason: 'POS sale item sourced from warehouse (outlet stock unavailable).',
+        items,
+        itemCount: items.length,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      })
+    })
 
     return {
       invoiceId: invoiceRef.id,

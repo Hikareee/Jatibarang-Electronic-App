@@ -19,24 +19,34 @@ export const FLOOR_ORDER_STATUS = {
 }
 
 /**
- * Create a "restaurant style" order placed by floor sales — cashier completes payment in POS.
- * @param {{ warehouseId: string, label: string, notes?: string, lines: Array<{ productId: string, qty: number, nama?: string, hargaJual?: number }>, createdByUid: string, createdByEmail?: string }} payload
+ * Floor order placed by sales — cashier completes payment in POS.
+ * @param {{ warehouseId: string, notes?: string, customerId?: string, customerName: string, customerPhone?: string, customerAddress?: string, lines: Array<{ productId: string, qty: number, nama?: string, hargaJual?: number, fulfillmentMode?: string, fulfillmentLabel?: string }>, createdByUid: string, createdByEmail?: string }} payload
  */
 export async function createFloorOrder(payload) {
   const warehouseId = String(payload.warehouseId || '').trim()
   if (!warehouseId) throw new Error('Gudang wajib dipilih')
-  const label = String(payload.label || '').trim()
-  if (!label) throw new Error('Label meja / pelanggan wajib diisi')
+  const customerName = String(payload.customerName || '').trim()
+  if (!customerName) throw new Error('Pelanggan wajib diisi — pilih kontak atau isi nama')
+  const customerId = String(payload.customerId || '').trim()
   const lines = Array.isArray(payload.lines) ? payload.lines : []
   if (!lines.length) throw new Error('Tambahkan minimal satu item')
 
   const normalized = lines
-    .map((row) => ({
-      productId: String(row.productId || '').trim(),
-      qty: Math.max(1, Math.round(Number(row.qty) || 1)),
-      nama: String(row.nama || '').trim(),
-      hargaJual: Math.max(0, Number(row.hargaJual) || 0),
-    }))
+    .map((row) => {
+      const fulfillmentMode = String(row.fulfillmentMode || '')
+        .trim()
+        .replace(/[^a-z0-9_-]/gi, '')
+        .slice(0, 32)
+      const fulfillmentLabel = String(row.fulfillmentLabel || '').trim().slice(0, 80)
+      return {
+        productId: String(row.productId || '').trim(),
+        qty: Math.max(1, Math.round(Number(row.qty) || 1)),
+        nama: String(row.nama || '').trim(),
+        hargaJual: Math.max(0, Number(row.hargaJual) || 0),
+        ...(fulfillmentMode ? { fulfillmentMode } : {}),
+        ...(fulfillmentLabel ? { fulfillmentLabel } : {}),
+      }
+    })
     .filter((r) => r.productId)
 
   if (!normalized.length) throw new Error('Item tidak valid')
@@ -47,7 +57,10 @@ export async function createFloorOrder(payload) {
     number,
     status: FLOOR_ORDER_STATUS.AWAITING_PAYMENT,
     warehouseId,
-    label,
+    customerId: customerId || '',
+    customerName,
+    customerPhone: String(payload.customerPhone || '').trim(),
+    customerAddress: String(payload.customerAddress || '').trim(),
     notes: String(payload.notes || '').trim(),
     lines: normalized,
     createdByUid: String(payload.createdByUid || '').trim(),

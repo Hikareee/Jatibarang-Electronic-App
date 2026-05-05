@@ -31,11 +31,12 @@ import {
   CalendarCheck,
   ClipboardList,
   Banknote,
-  ScanLine
+  ScanLine,
+  Boxes,
 } from 'lucide-react'
 
 /** Pinned at top — always reachable when the rest scrolls. */
-const PINNED_MAIN_PATHS = ['/dashboard', '/pos']
+const PINNED_MAIN_PATHS = ['/dashboard', '/pos', '/warehouse']
 
 /** @param {string} pathname
  * @param {{ path?: string, subItems?: Array<{path: string}> }} item */
@@ -46,6 +47,8 @@ function sidebarItemIsActive(pathname, item) {
     return pathname === '/pos' || pathname.startsWith('/pos/')
   if (item.path === '/mobile')
     return pathname === '/mobile' || pathname.startsWith('/mobile/')
+  if (item.path === '/warehouse')
+    return pathname === '/warehouse' || pathname.startsWith('/warehouse/')
   if (item.path === '/permintaan' && pathname.startsWith('/permintaan')) return true
   if (item.subItems?.some((sub) => pathname === sub.path)) return true
   return false
@@ -131,6 +134,7 @@ export default function Sidebar({ isOpen, onToggle }) {
           'ring-1 ring-emerald-400/35 bg-emerald-50/70 dark:bg-emerald-950/35 dark:ring-emerald-500/30',
       },
       { icon: ScanLine, label: 'Mobile Ops', path: '/mobile' },
+      { icon: Boxes, label: 'App Gudang', path: '/warehouse' },
       { icon: ClipboardList, label: 'Permintaan', path: '/permintaan' },
       { icon: Banknote, label: 'Uang Kas', path: '/uang-kas', adminOwnerOnly: true },
       {
