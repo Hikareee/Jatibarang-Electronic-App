@@ -252,6 +252,12 @@ export default function WarehouseWorkspacePage() {
                 <p className="font-semibold">
                   {row.number || row.id} · tujuan outlet {row.destinationWarehouseId || '-'}
                 </p>
+                {String(row.destinationType || '') === 'customer_delivery' ? (
+                  <p className="mt-0.5">
+                    Tujuan: Antar ke pelanggan {row.deliveryCustomerName || row.customerName || '-'} ·{' '}
+                    {row.deliveryAddress || '-'}
+                  </p>
+                ) : null}
                 <p className="mt-0.5">
                   Dari transaksi {row?.sourceRef?.number || '-'} · {row.itemCount || 0} item
                 </p>

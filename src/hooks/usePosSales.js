@@ -306,7 +306,7 @@ export async function commitPosSale(params) {
 
     /** @type Map<string, number> key warehouseId:::stockDocId */
     const decrementMap = new Map()
-    /** @type Map<string, { sourceWarehouseId: string, destinationWarehouseId: string, items: Array<{productId: string, productName: string, sku: string, serialNumber: string, qty: number}> }> */
+    /** @type Map<string, { sourceWarehouseId: string, destinationWarehouseId: string, destinationType: string, deliveryCustomerName: string, deliveryCustomerPhone: string, deliveryAddress: string, items: Array<{productId: string, productName: string, sku: string, serialNumber: string, qty: number}> }> */
     const doBySourceWarehouse = new Map()
     lines.forEach((line, idx) => {
       const pid = line.productId
@@ -325,15 +325,22 @@ export async function commitPosSale(params) {
 
       const lineFm = lineFulfillmentModes[idx] || fulfillmentMode
       const lineIsDelivery = lineFm === 'delivery'
-      // Auto-DO only for "send to store" cases (sold in POS, sourced from other warehouse, not customer delivery line).
-      if (!lineIsDelivery && String(wid || '') && String(wid) !== String(warehouseId)) {
+      // Auto-DO is created only after checkout commit succeeds (inside this transaction).
+      // Rule: when POS sold from a non-store warehouse, warehouse must fulfill a DO
+      // either to store or directly to delivery address.
+      if (String(wid || '') && String(wid) !== String(warehouseId)) {
         const p = productById[pid] || {}
         const serialNumber = normalizeSerialId(line.serialNumber)
-        const srcKey = String(wid)
+        const destinationType = lineIsDelivery ? 'customer_delivery' : 'store_restock'
+        const srcKey = `${String(wid)}::${destinationType}`
         const cur =
           doBySourceWarehouse.get(srcKey) || {
-            sourceWarehouseId: srcKey,
+            sourceWarehouseId: String(wid),
             destinationWarehouseId: String(warehouseId),
+            destinationType,
+            deliveryCustomerName: lineIsDelivery ? customerName : '',
+            deliveryCustomerPhone: lineIsDelivery ? customerPhone : '',
+            deliveryAddress: lineIsDelivery ? customerAddress : '',
             items: [],
           }
         cur.items.push({
@@ -521,10 +528,17 @@ export async function commitPosSale(params) {
           id: invoiceRef.id,
           number,
         },
+        destinationType: row.destinationType || 'store_restock',
         customerName: customerName || '',
+        deliveryCustomerName: row.deliveryCustomerName || '',
+        deliveryCustomerPhone: row.deliveryCustomerPhone || '',
+        deliveryAddress: row.deliveryAddress || '',
         requestedByUid: cashierUid || salespersonUid || '',
         requestedByName: salespersonName || '',
-        requestReason: 'POS sale item sourced from warehouse (outlet stock unavailable).',
+        requestReason:
+          row.destinationType === 'customer_delivery'
+            ? 'POS checkout complete: item from warehouse must be delivered to customer address.'
+            : 'POS checkout complete: item from warehouse must be delivered to store/outlet.',
         items,
         itemCount: items.length,
         createdAt: nowIso,
