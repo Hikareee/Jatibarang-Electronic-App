@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { Fragment, useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Dashboard/Sidebar'
 import Header from '../components/Dashboard/Header'
@@ -387,9 +387,9 @@ export default function GudangDetail() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {stockRowsDetailed.map((row, index) => [
+                      {stockRowsDetailed.map((row, index) => (
+                        <Fragment key={row.id}>
                           <tr
-                            key={`row:${row.id}`}
                             className={`bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
                               row.productId ? 'cursor-pointer' : ''
                             }`}
@@ -430,8 +430,8 @@ export default function GudangDetail() {
                               {row.unit || '-'}
                             </td>
                           </tr>
-                          expandedStockRowId === row.id && row.productId ? (
-                            <tr key={`serials:${row.id}`} className="bg-slate-50 dark:bg-slate-900/40">
+                          {expandedStockRowId === row.id && row.productId ? (
+                            <tr className="bg-slate-50 dark:bg-slate-900/40">
                               <td colSpan={8} className="px-6 py-3">
                                 <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">
                                   Individual products (Serial number as ID)
@@ -460,8 +460,9 @@ export default function GudangDetail() {
                                 )}
                               </td>
                             </tr>
-                          ) : null,
-                      ])}
+                          ) : null}
+                        </Fragment>
+                      ))}
                     </tbody>
                   </table>
                 </div>
