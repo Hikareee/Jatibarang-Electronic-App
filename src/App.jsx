@@ -69,6 +69,7 @@ import PosSettingsGantiPIN from './pages/pos-settings/PosSettingsGantiPIN'
 import PosSettingsResetPIN from './pages/pos-settings/PosSettingsResetPIN'
 import ApprovedRoute from './components/ApprovedRoute'
 import AdminOwnerRoute from './components/AdminOwnerRoute'
+import AdminRoute from './components/AdminRoute'
 import ManagerRoute from './components/ManagerRoute'
 import OwnerRoute from './components/OwnerRoute'
 import MobileAppLayout from './pages/MobileAppLayout'
@@ -354,9 +355,9 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <ApprovedRoute>
-              <ManagerRoute>
+              <AdminRoute>
                 <ProductAdd />
-              </ManagerRoute>
+              </AdminRoute>
             </ApprovedRoute>
           </PrivateRoute>
         }

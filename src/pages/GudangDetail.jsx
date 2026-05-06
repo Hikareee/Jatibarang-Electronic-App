@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Dashboard/Sidebar'
 import Header from '../components/Dashboard/Header'
@@ -30,6 +30,8 @@ export default function GudangDetail() {
   const [showTambahStock, setShowTambahStock] = useState(false)
   const [savingStock, setSavingStock] = useState(false)
   const [serialScannerOpen, setSerialScannerOpen] = useState(false)
+  const [serialRows, setSerialRows] = useState([])
+  const [expandedStockRowId, setExpandedStockRowId] = useState('')
   const [stockForm, setStockForm] = useState({
     source: 'list', // 'list' | 'manual'
     productId: '',
@@ -39,6 +41,49 @@ export default function GudangDetail() {
     serialLines: ''
   })
   const { products, loading: productsLoading } = useProducts()
+
+  const productById = useMemo(() => {
+    const m = {}
+    ;(products || []).forEach((p) => {
+      m[p.id] = p
+    })
+    return m
+  }, [products])
+
+  const stockRowsDetailed = useMemo(() => {
+    return (stock || []).map((row) => {
+      const pid = String(row.productId || '').trim()
+      const p = pid ? productById[pid] : null
+      return {
+        ...row,
+        displayName:
+          p?.nama || row.productName || row.nama || row.name || pid || '-',
+        displaySku: p?.kode || p?.sku || row.sku || '-',
+        displayBarcode: p?.barcode || row.barcode || '-',
+        displayCategory: p?.kategori || row.kategori || '-',
+        displayBrand: p?.merek || p?.brand || row.merek || row.brand || '-',
+      }
+    })
+  }, [productById, stock])
+
+  const serialsByProductId = useMemo(() => {
+    const m = {}
+    ;(serialRows || []).forEach((s) => {
+      const pid = String(s.productId || '').trim()
+      if (!pid) return
+      if (!m[pid]) m[pid] = []
+      m[pid].push(s)
+    })
+    Object.keys(m).forEach((pid) => {
+      m[pid].sort((a, b) =>
+        String(a.serialNumber || a.id || '').localeCompare(
+          String(b.serialNumber || b.id || ''),
+          'id'
+        )
+      )
+    })
+    return m
+  }, [serialRows])
 
   useEffect(() => {
     if (!id) return
@@ -56,9 +101,21 @@ export default function GudangDetail() {
         setWarehouse({ id: whSnap.id, ...whSnap.data() })
 
         const stockRef = collection(db, 'warehouses', id, 'stock')
-        const stockSnap = await getDocs(stockRef)
-        const stockList = stockSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        const serialRef = collection(db, 'itemSerials')
+        const [stockSnap, serialSnap] = await Promise.all([
+          getDocs(stockRef),
+          getDocs(serialRef),
+        ])
+        const stockList = stockSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        const serialList = serialSnap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter(
+            (s) =>
+              String(s.warehouseId || '').trim() === String(id || '').trim() &&
+              String(s.status || '').trim() === 'in_stock'
+          )
         setStock(stockList)
+        setSerialRows(serialList)
       } catch (err) {
         console.error('Error fetching warehouse:', err)
         setError('Gagal memuat data gudang')
@@ -294,7 +351,7 @@ export default function GudangDetail() {
                   Stok di gudang ini
                 </h2>
               </div>
-              {stock.length === 0 ? (
+              {stockRowsDetailed.length === 0 ? (
                 <div className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                   Belum ada stok. Klik &quot;Tambah Stok&quot; untuk menambah produk dari daftar Produk atau isi nama produk secara manual.
                 </div>
@@ -310,6 +367,18 @@ export default function GudangDetail() {
                           Nama Produk
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          SKU
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Barcode
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Kategori
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Merek
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Kuantitas
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -318,22 +387,81 @@ export default function GudangDetail() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {stock.map((row, index) => (
-                        <tr key={row.id} className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                          <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                            {index + 1}
-                          </td>
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                            {row.productName || '-'}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                            {formatNumber(row.quantity)}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                            {row.unit || '-'}
-                          </td>
-                        </tr>
-                      ))}
+                      {stockRowsDetailed.map((row, index) => [
+                          <tr
+                            key={`row:${row.id}`}
+                            className={`bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
+                              row.productId ? 'cursor-pointer' : ''
+                            }`}
+                            onClick={() => {
+                              if (!row.productId) return
+                              setExpandedStockRowId((prev) =>
+                                prev === row.id ? '' : row.id
+                              )
+                            }}
+                            title={
+                              row.productId
+                                ? 'Klik untuk lihat serial individual'
+                                : ''
+                            }
+                          >
+                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                              {index + 1}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+                              {row.displayName}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                              {row.displaySku}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                              {row.displayBarcode}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                              {row.displayCategory}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                              {row.displayBrand}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                              {formatNumber(row.quantity)}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                              {row.unit || '-'}
+                            </td>
+                          </tr>
+                          expandedStockRowId === row.id && row.productId ? (
+                            <tr key={`serials:${row.id}`} className="bg-slate-50 dark:bg-slate-900/40">
+                              <td colSpan={8} className="px-6 py-3">
+                                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">
+                                  Individual products (Serial number as ID)
+                                </p>
+                                {(serialsByProductId[String(row.productId || '').trim()] || [])
+                                  .length === 0 ? (
+                                  <p className="text-xs text-slate-500">
+                                    Tidak ada serial in-stock untuk produk ini.
+                                  </p>
+                                ) : (
+                                  <div className="flex flex-wrap gap-2">
+                                    {(
+                                      serialsByProductId[
+                                        String(row.productId || '').trim()
+                                      ] || []
+                                    ).map((s) => (
+                                      <span
+                                        key={s.id}
+                                        className="rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-[11px] font-mono text-slate-700 dark:text-slate-200"
+                                        title={`Serial ID: ${s.id}`}
+                                      >
+                                        {s.serialNumber || s.id}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ) : null,
+                      ])}
                     </tbody>
                   </table>
                 </div>
@@ -475,15 +603,31 @@ export default function GudangDetail() {
                             type="button"
                             onClick={() => setSerialScannerOpen(true)}
                             className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
-                            title="Scan serial dengan kamera (barcode/QR)"
+                            title="Scan serial bulk dengan kamera (barcode/QR)"
                           >
                             <Camera className="h-4 w-4" />
-                            Scan serial
+                            Scan serial (bulk)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setStockForm((prev) => ({
+                                ...prev,
+                                serialLines: '',
+                                quantity: 1,
+                              }))
+                            }
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+                          >
+                            Reset serial
                           </button>
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             Terisi: {(stockForm.serialLines || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean).length}
                           </span>
                         </div>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+                          Mode bulk: kamera tetap terbuka setelah scan agar bisa scan serial berikutnya.
+                        </p>
                         <textarea
                           value={stockForm.serialLines}
                           onChange={(e) =>
@@ -524,10 +668,9 @@ export default function GudangDetail() {
         open={serialScannerOpen}
         onClose={() => setSerialScannerOpen(false)}
         title="Scan Serial"
-        hint="Arahkan kamera ke barcode atau QR serial."
+        hint="Arahkan kamera ke barcode/QR serial. Setelah terbaca, kamera tetap siap untuk scan berikutnya."
         onScan={(code) => {
           const raw = String(code || '').trim()
-          setSerialScannerOpen(false)
           if (!raw) return
           const normalized = normalizeSerialId(raw)
           if (!normalized) return
@@ -540,7 +683,15 @@ export default function GudangDetail() {
               .map(normalizeSerialId)
             if (existing.includes(normalized)) return prev
             const nextLines = (prev.serialLines ? `${prev.serialLines}\n` : '') + normalized
-            return { ...prev, serialLines: nextLines }
+            const nextCount = String(nextLines)
+              .split(/\r?\n/)
+              .map((s) => s.trim())
+              .filter(Boolean).length
+            return {
+              ...prev,
+              serialLines: nextLines,
+              quantity: nextCount,
+            }
           })
         }}
       />

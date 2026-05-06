@@ -124,6 +124,7 @@ export default function Inventori() {
       ])
 
       setShowAddWarehouse(false)
+      navigate(`/inventori/gudang/${docRef.id}`)
     } catch (err) {
       console.error('Error adding warehouse:', err)
       const msg = err?.message || String(err) || ''

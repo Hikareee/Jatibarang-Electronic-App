@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import Sidebar from '../components/Dashboard/Sidebar'
 import Header from '../components/Dashboard/Header'
@@ -19,12 +19,14 @@ import { getNextProductCode, saveProduct } from '../hooks/useProductsData'
 import { useContacts } from '../hooks/useContactsData'
 import FormattedNumberInput from '../components/FormattedNumberInput'
 import CameraScannerModal from '../components/Scanner/CameraScannerModal'
+import { useUserApproval } from '../hooks/useUserApproval'
 
 export default function ProductAdd() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { t } = useLanguage()
   const navigate = useNavigate()
   const { contacts, loading: contactsLoading } = useContacts()
+  const { role, loading: roleLoading } = useUserApproval()
   const [saving, setSaving] = useState(false)
   const skuUserEditedRef = useRef(false)
   const skuRef = useRef(null)
@@ -129,26 +131,38 @@ export default function ProductAdd() {
     }
   }
 
+  if (roleLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <p className="text-gray-600 dark:text-gray-400">Memuat...</p>
+      </div>
+    )
+  }
+
+  if (role !== 'admin') {
+    return <Navigate to="/produk" replace />
+  }
+
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         
         <main className="flex-1 overflow-y-auto p-3 sm:p-6">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto pb-24 sm:pb-6">
             {/* Breadcrumbs */}
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Beranda &gt; Produk &gt; Tambah
             </div>
 
             {/* Page Header */}
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                 Tambah Produk
               </h1>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
                   <HelpCircle className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                   <span className="text-gray-700 dark:text-gray-300">{t('guide')}</span>
@@ -471,7 +485,7 @@ export default function ProductAdd() {
               </div>
 
               {/* Save Button */}
-              <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="hidden sm:flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={handleSave}
                   disabled={saving}
@@ -484,6 +498,16 @@ export default function ProductAdd() {
             </div>
           </div>
         </main>
+        <div className="sm:hidden sticky bottom-0 border-t border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800/95 backdrop-blur px-3 py-3">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+          >
+            <Save className="h-5 w-5" />
+            <span>{saving ? 'Menyimpan...' : 'Simpan Produk'}</span>
+          </button>
+        </div>
         
         <Footer />
       </div>
